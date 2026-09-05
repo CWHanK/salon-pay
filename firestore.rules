@@ -43,14 +43,8 @@ service cloud.firestore {
       // 讀取：個人可讀取自己的身分資料；管理員可查閱全店已註冊清單以供綁定排班
       allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
 
-      // 建立：登入使用者僅能建立屬於自己的身分文件
-      allow create: if isAuthenticated() && request.auth.uid == userId;
-
-      // 更新：管理員可切換任何帳號角色；本人可更新自身身分（憑密鑰升級為管理員或自主降級為員工）
-      allow update: if isAdmin() || (
-        isAuthenticated() && 
-        request.auth.uid == userId
-      );
+      // 建立與更新：本人可建立與更新自身身分資料（含憑密鑰升級或自主降級）；管理員具備完整權限
+      allow create, update: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
 
       // 刪除：僅管理員可刪除帳號紀錄
       allow delete: if isAdmin();

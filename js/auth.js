@@ -325,9 +325,11 @@ async function upgradeSelfToAdmin() {
   }
 
   try {
-    await db.collection('salon_users').doc(currentUser.uid).update({
-      role: 'admin'
-    });
+    await db.collection('salon_users').doc(currentUser.uid).set({
+      role: 'admin',
+      email: currentUser.email || '',
+      updatedAt: new Date().toISOString()
+    }, { merge: true });
 
     currentUserRole = 'admin';
 
@@ -365,9 +367,11 @@ async function demoteSelfToStaff() {
   if (!confirm(confirmMsg)) return;
 
   try {
-    await db.collection('salon_users').doc(currentUser.uid).update({
-      role: 'staff'
-    });
+    await db.collection('salon_users').doc(currentUser.uid).set({
+      role: 'staff',
+      email: currentUser.email || '',
+      updatedAt: new Date().toISOString()
+    }, { merge: true });
 
     currentUserRole = 'staff';
 

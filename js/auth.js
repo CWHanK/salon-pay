@@ -244,17 +244,6 @@ function applyRolePermissions() {
     }
   }
 
-  // 員工設定頁卡片
-  const empName = document.getElementById('settings-employee-name');
-  const empEmail = document.getElementById('settings-employee-email');
-  const empCard = document.getElementById('settings-employee-card');
-  if (empCard) {
-    if (currentUserRole === 'staff') empCard.classList.remove('hidden');
-    else empCard.classList.add('hidden');
-  }
-  if (empName) empName.textContent = currentLinkedStaff ? currentLinkedStaff.name : `店內人員 (${displayAccount})`;
-  if (empEmail) empEmail.textContent = `登入帳號: ${displayAccount}`;
-
   // 管理員設定頁卡片
   const adminName = document.getElementById('settings-admin-name');
   const adminEmail = document.getElementById('settings-admin-email');
@@ -269,9 +258,7 @@ function applyRolePermissions() {
   // 桌面導覽列設定標籤文字
   const tabSettingsBtn = document.getElementById('tab-btn-settings');
   if (tabSettingsBtn) {
-    tabSettingsBtn.innerHTML = currentUserRole === 'staff'
-      ? '<i data-lucide="sliders" class="w-4 h-4"></i> 帳號設定'
-      : '<i data-lucide="sliders" class="w-4 h-4"></i> 服務項目與人員管理';
+    tabSettingsBtn.innerHTML = '<i data-lucide="sliders" class="w-4 h-4"></i> 服務項目與人員管理';
   }
 
   if (window.lucide) lucide.createIcons();

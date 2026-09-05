@@ -191,7 +191,7 @@
         <button onclick="switchTab('monthly')" id="tab-btn-monthly" class="admin-only-block tab-btn px-4 py-2 text-sm font-medium rounded-t-lg transition flex items-center gap-1.5 text-slate-600 hover:text-slate-900">
           <i data-lucide="calendar-check-2" class="w-4 h-4"></i> 月薪結算與月報表匯出
         </button>
-        <button onclick="switchTab('settings')" id="tab-btn-settings" class="tab-btn px-4 py-2 text-sm font-medium rounded-t-lg transition flex items-center gap-1.5 text-slate-600 hover:text-slate-900">
+        <button onclick="switchTab('settings')" id="tab-btn-settings" class="admin-only-block tab-btn px-4 py-2 text-sm font-medium rounded-t-lg transition flex items-center gap-1.5 text-slate-600 hover:text-slate-900">
           <i data-lucide="sliders" class="w-4 h-4"></i> 服務項目與人員管理
         </button>
       </nav>
@@ -513,48 +513,8 @@
 
     </section>
 
-    <!-- ==================== 分頁 4：服務項目與員工設定 ==================== -->
-    <section id="tab-settings" class="space-y-4 hidden">
-
-      <!-- 員工模式專屬帳號資訊卡片 -->
-      <div id="settings-employee-card" class="hidden bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm p-4 sm:p-6 space-y-4">
-        <div class="flex items-center gap-3">
-          <div class="w-12 h-12 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold">
-            <i data-lucide="user" class="w-6 h-6 text-amber-700"></i>
-          </div>
-          <div>
-            <h3 class="text-sm font-black text-slate-900" id="settings-employee-name">店內員工</h3>
-            <p class="text-xs text-slate-500" id="settings-employee-email">帳號: -</p>
-          </div>
-        </div>
-        <div class="bg-slate-50 p-3 rounded-2xl border border-slate-200/70 text-xs text-slate-500 font-bold flex items-center gap-2">
-          <i data-lucide="shield-alert" class="w-4 h-4 text-slate-400 shrink-0"></i>
-          <span>權限不足</span>
-        </div>
-
-        <!-- 🔑 員工憑密鑰升級為管理員區塊 -->
-        <div class="bg-gradient-to-br from-amber-50 to-orange-50/50 p-4 rounded-2xl border border-amber-200/80 space-y-2.5">
-          <div class="flex items-center justify-between">
-            <h4 class="text-xs font-bold text-amber-900 flex items-center gap-1.5">
-              <i data-lucide="shield-alert" class="w-4 h-4 text-amber-600"></i> 管理員身分授權升級
-            </h4>
-            <span class="text-[10px] bg-amber-100/80 text-amber-800 border border-amber-300/60 px-2 py-0.5 rounded-full font-bold">主管密鑰解鎖</span>
-          </div>
-          <p class="text-[11px] text-amber-800/80 leading-relaxed">若您為沙龍負責人或合夥主管，請輸入店家管理員授權密鑰，核對成功後即可立即升級本帳號為管理員，解鎖後台項目與人員管理權限。</p>
-          
-          <form onsubmit="upgradeSelfToAdmin(); return false;" autocomplete="off" class="flex flex-col sm:flex-row gap-2 pt-1">
-            <div class="relative flex-1">
-              <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-amber-600/70">
-                <i data-lucide="key" class="w-3.5 h-3.5"></i>
-              </span>
-              <input type="password" id="upgrade-admin-key-input" name="admin-upgrade-secret" autocomplete="new-password" data-lpignore="true" data-1p-ignore="true" placeholder="請輸入管理員授權密鑰" class="w-full pl-8 pr-3 py-2 rounded-xl border border-amber-300 bg-white text-xs font-mono font-bold text-slate-900 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500">
-            </div>
-            <button type="submit" class="px-4 py-2 bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-sm transition whitespace-nowrap">
-              <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i> 驗證升級
-            </button>
-          </form>
-        </div>
-      </div>
+    <!-- ==================== 分頁 4：服務項目與員工設定 (管理員專屬) ==================== -->
+    <section id="tab-settings" class="admin-only-block space-y-4 hidden">
 
       <!-- 管理員身分卡片（管理員專屬，含降級為員工功能） -->
       <div id="settings-admin-card" class="admin-only-block bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm p-4 sm:p-6 space-y-3">
@@ -703,7 +663,7 @@
       <i data-lucide="calendar-check-2" class="w-5 h-5 mb-0.5"></i>
       <span class="text-[11px]">月薪結算</span>
     </button>
-    <button onclick="switchTab('settings')" id="dock-btn-settings" class="dock-item flex flex-col items-center justify-center p-1.5 text-slate-400 hover:text-amber-700 transition">
+    <button onclick="switchTab('settings')" id="dock-btn-settings" class="admin-only-block dock-item flex flex-col items-center justify-center p-1.5 text-slate-400 hover:text-amber-700 transition">
       <i data-lucide="sliders" class="w-5 h-5 mb-0.5"></i>
       <span class="text-[11px]">設定</span>
     </button>
@@ -897,14 +857,14 @@
   </div>
 
   <!-- 模組化業務邏輯 (Vanilla JS 架構) -->
-  <script src="js/constants.js?v=20260906_1"></script>
-  <script src="js/state.js?v=20260906_1"></script>
-  <script src="js/firebase.js?v=20260906_1"></script>
-  <script src="js/auth.js?v=20260906_1"></script>
-  <script src="js/billing.js?v=20260906_1"></script>
-  <script src="js/history.js?v=20260906_1"></script>
-  <script src="js/monthly.js?v=20260906_1"></script>
-  <script src="js/settings.js?v=20260906_1"></script>
-  <script src="js/main.js?v=20260906_1"></script>
+  <script src="js/constants.js?v=20260906_2"></script>
+  <script src="js/state.js?v=20260906_2"></script>
+  <script src="js/firebase.js?v=20260906_2"></script>
+  <script src="js/auth.js?v=20260906_2"></script>
+  <script src="js/billing.js?v=20260906_2"></script>
+  <script src="js/history.js?v=20260906_2"></script>
+  <script src="js/monthly.js?v=20260906_2"></script>
+  <script src="js/settings.js?v=20260906_2"></script>
+  <script src="js/main.js?v=20260906_2"></script>
 </body>
 </html>

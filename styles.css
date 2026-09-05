@@ -161,3 +161,17 @@ button:active {
     print-color-adjust: exact;
   }
 }
+
+/* 🔐 角色身分權限樣式（員工模式下徹底隱藏抽成比例與管理員設定） */
+body.role-staff .admin-only-block {
+  display: none !important;
+}
+body.role-staff .admin-only-cell {
+  display: none !important;
+}
+body.role-staff .admin-only-inline {
+  display: none !important;
+}
+body.role-admin .staff-only-block {
+  display: none !important;
+}

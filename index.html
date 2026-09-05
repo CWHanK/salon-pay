@@ -61,10 +61,10 @@
         <p class="text-xs text-slate-500">Google 雲端加密同步 ‧ 個人專屬營業後台</p>
       </div>
 
-      <!-- 登入表單 -->
+      <!-- 登入 / 註冊表單 -->
       <form id="login-form" onsubmit="handleAuthSubmit(event)" class="space-y-3.5">
         <div>
-          <label class="block text-xs font-bold text-slate-700 mb-1">管理員信箱 (Email)</label>
+          <label id="auth-email-label" class="block text-xs font-bold text-slate-700 mb-1">信箱 (Email)</label>
           <div class="relative">
             <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
               <i data-lucide="mail" class="w-4 h-4"></i>
@@ -81,6 +81,35 @@
             </span>
             <input type="password" id="auth-password" required minlength="6" placeholder="請輸入至少 6 碼密碼" class="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500">
           </div>
+        </div>
+
+        <!-- 註冊專用：身分選擇 -->
+        <div id="auth-role-container" class="hidden space-y-2 pt-1 border-t border-slate-100">
+          <label class="block text-xs font-bold text-slate-700">註冊身分 <span class="text-rose-500">*</span></label>
+          <div class="grid grid-cols-2 gap-2">
+            <label class="flex items-center justify-center gap-1.5 p-2 rounded-xl border border-slate-300 text-xs font-bold cursor-pointer text-slate-700 hover:bg-slate-50 transition" id="auth-role-staff-label">
+              <input type="radio" name="auth-reg-role" value="staff" checked onchange="onAuthRoleChange(this.value)" class="accent-amber-600">
+              <span>👤 一般員工</span>
+            </label>
+            <label class="flex items-center justify-center gap-1.5 p-2 rounded-xl border border-slate-300 text-xs font-bold cursor-pointer text-slate-700 hover:bg-slate-50 transition" id="auth-role-admin-label">
+              <input type="radio" name="auth-reg-role" value="admin" onchange="onAuthRoleChange(this.value)" class="accent-amber-600">
+              <span>👑 沙龍管理員</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- 註冊專用：管理員密鑰驗證框 -->
+        <div id="auth-secret-key-container" class="hidden space-y-1 bg-amber-50/80 p-3 rounded-2xl border border-amber-200">
+          <label class="block text-xs font-bold text-amber-900">
+            管理員專屬密鑰 <span class="text-rose-500">*</span>
+          </label>
+          <div class="relative">
+            <span class="absolute inset-y-0 left-0 flex items-center pl-2.5 text-amber-600">
+              <i data-lucide="key" class="w-4 h-4"></i>
+            </span>
+            <input type="password" id="auth-admin-key" placeholder="請輸入管理員授權密鑰" class="w-full pl-8 pr-3 py-2 rounded-xl border border-amber-300 bg-white text-xs font-bold text-slate-900 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500">
+          </div>
+          <p class="text-[11px] text-amber-700/90 leading-tight">需輸入正確密鑰比對成功後方可具備全店管理員權限。</p>
         </div>
 
         <!-- 錯誤提示 -->
@@ -101,7 +130,7 @@
           初次使用？點此註冊新帳號
         </button>
         <button type="button" onclick="openCloudConfigModal()" class="text-slate-400 hover:text-slate-700 flex items-center gap-1">
-          <i data-lucide="key" class="w-3.5 h-3.5"></i> 金鑰設定
+          <i data-lucide="key" class="w-3.5 h-3.5"></i> Firebase 金鑰
         </button>
       </div>
 
@@ -180,17 +209,23 @@
           <i data-lucide="coins" class="w-24 h-24"></i>
         </div>
         <div class="flex items-center justify-between">
-          <span class="text-xs font-semibold text-amber-100 tracking-wider">🌟 這單設計師應得抽成</span>
+          <span id="summary-card-title" class="text-xs font-semibold text-amber-100 tracking-wider">🌟 這單設計師應得抽成</span>
           <span id="billing-order-no" class="text-[10px] font-mono bg-black/20 px-2 py-0.5 rounded-full text-amber-100">單號：自動產生</span>
         </div>
         
-        <div class="mt-1 flex items-baseline gap-1">
+        <div id="summary-card-commission-wrap" class="mt-1 flex items-baseline gap-1">
           <span class="text-lg font-light text-amber-200">NT$</span>
           <span class="text-4xl sm:text-5xl font-black font-numeric tracking-tight summary-commission-display">0</span>
         </div>
 
+        <!-- 員工模式專用：顯示這單顧客應付總額（不顯示抽成） -->
+        <div id="summary-card-staff-total-wrap" class="mt-1 hidden items-baseline gap-1">
+          <span class="text-lg font-light text-amber-200">NT$</span>
+          <span id="summary-card-staff-total" class="text-4xl sm:text-5xl font-black font-numeric tracking-tight">0</span>
+        </div>
+
         <div class="mt-2.5 pt-2.5 border-t border-white/15 flex items-center justify-between text-xs text-amber-100/90 font-medium">
-          <span>客單應付：NT$ <strong id="summary-card-total-amount" class="text-white font-bold font-numeric text-sm">0</strong></span>
+          <span id="summary-card-customer-pay-wrap">客單應付：NT$ <strong id="summary-card-total-amount" class="text-white font-bold font-numeric text-sm">0</strong></span>
           <span id="summary-card-items-count">0 項服務</span>
           <span id="summary-card-rate-text">平均抽成：0%</span>
         </div>
@@ -297,7 +332,7 @@
           <div>總計：<strong id="history-count" class="text-slate-900 font-bold text-sm">0</strong> 筆</div>
           <div class="flex gap-2">
             <span>業績：<strong id="history-total-revenue" class="text-slate-900 font-bold">NT$ 0</strong></span>
-            <span>抽成：<strong id="history-total-commission" class="text-amber-700 font-bold">NT$ 0</strong></span>
+            <span class="admin-only-inline">抽成：<strong id="history-total-commission" class="text-amber-700 font-bold">NT$ 0</strong></span>
           </div>
         </div>
       </div>
@@ -318,7 +353,7 @@
                 <th class="px-4 py-3">顧客</th>
                 <th class="px-4 py-3">服務項目</th>
                 <th class="px-4 py-3 text-right">實收金額</th>
-                <th class="px-4 py-3 text-right">抽成金額</th>
+                <th class="px-4 py-3 text-right admin-only-cell">抽成金額</th>
                 <th class="px-4 py-3 text-center">操作</th>
               </tr>
             </thead>
@@ -383,7 +418,7 @@
           <p class="text-[10px] text-slate-400 mt-0.5">總營業額合計</p>
         </div>
 
-        <div class="bg-white rounded-2xl border border-slate-200/80 p-3.5 shadow-sm">
+        <div id="monthly-card-commission" class="bg-white rounded-2xl border border-slate-200/80 p-3.5 shadow-sm admin-only-block">
           <p class="text-[11px] text-amber-800 font-medium">技術/產品抽成</p>
           <div class="mt-1 flex items-baseline gap-1">
             <span class="text-xs font-bold text-amber-600">NT$</span>
@@ -392,7 +427,7 @@
           <p class="text-[10px] text-amber-600/80 mt-0.5">應得抽成總計</p>
         </div>
 
-        <div class="bg-gradient-to-tr from-amber-500 to-orange-500 rounded-2xl p-3.5 text-white shadow-md shadow-amber-500/20">
+        <div id="monthly-card-netpay" class="bg-gradient-to-tr from-amber-500 to-orange-500 rounded-2xl p-3.5 text-white shadow-md shadow-amber-500/20 admin-only-block">
           <p class="text-[11px] text-amber-100 font-medium">✨ 預估實發薪資</p>
           <div class="mt-1 flex items-baseline gap-1">
             <span class="text-xs font-bold text-amber-200">NT$</span>
@@ -402,8 +437,8 @@
         </div>
       </div>
 
-      <!-- 薪資微調輸入器 -->
-      <div class="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm p-4 space-y-3">
+      <!-- 薪資微調輸入器 (管理員專屬) -->
+      <div id="monthly-salary-editor-box" class="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm p-4 space-y-3 admin-only-block">
         <h3 class="text-xs font-bold text-slate-900 flex items-center justify-between pb-2 border-b border-slate-100">
           <span>月薪結構微調（可直接修改）</span>
           <span class="text-[10px] text-slate-400">即時計算實發</span>
@@ -433,19 +468,67 @@
         </div>
       </div>
 
+      <!-- 當月客單服務明細清單 (管理員與員工皆可查閱本月完成的所有項目) -->
+      <div class="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm p-4 sm:p-6 space-y-3">
+        <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+          <div>
+            <h3 class="text-sm font-bold text-slate-900 flex items-center gap-1.5">
+              <i data-lucide="calendar-days" class="w-4 h-4 text-amber-600"></i> 當月客單服務明細
+            </h3>
+            <p class="text-[11px] text-slate-400">完整列出該月份承接之顧客、項目、實付金額與備註</p>
+          </div>
+          <span id="monthly-orders-count-badge" class="text-xs bg-amber-100 text-amber-800 font-bold px-2.5 py-1 rounded-xl">共 0 筆客單</span>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs text-slate-600">
+            <thead class="bg-slate-50 uppercase text-slate-500 font-semibold border-b border-slate-200">
+              <tr>
+                <th class="px-3 py-2.5 whitespace-nowrap">服務日期</th>
+                <th class="px-3 py-2.5 whitespace-nowrap">單號</th>
+                <th class="px-3 py-2.5 whitespace-nowrap">顧客</th>
+                <th class="px-3 py-2.5">服務項目 (含折數)</th>
+                <th class="px-3 py-2.5 text-right whitespace-nowrap">實收金額</th>
+                <th class="px-3 py-2.5 text-right whitespace-nowrap admin-only-cell">抽成金額</th>
+                <th class="px-3 py-2.5 whitespace-nowrap">備註</th>
+              </tr>
+            </thead>
+            <tbody id="monthly-table-body" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </div>
+
     </section>
 
     <!-- ==================== 分頁 4：服務項目與員工設定 ==================== -->
     <section id="tab-settings" class="space-y-4 hidden">
 
-      <!-- 員工管理（優先顯示） -->
-      <div class="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm p-4 sm:p-6 space-y-3">
+      <!-- 員工模式專屬帳號資訊卡片 -->
+      <div id="settings-employee-card" class="hidden bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm p-4 sm:p-6 space-y-3">
+        <div class="flex items-center gap-3">
+          <div class="w-12 h-12 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold text-lg">
+            👤
+          </div>
+          <div>
+            <h3 class="text-sm font-black text-slate-900" id="settings-employee-name">店內員工</h3>
+            <p class="text-xs text-slate-500" id="settings-employee-email">帳號: -</p>
+          </div>
+        </div>
+        <div class="bg-slate-50 p-3 rounded-2xl border border-slate-200/70 text-xs text-slate-600 space-y-1.5">
+          <div class="font-bold text-slate-800">📌 員工使用提示</div>
+          <p>您目前以員工身分登入，可隨時進行「現場開單」、查閱「歷史帳單」與「當月工作明細」。</p>
+          <p class="text-slate-400 text-[11px]">服務項目定價、抽成比例與薪資結構由沙龍管理員統一設定維護。</p>
+        </div>
+      </div>
+
+      <!-- 員工管理（管理員專屬） -->
+      <div id="settings-staff-box" class="admin-only-block bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm p-4 sm:p-6 space-y-3">
         <div class="flex items-center justify-between pb-2 border-b border-slate-100">
           <div>
             <h3 class="text-sm font-bold text-slate-900 flex items-center gap-1.5">
               <i data-lucide="users" class="w-4 h-4 text-amber-600"></i> 店內工作人員名單
             </h3>
-            <p class="text-[11px] text-slate-400">新增您的設計師或助理伙伴</p>
+            <p class="text-[11px] text-slate-400">新增設計師/助理，並可綁定已註冊之雲端帳號</p>
           </div>
           <button onclick="openStaffModal()" class="text-xs bg-amber-600 hover:bg-amber-700 text-white font-bold px-3 py-1.5 rounded-xl transition flex items-center gap-1">
             <i data-lucide="user-plus" class="w-3.5 h-3.5"></i> 新增人員
@@ -458,6 +541,7 @@
               <tr>
                 <th class="px-3 py-2">姓名</th>
                 <th class="px-3 py-2">職稱</th>
+                <th class="px-3 py-2">綁定帳號</th>
                 <th class="px-3 py-2 text-right">底薪</th>
                 <th class="px-3 py-2 text-center">操作</th>
               </tr>
@@ -467,8 +551,8 @@
         </div>
       </div>
 
-      <!-- 服務項目設定 -->
-      <div class="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm p-4 sm:p-6 space-y-3">
+      <!-- 服務項目設定（管理員專屬） -->
+      <div id="settings-services-box" class="admin-only-block bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm p-4 sm:p-6 space-y-3">
         <div class="flex items-center justify-between pb-2 border-b border-slate-100">
           <div>
             <h3 class="text-sm font-bold text-slate-900 flex items-center gap-1.5">
@@ -496,8 +580,19 @@
         </div>
       </div>
 
+      <!-- 管理員專屬：授權密鑰設定 -->
+      <div id="settings-admin-key-box" class="admin-only-block bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm p-4 space-y-2.5">
+        <div class="flex items-center justify-between">
+          <h3 class="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+            <i data-lucide="shield-check" class="w-4 h-4 text-amber-600"></i> 管理員註冊授權密鑰
+          </h3>
+          <button onclick="changeAdminSecretKey()" class="text-xs text-amber-700 hover:text-amber-800 font-bold">修改密鑰</button>
+        </div>
+        <p class="text-[11px] text-slate-400">其他新管理員在註冊時需輸入此密鑰方可取得管理權限：<strong id="settings-current-admin-key" class="text-slate-700 font-mono bg-slate-100 px-2 py-0.5 rounded">SALON888</strong></p>
+      </div>
+
       <!-- 備份與清空 -->
-      <div class="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm p-4 space-y-2.5">
+      <div id="settings-backup-box" class="admin-only-block bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm p-4 space-y-2.5">
         <h3 class="text-xs font-bold text-slate-900">雲端資料備份</h3>
         <div class="flex flex-wrap gap-2 text-xs">
           <button onclick="backupDataToJson()" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold flex items-center gap-1">
@@ -595,6 +690,13 @@
           <option value="助理">美髮助理 (Assistant)</option>
           <option value="店長/合夥人">店長 / 合夥人</option>
         </select>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 mb-1">綁定已註冊雲端帳號 (對應登入帳號)</label>
+        <select id="modal-staff-linked-user" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm bg-white">
+          <option value="">(未綁定 - 僅於本店本機排班)</option>
+        </select>
+        <p class="text-[11px] text-slate-400 mt-0.5">選擇員工註冊的信箱，對應後該員工登入即可查閱自己的當月工作明細</p>
       </div>
       <div class="grid grid-cols-2 gap-2.5">
         <div>

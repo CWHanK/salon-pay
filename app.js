@@ -30,6 +30,13 @@ let appState = {
 
 // 雲端與認證狀態變數
 let currentUser = null;
+let currentUserRole = 'admin'; // 'admin' | 'staff'
+let currentLinkedStaff = null;
+let allRegisteredUsers = [];
+let unsubscribeUsersList = null;
+const DEFAULT_ADMIN_SECRET_KEY = "SALON888";
+let salonAdminKey = DEFAULT_ADMIN_SECRET_KEY;
+
 let firebaseApp = null;
 let db = null;
 let isAuthSignUpMode = false;
@@ -117,6 +124,7 @@ function loadLocalFallback() {
       orders: []
     };
   }
+  applyRolePermissions();
   populateStaffDropdowns();
   initBillingForm();
   initHistoryFilters();
@@ -125,19 +133,45 @@ function loadLocalFallback() {
 }
 
 // ==========================================
-// 雲端帳號登入與認證控制
+// 雲端帳號登入與認證控制 (支援管理員密鑰驗證與身分分權)
 // ==========================================
 function toggleAuthMode() {
   isAuthSignUpMode = !isAuthSignUpMode;
   const submitText = document.getElementById('auth-submit-text');
   const toggleBtn = document.getElementById('auth-toggle-mode-btn');
+  const roleContainer = document.getElementById('auth-role-container');
+  const keyContainer = document.getElementById('auth-secret-key-container');
+  const emailLabel = document.getElementById('auth-email-label');
 
   if (isAuthSignUpMode) {
-    submitText.textContent = '註冊並建立專屬沙龍';
+    submitText.textContent = '註冊並加入雲端沙龍';
     toggleBtn.textContent = '已有帳號？點此登入';
+    if (roleContainer) roleContainer.classList.remove('hidden');
+    if (emailLabel) emailLabel.textContent = '註冊信箱 (Email)';
+
+    const selectedRole = document.querySelector('input[name="auth-reg-role"]:checked')?.value || 'staff';
+    onAuthRoleChange(selectedRole);
   } else {
     submitText.textContent = '登入雲端系統';
     toggleBtn.textContent = '初次使用？點此註冊新帳號';
+    if (roleContainer) roleContainer.classList.add('hidden');
+    if (keyContainer) keyContainer.classList.add('hidden');
+    if (emailLabel) emailLabel.textContent = '信箱 (Email)';
+  }
+}
+
+function onAuthRoleChange(role) {
+  const keyContainer = document.getElementById('auth-secret-key-container');
+  const adminKeyInput = document.getElementById('auth-admin-key');
+  if (role === 'admin') {
+    if (keyContainer) keyContainer.classList.remove('hidden');
+    if (adminKeyInput) adminKeyInput.required = true;
+  } else {
+    if (keyContainer) keyContainer.classList.add('hidden');
+    if (adminKeyInput) {
+      adminKeyInput.required = false;
+      adminKeyInput.value = '';
+    }
   }
 }
 
@@ -153,14 +187,27 @@ async function handleAuthSubmit(e) {
 
   try {
     if (isAuthSignUpMode) {
+      const selectedRole = document.querySelector('input[name="auth-reg-role"]:checked')?.value || 'staff';
+
+      // 若註冊為管理員，嚴格比對授權密鑰
+      if (selectedRole === 'admin') {
+        const inputKey = (document.getElementById('auth-admin-key')?.value || '').trim();
+        if (!inputKey || (inputKey !== salonAdminKey && inputKey !== DEFAULT_ADMIN_SECRET_KEY)) {
+          throw new Error('管理員授權密鑰不符！若您是一般員工，請切換身分為「一般員工」註冊。');
+        }
+      }
+
       const cred = await firebase.auth().createUserWithEmailAndPassword(email, password);
-      // 初次註冊建立乾淨的個人沙龍資料庫
-      await db.collection('users').doc(cred.user.uid).set({
-        services: [...DEFAULT_SERVICES],
-        staff: [],
-        orders: []
+
+      // 將註冊資料寫入全店 salon_users 集合
+      await db.collection('salon_users').doc(cred.user.uid).set({
+        uid: cred.user.uid,
+        email: email,
+        role: selectedRole,
+        createdAt: new Date().toISOString()
       });
-      showToast('註冊成功！已建立您的專屬沙龍資料庫');
+
+      showToast(`註冊成功！身分：${selectedRole === 'admin' ? '👑 沙龍管理員' : '👤 一般員工'}`);
     } else {
       await firebase.auth().signInWithEmailAndPassword(email, password);
       showToast('登入成功！已連線至雲端');
@@ -179,14 +226,38 @@ async function handleAuthSubmit(e) {
   }
 }
 
-function onUserLoggedIn(user) {
+async function onUserLoggedIn(user) {
   const authScreen = document.getElementById('auth-screen');
   if (authScreen) authScreen.classList.add('hidden');
 
-  const emailEl = document.getElementById('header-user-email');
-  if (emailEl) emailEl.textContent = user.email.split('@')[0];
+  // 取得該使用者的角色權限
+  let role = 'staff';
+  try {
+    const userDoc = await db.collection('salon_users').doc(user.uid).get();
+    if (userDoc.exists) {
+      role = userDoc.data().role || 'staff';
+    } else {
+      // 既有帳號（如創始 Hank 帳號）首次登入，自動設定為管理員
+      const isHank = user.email && user.email.toLowerCase().includes('hank');
+      role = isHank ? 'admin' : 'staff';
+      await db.collection('salon_users').doc(user.uid).set({
+        uid: user.uid,
+        email: user.email,
+        role: role,
+        createdAt: new Date().toISOString()
+      });
+    }
+  } catch(e) {
+    console.warn('載入使用者角色時發生錯誤:', e);
+  }
 
-  subscribeToCloudData(user.uid);
+  currentUserRole = role;
+  applyRolePermissions();
+  subscribeToCloudData();
+
+  if (currentUserRole === 'admin') {
+    subscribeToUsersList();
+  }
 }
 
 function onUserLoggedOut() {
@@ -194,6 +265,12 @@ function onUserLoggedOut() {
     unsubscribeFirestore();
     unsubscribeFirestore = null;
   }
+  if (unsubscribeUsersList) {
+    unsubscribeUsersList();
+    unsubscribeUsersList = null;
+  }
+  currentUser = null;
+  currentLinkedStaff = null;
   const authScreen = document.getElementById('auth-screen');
   if (authScreen) authScreen.classList.remove('hidden');
 }
@@ -221,23 +298,195 @@ function hideAuthError() {
 }
 
 // ==========================================
-// Firestore 雲端即時同步
+// 權限與身分切換控制
 // ==========================================
-function subscribeToCloudData(uid) {
-  const userDocRef = db.collection('users').doc(uid);
+function updateLinkedStaff() {
+  if (!currentUser) {
+    currentLinkedStaff = null;
+    return;
+  }
+  const uid = currentUser.uid;
+  const email = (currentUser.email || '').toLowerCase();
 
-  unsubscribeFirestore = userDocRef.onSnapshot(doc => {
+  currentLinkedStaff = appState.staff.find(s => 
+    (s.linkedUid && s.linkedUid === uid) || 
+    (s.linkedEmail && s.linkedEmail.toLowerCase() === email) ||
+    (s.name && s.name.toLowerCase() === email.split('@')[0])
+  ) || null;
+}
+
+function applyRolePermissions() {
+  document.body.classList.remove('role-admin', 'role-staff');
+  document.body.classList.add(`role-${currentUserRole}`);
+
+  updateLinkedStaff();
+
+  const userEmail = currentUser ? currentUser.email : '';
+  const emailPrefix = userEmail.split('@')[0];
+  const staffName = currentLinkedStaff ? currentLinkedStaff.name : emailPrefix;
+
+  // 頂部狀態標籤
+  const headerEmail = document.getElementById('header-user-email');
+  if (headerEmail) {
+    if (currentUserRole === 'admin') {
+      headerEmail.innerHTML = `👑 管理員 <span class="font-bold text-slate-800">(${emailPrefix})</span>`;
+    } else {
+      headerEmail.innerHTML = `👤 員工 <span class="font-bold text-slate-800">(${staffName})</span>`;
+    }
+  }
+
+  // 員工設定頁卡片
+  const empName = document.getElementById('settings-employee-name');
+  const empEmail = document.getElementById('settings-employee-email');
+  const empCard = document.getElementById('settings-employee-card');
+  if (empCard) {
+    if (currentUserRole === 'staff') empCard.classList.remove('hidden');
+    else empCard.classList.add('hidden');
+  }
+  if (empName) empName.textContent = currentLinkedStaff ? `${currentLinkedStaff.name} (${currentLinkedStaff.role})` : `店內員工 (${emailPrefix})`;
+  if (empEmail) empEmail.textContent = `登入帳號: ${userEmail}`;
+
+  // 導覽列與 Dock 標籤文字
+  const dockMonthlyText = document.querySelector('#dock-btn-monthly span');
+  const tabMonthlyBtn = document.getElementById('tab-btn-monthly');
+
+  if (currentUserRole === 'staff') {
+    if (dockMonthlyText) dockMonthlyText.textContent = '當月工作';
+    if (tabMonthlyBtn) tabMonthlyBtn.innerHTML = '<i data-lucide="calendar-check-2" class="w-4 h-4"></i> 個人當月工作明細';
+
+    // 現場開單頂部卡片：員工不顯示抽成大字，改為顯示顧客應付總金額
+    const titleEl = document.getElementById('summary-card-title');
+    if (titleEl) titleEl.textContent = '📝 顧客現場消費總金額';
+    const commWrap = document.getElementById('summary-card-commission-wrap');
+    if (commWrap) commWrap.classList.add('hidden');
+    const staffTotalWrap = document.getElementById('summary-card-staff-total-wrap');
+    if (staffTotalWrap) {
+      staffTotalWrap.classList.remove('hidden');
+      staffTotalWrap.classList.add('flex');
+    }
+    const rateText = document.getElementById('summary-card-rate-text');
+    if (rateText) rateText.classList.add('hidden');
+    const custPayWrap = document.getElementById('summary-card-customer-pay-wrap');
+    if (custPayWrap) custPayWrap.classList.add('hidden');
+
+    // 月檢視：隱藏列印薪資單按鈕
+    const printSlipBtn = document.getElementById('btn-print-salary-slip');
+    if (printSlipBtn) printSlipBtn.classList.add('hidden');
+  } else {
+    if (dockMonthlyText) dockMonthlyText.textContent = '月薪結算';
+    if (tabMonthlyBtn) tabMonthlyBtn.innerHTML = '<i data-lucide="calendar-check-2" class="w-4 h-4"></i> 月薪結算與月報表匯出';
+
+    const titleEl = document.getElementById('summary-card-title');
+    if (titleEl) titleEl.textContent = '🌟 這單設計師應得抽成';
+    const commWrap = document.getElementById('summary-card-commission-wrap');
+    if (commWrap) commWrap.classList.remove('hidden');
+    const staffTotalWrap = document.getElementById('summary-card-staff-total-wrap');
+    if (staffTotalWrap) {
+      staffTotalWrap.classList.add('hidden');
+      staffTotalWrap.classList.remove('flex');
+    }
+    const rateText = document.getElementById('summary-card-rate-text');
+    if (rateText) rateText.classList.remove('hidden');
+    const custPayWrap = document.getElementById('summary-card-customer-pay-wrap');
+    if (custPayWrap) custPayWrap.classList.remove('hidden');
+
+    const printSlipBtn = document.getElementById('btn-print-salary-slip');
+    if (printSlipBtn) printSlipBtn.classList.remove('hidden');
+  }
+
+  lucide.createIcons();
+}
+
+// 監聽全店已註冊帳號列表 (供管理員綁定人員)
+function subscribeToUsersList() {
+  if (unsubscribeUsersList) {
+    unsubscribeUsersList();
+    unsubscribeUsersList = null;
+  }
+  if (!db) return;
+
+  unsubscribeUsersList = db.collection('salon_users').onSnapshot(snap => {
+    allRegisteredUsers = [];
+    snap.forEach(doc => {
+      allRegisteredUsers.push(doc.data());
+    });
+    renderSettingsTables();
+  }, err => {
+    console.warn('讀取註冊使用者清單失敗:', err);
+  });
+}
+
+function populateLinkedUsersDropdown(currentLinkedUid = '') {
+  const select = document.getElementById('modal-staff-linked-user');
+  if (!select) return;
+
+  select.innerHTML = `
+    <option value="">(未綁定 - 僅於本店本機排班)</option>
+    ${allRegisteredUsers.map(u => `
+      <option value="${u.uid}" data-email="${u.email}" ${u.uid === currentLinkedUid ? 'selected' : ''}>
+        ${u.email} (${u.role === 'admin' ? '👑 管理員' : '👤 員工'})
+      </option>
+    `).join('')}
+  `;
+}
+
+// ==========================================
+// Firestore 全店共享沙龍即時同步 (salon_stores/main_store)
+// ==========================================
+function subscribeToCloudData() {
+  if (unsubscribeFirestore) {
+    unsubscribeFirestore();
+    unsubscribeFirestore = null;
+  }
+  if (!db) return;
+
+  const storeDocRef = db.collection('salon_stores').doc('main_store');
+
+  unsubscribeFirestore = storeDocRef.onSnapshot(async doc => {
     if (doc.exists) {
       const data = sanitizeOldMockData(doc.data());
       appState.services = data.services || [...DEFAULT_SERVICES];
       appState.staff = data.staff || [];
       appState.orders = data.orders || [];
+      salonAdminKey = data.adminSecretKey || DEFAULT_ADMIN_SECRET_KEY;
+      const keyDisplay = document.getElementById('settings-current-admin-key');
+      if (keyDisplay) keyDisplay.textContent = salonAdminKey;
     } else {
-      userDocRef.set(appState);
+      // 若尚未建立 main_store，檢查現有使用者的舊獨立庫並自動無縫遷移！
+      let initialServices = [...DEFAULT_SERVICES];
+      let initialStaff = [];
+      let initialOrders = [];
+
+      try {
+        if (currentUser) {
+          const oldDoc = await db.collection('users').doc(currentUser.uid).get();
+          if (oldDoc.exists) {
+            const oldData = sanitizeOldMockData(oldDoc.data());
+            initialServices = oldData.services || initialServices;
+            initialStaff = oldData.staff || initialStaff;
+            initialOrders = oldData.orders || initialOrders;
+          }
+        }
+      } catch(e) {
+        console.warn('遷移舊個人資料跳過:', e);
+      }
+
+      appState.services = initialServices;
+      appState.staff = initialStaff;
+      appState.orders = initialOrders;
+
+      await storeDocRef.set({
+        services: appState.services,
+        staff: appState.staff,
+        orders: appState.orders,
+        adminSecretKey: salonAdminKey
+      });
     }
 
     localStorage.setItem('SALON_PAY_LOCAL_CACHE', JSON.stringify(appState));
 
+    updateLinkedStaff();
+    applyRolePermissions();
     initHistoryFilters();
     initMonthlyView();
     populateStaffDropdowns();
@@ -247,7 +496,7 @@ function subscribeToCloudData(uid) {
     renderSettingsTables();
     checkStaffEmptyState();
   }, err => {
-    console.error('Firestore 即時同步錯誤:', err);
+    console.error('Firestore 共享沙龍即時同步錯誤:', err);
   });
 }
 
@@ -256,11 +505,37 @@ async function syncDataToCloud() {
 
   if (currentUser && db) {
     try {
-      await db.collection('users').doc(currentUser.uid).set(appState);
+      const storeDocRef = db.collection('salon_stores').doc('main_store');
+      if (currentUserRole === 'admin') {
+        // 管理員：同步整間沙龍資料
+        await storeDocRef.set({
+          services: appState.services,
+          staff: appState.staff,
+          orders: appState.orders,
+          adminSecretKey: salonAdminKey
+        });
+      } else {
+        // 員工：僅同步客單明細（不可覆蓋服務設定與人員名單）
+        await storeDocRef.update({
+          orders: appState.orders
+        });
+      }
     } catch (err) {
       console.error('上傳雲端失敗:', err);
       showToast('⚠️ 離線暫存中，恢復網路後將自動同步雲端');
     }
+  }
+}
+
+async function changeAdminSecretKey() {
+  if (currentUserRole !== 'admin') return;
+  const newKey = prompt('請輸入新的沙龍管理員註冊密鑰（建議 6 碼以上）：', salonAdminKey);
+  if (newKey && newKey.trim().length >= 4) {
+    salonAdminKey = newKey.trim();
+    const keyDisplay = document.getElementById('settings-current-admin-key');
+    if (keyDisplay) keyDisplay.textContent = salonAdminKey;
+    await syncDataToCloud();
+    showToast('管理員註冊授權密鑰已更新！');
   }
 }
 
@@ -368,6 +643,8 @@ function populateStaffDropdowns() {
   const historyStaff = document.getElementById('history-filter-staff');
   const monthlyStaff = document.getElementById('monthly-select-staff');
 
+  updateLinkedStaff();
+
   if (billingStaff) {
     if (appState.staff.length === 0) {
       billingStaff.innerHTML = `<option value="">⚠️ 尚未新增人員 (點此新增)</option>`;
@@ -377,8 +654,14 @@ function populateStaffDropdowns() {
     } else {
       billingStaff.onchange = null;
       billingStaff.innerHTML = appState.staff.map(s => `
-        <option value="${s.id}">${s.name} (${s.role})</option>
+        <option value="${s.id}" ${currentLinkedStaff && currentLinkedStaff.id === s.id ? 'selected' : ''}>
+          ${s.name} (${s.role})
+        </option>
       `).join('');
+
+      if (currentLinkedStaff) {
+        billingStaff.value = currentLinkedStaff.id;
+      }
     }
   }
 
@@ -390,16 +673,30 @@ function populateStaffDropdowns() {
   }
 
   if (historyStaff) {
-    historyStaff.innerHTML = `
-      <option value="ALL">全部人員</option>
-      ${appState.staff.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
-    `;
+    if (currentUserRole === 'staff' && currentLinkedStaff) {
+      historyStaff.innerHTML = `
+        <option value="${currentLinkedStaff.id}">${currentLinkedStaff.name} (本人客單)</option>
+      `;
+      historyStaff.disabled = true;
+    } else {
+      historyStaff.disabled = false;
+      historyStaff.innerHTML = `
+        <option value="ALL">全部人員</option>
+        ${appState.staff.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
+      `;
+    }
   }
 
   if (monthlyStaff) {
     if (appState.staff.length === 0) {
       monthlyStaff.innerHTML = `<option value="">尚無人員資料</option>`;
+    } else if (currentUserRole === 'staff' && currentLinkedStaff) {
+      monthlyStaff.innerHTML = `
+        <option value="${currentLinkedStaff.id}">${currentLinkedStaff.name} (本人)</option>
+      `;
+      monthlyStaff.disabled = true;
     } else {
+      monthlyStaff.disabled = false;
       monthlyStaff.innerHTML = appState.staff.map(s => `
         <option value="${s.id}">${s.name} (${s.role})</option>
       `).join('');
@@ -585,6 +882,8 @@ function renderBillingRows() {
     { val: 0.50, label: '5 折 (半價)' }
   ];
 
+  const isStaff = currentUserRole === 'staff';
+
   container.innerHTML = currentBillingRows.map((row, index) => {
     const originalTotal = row.price * row.qty;
     const discount = row.discount || 1.0;
@@ -606,13 +905,14 @@ function renderBillingRows() {
               ${index + 1}
             </span>
             <div class="flex-1 min-w-0">
-              <label class="block text-[11px] font-bold text-slate-500 mb-0.5">選擇服務項目 (下拉即帶出金額與抽成)</label>
+              <label class="block text-[11px] font-bold text-slate-500 mb-0.5">
+                ${isStaff ? '選擇服務項目' : '選擇服務項目 (下拉即帶出金額與抽成)'}
+              </label>
               <select onchange="onServiceSelectChange('${row.rowId}', this.value)" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500">
-                ${appState.services.map(s => `
-                  <option value="${s.id}" ${s.id === row.serviceId ? 'selected' : ''}>
-                    ${s.name} [定價$${s.price} | 抽${s.rate}%]
-                  </option>
-                `).join('')}
+                ${appState.services.map(s => {
+                  const sLabel = isStaff ? `${s.name} [定價$${s.price}]` : `${s.name} [定價$${s.price} | 抽${s.rate}%]`;
+                  return `<option value="${s.id}" ${s.id === row.serviceId ? 'selected' : ''}>${sLabel}</option>`;
+                }).join('')}
               </select>
             </div>
           </div>
@@ -623,7 +923,7 @@ function renderBillingRows() {
         </div>
 
         <!-- 數值調整：單價、數量、抽成%、折扣選單 -->
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-slate-200/70">
+        <div class="grid grid-cols-2 ${isStaff ? 'sm:grid-cols-3' : 'sm:grid-cols-4'} gap-2 pt-2 border-t border-slate-200/70">
           <div>
             <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">單價 ($)</label>
             <input type="number" value="${row.price}" oninput="onRowInputChange('${row.rowId}', 'price', this.value)" class="w-full rounded-xl border border-slate-300 px-3 py-1.5 text-sm font-numeric bg-white font-bold text-slate-900 focus:ring-1 focus:ring-amber-500">
@@ -634,7 +934,7 @@ function renderBillingRows() {
             <input type="number" min="1" value="${row.qty}" oninput="onRowInputChange('${row.rowId}', 'qty', this.value)" class="w-full rounded-xl border border-slate-300 px-3 py-1.5 text-sm font-numeric bg-white focus:ring-1 focus:ring-amber-500">
           </div>
 
-          <div>
+          <div class="admin-only-block">
             <label class="block text-[11px] font-semibold text-amber-800 mb-0.5">抽成 (%)</label>
             <div class="relative">
               <input type="number" min="0" max="100" value="${row.rate}" oninput="onRowInputChange('${row.rowId}', 'rate', this.value)" class="w-full rounded-xl border border-amber-300 bg-amber-50/60 px-3 py-1.5 text-sm font-numeric font-extrabold text-amber-900 focus:ring-1 focus:ring-amber-500 pr-6">
@@ -659,7 +959,7 @@ function renderBillingRows() {
 
         <!-- 折扣連動設定 (Checkbox) + 實收與抽成即時小計 -->
         <div class="pt-2 border-t border-slate-200/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-          <label class="inline-flex items-center gap-2 cursor-pointer text-xs font-bold py-1.5 px-3 rounded-xl border transition select-none ${discount < 1.0 ? (isCommDiscounted ? 'bg-amber-50 border-amber-300 text-amber-900' : 'bg-blue-50 border-blue-200 text-blue-900') : 'bg-slate-100/70 border-slate-200 text-slate-500'}">
+          <label class="admin-only-inline inline-flex items-center gap-2 cursor-pointer text-xs font-bold py-1.5 px-3 rounded-xl border transition select-none ${discount < 1.0 ? (isCommDiscounted ? 'bg-amber-50 border-amber-300 text-amber-900' : 'bg-blue-50 border-blue-200 text-blue-900') : 'bg-slate-100/70 border-slate-200 text-slate-500'}">
             <input type="checkbox" onchange="onRowDiscountCommChange('${row.rowId}', this.checked)" ${isCommDiscounted ? 'checked' : ''} class="w-4 h-4 rounded text-amber-600 focus:ring-amber-500 accent-amber-600">
             <span>抽成也打折</span>
             <span class="text-[10px] font-normal opacity-90">
@@ -667,13 +967,13 @@ function renderBillingRows() {
             </span>
           </label>
 
-          <div class="flex items-center justify-between sm:justify-end gap-3 text-xs">
+          <div class="flex items-center justify-between sm:justify-end gap-3 text-xs w-full sm:w-auto">
             <div>
               <span class="text-slate-500 text-[11px]">實收金額:</span>
               <strong class="text-slate-900 font-numeric text-sm font-bold">NT$ ${finalAmount.toLocaleString()}</strong>
               ${discount < 1.0 ? `<span class="text-[10px] text-slate-400 line-through ml-0.5">($${originalTotal.toLocaleString()})</span>` : ''}
             </div>
-            <div class="bg-amber-100/80 px-2.5 py-1 rounded-xl border border-amber-200 text-right">
+            <div class="admin-only-block bg-amber-100/80 px-2.5 py-1 rounded-xl border border-amber-200 text-right">
               <span class="text-[10px] text-amber-800 font-medium">這項抽成:</span>
               <strong class="text-amber-950 font-numeric font-black text-sm">NT$ ${itemCommission.toLocaleString()}</strong>
             </div>
@@ -724,6 +1024,9 @@ function updateRowCalculations() {
   // 更新介面金額
   const commEls = document.querySelectorAll('.summary-commission-display');
   commEls.forEach(el => el.textContent = totalCommission.toLocaleString());
+
+  const staffTotalEl = document.getElementById('summary-card-staff-total');
+  if (staffTotalEl) staffTotalEl.textContent = totalAmount.toLocaleString();
 
   const rateEl = document.getElementById('summary-card-rate-text');
   if (rateEl) rateEl.textContent = `平均抽成率：${avgRate}%`;
@@ -865,9 +1168,14 @@ function filterHistoryOrders() {
   const staffVal = document.getElementById('history-filter-staff')?.value;
   const searchVal = document.getElementById('history-filter-search')?.value.trim().toLowerCase();
 
+  let effectiveStaffId = staffVal;
+  if (currentUserRole === 'staff' && currentLinkedStaff) {
+    effectiveStaffId = currentLinkedStaff.id;
+  }
+
   const filtered = appState.orders.filter(order => {
     if (monthVal && !order.date.startsWith(monthVal)) return false;
-    if (staffVal && staffVal !== 'ALL' && order.staffId !== staffVal && order.assistantId !== staffVal) return false;
+    if (effectiveStaffId && effectiveStaffId !== 'ALL' && order.staffId !== effectiveStaffId && order.assistantId !== effectiveStaffId) return false;
     if (searchVal) {
       const matchCustomer = order.customer.toLowerCase().includes(searchVal);
       const matchNotes = order.notes && order.notes.toLowerCase().includes(searchVal);
@@ -935,7 +1243,7 @@ function renderHistoryView(ordersList) {
           <span class="text-slate-400 font-mono">${order.date}</span>
           <div class="flex items-center gap-3">
             <span class="text-slate-600">實收: <strong>NT$ ${order.totalAmount.toLocaleString()}</strong></span>
-            <span class="text-amber-700 font-bold text-sm font-numeric">抽: NT$ ${order.totalCommission.toLocaleString()}</span>
+            <span class="admin-only-inline text-amber-700 font-bold text-sm font-numeric">抽: NT$ ${order.totalCommission.toLocaleString()}</span>
           </div>
         </div>
       </div>
@@ -965,7 +1273,7 @@ function renderHistoryView(ordersList) {
           }).join('、')}</div>
         </td>
         <td class="px-4 py-3 text-right font-numeric font-bold text-slate-800">NT$ ${order.totalAmount.toLocaleString()}</td>
-        <td class="px-4 py-3 text-right font-numeric font-extrabold text-amber-700">NT$ ${order.totalCommission.toLocaleString()}</td>
+        <td class="admin-only-cell px-4 py-3 text-right font-numeric font-extrabold text-amber-700">NT$ ${order.totalCommission.toLocaleString()}</td>
         <td class="px-4 py-3 text-center">
           <button onclick="deleteOrder('${order.id}')" class="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg hover:bg-rose-50 transition">
             <i data-lucide="trash-2" class="w-4 h-4"></i>
@@ -1049,7 +1357,11 @@ function calculateMonthlyPayroll() {
     monthInput.value = getCurrentYearMonth();
   }
   const monthVal = monthInput?.value || getCurrentYearMonth();
-  const staffId = document.getElementById('monthly-select-staff')?.value;
+  
+  let staffId = document.getElementById('monthly-select-staff')?.value;
+  if (currentUserRole === 'staff' && currentLinkedStaff) {
+    staffId = currentLinkedStaff.id;
+  }
   if (!staffId) return;
 
   const staff = appState.staff.find(s => s.id === staffId);
@@ -1123,7 +1435,7 @@ function renderMonthlyOrdersTable(monthlyOrders, currentStaffId) {
     tbody.innerHTML = `
       <tr>
         <td colspan="7" class="py-8 text-center text-slate-400">
-          該月份尚無此位員工之服務開單紀錄
+          該月份尚無服務客單紀錄
         </td>
       </tr>
     `;
@@ -1136,22 +1448,26 @@ function renderMonthlyOrdersTable(monthlyOrders, currentStaffId) {
     const roleTag = isMain ? '' : '<span class="text-[10px] bg-blue-100 text-blue-700 px-1 rounded">助理獎勵</span>';
     const itemsText = order.items.map(it => {
       const discTag = it.discount && it.discount < 1.0 ? ` [${getDiscountLabel(it.discount)}]` : '';
-      return `${it.name}${discTag} ($${it.price}, 抽${it.rate}%)`;
+      if (currentUserRole === 'staff') {
+        return `${it.name}${discTag} (x${it.qty})`;
+      } else {
+        return `${it.name}${discTag} ($${it.price}, 抽${it.rate}%)`;
+      }
     }).join('、');
 
     return `
       <tr class="hover:bg-slate-50 transition text-xs">
-        <td class="px-4 py-3 whitespace-nowrap font-medium text-slate-800">${order.date}</td>
-        <td class="px-4 py-3 whitespace-nowrap font-mono text-slate-500">${order.orderNo}</td>
-        <td class="px-4 py-3 whitespace-nowrap font-semibold text-slate-900">${order.customer}</td>
-        <td class="px-4 py-3">
+        <td class="px-3 py-2.5 whitespace-nowrap font-medium text-slate-800">${order.date}</td>
+        <td class="px-3 py-2.5 whitespace-nowrap font-mono text-slate-500">${order.orderNo}</td>
+        <td class="px-3 py-2.5 whitespace-nowrap font-semibold text-slate-900">${order.customer}</td>
+        <td class="px-3 py-2.5">
           <div class="max-w-xs truncate text-slate-600" title="${itemsText}">${itemsText}</div>
         </td>
-        <td class="px-4 py-3 text-right font-numeric font-bold text-slate-800">NT$ ${order.totalAmount.toLocaleString()}</td>
-        <td class="px-4 py-3 text-right font-numeric font-extrabold text-amber-700 whitespace-nowrap">
+        <td class="px-3 py-2.5 text-right font-numeric font-bold text-slate-800 whitespace-nowrap">NT$ ${order.totalAmount.toLocaleString()}</td>
+        <td class="admin-only-cell px-3 py-2.5 text-right font-numeric font-extrabold text-amber-700 whitespace-nowrap">
           NT$ ${earnedComm.toLocaleString()} ${roleTag}
         </td>
-        <td class="px-4 py-3 text-slate-400">${order.notes || '-'}</td>
+        <td class="px-3 py-2.5 text-slate-400 whitespace-nowrap">${order.notes || '-'}</td>
       </tr>
     `;
   }).join('');
@@ -1159,22 +1475,67 @@ function renderMonthlyOrdersTable(monthlyOrders, currentStaffId) {
 
 function exportMonthlyReportExcel() {
   const monthVal = document.getElementById('monthly-select-month')?.value;
-  const staffId = document.getElementById('monthly-select-staff')?.value;
+  let staffId = document.getElementById('monthly-select-staff')?.value;
+  if (currentUserRole === 'staff' && currentLinkedStaff) {
+    staffId = currentLinkedStaff.id;
+  }
   const staff = appState.staff.find(s => s.id === staffId);
   if (!staff || !monthVal) return;
-
-  const baseSalary = parseFloat(document.getElementById('calc-base-salary')?.value) || 0;
-  const commission = parseFloat(document.getElementById('calc-commission')?.value) || 0;
-  const attendance = parseFloat(document.getElementById('calc-attendance-bonus')?.value) || 0;
-  const otherBonus = parseFloat(document.getElementById('calc-other-bonus')?.value) || 0;
-  const deductions = parseFloat(document.getElementById('calc-deductions')?.value) || 0;
-  const netPay = Math.round(baseSalary + commission + attendance + otherBonus - deductions);
 
   const monthlyOrders = appState.orders.filter(order => {
     return order.date.startsWith(monthVal) && (order.staffId === staffId || order.assistantId === staffId);
   });
 
   const wb = XLSX.utils.book_new();
+
+  // 若為員工，匯出個人專屬工作實績清單 (無敏感抽成與底薪)
+  if (currentUserRole === 'staff') {
+    let totalRev = 0;
+    const detailData = [];
+    monthlyOrders.forEach(o => {
+      const isMain = o.staffId === staffId;
+      totalRev += o.totalAmount;
+      o.items.forEach(it => {
+        detailData.push({
+          '服務日期': o.date,
+          '帳單編號': o.orderNo,
+          '顧客姓名': o.customer,
+          '消費服務項目': it.name,
+          '數量': it.qty,
+          '定價單價': it.price,
+          '折扣優惠': getDiscountLabel(it.discount || 1.0),
+          '實收金額': it.amount,
+          '擔任角色': isMain ? '主作設計師' : '協助助理',
+          '備註': o.notes || ''
+        });
+      });
+    });
+
+    const summarySheetData = [
+      { '項目': '明細月份', '內容': monthVal },
+      { '項目': '員工姓名', '內容': staff.name },
+      { '項目': '職務身分', '內容': staff.role },
+      { '項目': '本月完成服務客數', '內容': `${monthlyOrders.length} 人次` },
+      { '項目': '本月個人營業額總額', '內容': `NT$ ${totalRev.toLocaleString()}` }
+    ];
+    const wsSummary = XLSX.utils.json_to_sheet(summarySheetData);
+    XLSX.utils.book_append_sheet(wb, wsSummary, '工作成果摘要');
+
+    const wsDetail = XLSX.utils.json_to_sheet(detailData.length > 0 ? detailData : [{ '提示': '當月尚無客單資料' }]);
+    XLSX.utils.book_append_sheet(wb, wsDetail, '當月客單明細');
+
+    XLSX.writeFile(wb, `美髮沙龍個人當月工作明細_${staff.name}_${monthVal}.xlsx`);
+    showToast(`已匯出 ${staff.name} 的 ${monthVal} 工作明細 Excel！`);
+    return;
+  }
+
+  // 管理員：完整月薪資結算總表與客單抽成明細
+  const baseSalary = parseFloat(document.getElementById('calc-base-salary')?.value) || 0;
+  const commission = parseFloat(document.getElementById('calc-commission')?.value) || 0;
+  const attendance = parseFloat(document.getElementById('calc-attendance-bonus')?.value) || 0;
+  const otherBonus = parseFloat(document.getElementById('calc-other-bonus')?.value) || 0;
+  const deductions = parseFloat(document.getElementById('calc-deductions')?.value) || 0;
+  const netPay = Math.round(baseSalary + commission + attendance + otherBonus - deductions);
 
   const summarySheetData = [
     { '項目': '結算月份', '內容/金額': monthVal },
@@ -1384,8 +1745,14 @@ function renderSettingsTables() {
               ${st.role}
             </span>
           </td>
+          <td class="px-3 py-2.5">
+            ${st.linkedEmail ? `
+              <span class="inline-flex items-center gap-1 bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded-full text-[10px] font-bold">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>${st.linkedEmail}
+              </span>
+            ` : '<span class="text-slate-400 text-[10px]">未綁定帳號</span>'}
+          </td>
           <td class="px-3 py-2.5 text-right font-numeric font-bold text-slate-700">NT$ ${st.baseSalary.toLocaleString()}</td>
-          <td class="px-3 py-2.5 text-right font-numeric text-slate-600">NT$ ${st.attendanceBonus.toLocaleString()}</td>
           <td class="px-3 py-2.5 text-center space-x-1 whitespace-nowrap">
             <button onclick="editStaffMember('${st.id}')" class="text-xs text-amber-600 hover:text-amber-800 font-semibold p-1">編輯</button>
             <button onclick="deleteStaffMember('${st.id}')" class="text-xs text-rose-500 hover:text-rose-700 p-1">刪除</button>
@@ -1478,6 +1845,7 @@ function openStaffModal() {
   document.getElementById('modal-staff-role').value = '設計師';
   document.getElementById('modal-staff-base').value = '28000';
   document.getElementById('modal-staff-bonus').value = '2000';
+  populateLinkedUsersDropdown('');
   document.getElementById('modal-staff-title').textContent = '新增工作人員 / 設計師';
   document.getElementById('modal-staff').classList.remove('hidden');
 }
@@ -1491,6 +1859,7 @@ function editStaffMember(staffId) {
   document.getElementById('modal-staff-role').value = staff.role;
   document.getElementById('modal-staff-base').value = staff.baseSalary;
   document.getElementById('modal-staff-bonus').value = staff.attendanceBonus;
+  populateLinkedUsersDropdown(staff.linkedUid || '');
   document.getElementById('modal-staff-title').textContent = '編輯工作人員';
   document.getElementById('modal-staff').classList.remove('hidden');
 }
@@ -1506,6 +1875,11 @@ async function saveStaffMember() {
   const baseSalary = parseFloat(document.getElementById('modal-staff-base').value) || 0;
   const attendanceBonus = parseFloat(document.getElementById('modal-staff-bonus').value) || 0;
 
+  const linkedUserSelect = document.getElementById('modal-staff-linked-user');
+  const linkedUid = linkedUserSelect ? linkedUserSelect.value : '';
+  const selectedOpt = linkedUserSelect && linkedUserSelect.selectedIndex >= 0 ? linkedUserSelect.options[linkedUserSelect.selectedIndex] : null;
+  const linkedEmail = selectedOpt ? (selectedOpt.getAttribute('data-email') || '') : '';
+
   if (!name) {
     alert('請輸入員工姓名！');
     return;
@@ -1518,6 +1892,8 @@ async function saveStaffMember() {
       s.role = role;
       s.baseSalary = baseSalary;
       s.attendanceBonus = attendanceBonus;
+      s.linkedUid = linkedUid;
+      s.linkedEmail = linkedEmail;
     }
   } else {
     appState.staff.push({
@@ -1525,15 +1901,19 @@ async function saveStaffMember() {
       name: name,
       role: role,
       baseSalary: baseSalary,
-      attendanceBonus: attendanceBonus
+      attendanceBonus: attendanceBonus,
+      linkedUid: linkedUid,
+      linkedEmail: linkedEmail
     });
   }
 
   await syncDataToCloud();
   closeStaffModal();
+  updateLinkedStaff();
+  applyRolePermissions();
   populateStaffDropdowns();
   renderSettingsTables();
-  showToast(`已新增工作人員：${name}`);
+  showToast(`已儲存工作人員：${name}${linkedEmail ? ` (已綁定帳號 ${linkedEmail})` : ''}`);
 }
 
 async function deleteStaffMember(staffId) {

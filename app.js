@@ -554,6 +554,30 @@ function subscribeToCloudData() {
       salonAdminKey = data.adminSecretKey || DEFAULT_ADMIN_SECRET_KEY;
       const keyDisplay = document.getElementById('settings-current-admin-key');
       if (keyDisplay) keyDisplay.textContent = salonAdminKey;
+
+      // 若 main_store 中的人員名單為空，但目前登入者舊資料庫(users/{uid})有人員，自動匯入至共享沙龍
+      if ((!appState.staff || appState.staff.length === 0) && currentUser) {
+        try {
+          const oldDoc = await db.collection('users').doc(currentUser.uid).get();
+          if (oldDoc.exists) {
+            const oldData = sanitizeOldMockData(oldDoc.data());
+            if (oldData.staff && oldData.staff.length > 0) {
+              appState.staff = oldData.staff;
+              if (oldData.orders && oldData.orders.length > 0 && appState.orders.length === 0) {
+                appState.orders = oldData.orders;
+              }
+              await storeDocRef.set({
+                services: appState.services,
+                staff: appState.staff,
+                orders: appState.orders,
+                adminSecretKey: salonAdminKey
+              }, { merge: true });
+            }
+          }
+        } catch(e) {
+          console.warn('檢查舊資料庫遷移失敗:', e);
+        }
+      }
     } else {
       // 若尚未建立 main_store，檢查現有使用者的舊獨立庫並自動無縫遷移！
       let initialServices = [...DEFAULT_SERVICES];

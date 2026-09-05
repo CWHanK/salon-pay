@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>美髮業員工薪資與抽成計算系統 | SalonPay</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            salon: {
+              50: '#fdfbf7',
+              100: '#f7f1e7',
+              200: '#eddcc5',
+              300: '#e0c29f',
+              400: '#d2a477',
+              500: '#c28859',
+              600: '#b07049',
+              700: '#92583d',
+              800: '#774736',
+              900: '#613c2f',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- SheetJS (Excel 匯出) -->
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body class="min-vh-100 flex flex-col bg-slate-50 text-slate-800">
+
+  <!-- 頂部導航 -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm no-print">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex justify-between h-16 items-center">
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-600 to-amber-400 flex items-center justify-center text-white shadow-md shadow-amber-500/20">
+            <i data-lucide="scissors" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h1 class="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
+              SalonPay <span class="text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 font-semibold">美髮沙龍專用</span>
+            </h1>
+            <p class="text-xs text-slate-500">員工薪資結算 ‧ 服務抽成即時試算 ‧ 月報表匯出系統</p>
+          </div>
+        </div>
+        
+        <!-- 當前快捷資訊 -->
+        <div class="flex items-center space-x-4">
+          <div class="hidden sm:flex flex-col text-right">
+            <span id="current-datetime" class="text-xs font-medium text-slate-500">2026/09/05</span>
+            <span class="text-xs font-semibold text-emerald-600 flex items-center justify-end gap-1">
+              <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> 本機安全儲存中
+            </span>
+          </div>
+          <button onclick="switchTab('settings')" class="p-2 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded-lg transition" title="設定服務項目與員工">
+            <i data-lucide="settings" class="w-5 h-5"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- 分頁標籤切換導覽 -->
+      <nav class="flex space-x-2 -mb-px overflow-x-auto border-t border-slate-100 pt-1 pb-0.5">
+        <button onclick="switchTab('billing')" id="tab-btn-billing" class="tab-btn active px-4 py-2.5 text-sm font-medium rounded-t-lg transition flex items-center gap-2">
+          <i data-lucide="badge-percent" class="w-4 h-4"></i> 現場開單抽成試算
+        </button>
+        <button onclick="switchTab('history')" id="tab-btn-history" class="tab-btn px-4 py-2.5 text-sm font-medium rounded-t-lg transition flex items-center gap-2 text-slate-600 hover:text-slate-900">
+          <i data-lucide="receipt" class="w-4 h-4"></i> 歷史帳單與每日流水
+        </button>
+        <button onclick="switchTab('monthly')" id="tab-btn-monthly" class="tab-btn px-4 py-2.5 text-sm font-medium rounded-t-lg transition flex items-center gap-2 text-slate-600 hover:text-slate-900">
+          <i data-lucide="calendar-check-2" class="w-4 h-4"></i> 月薪結算與月報表匯出
+        </button>
+        <button onclick="switchTab('settings')" id="tab-btn-settings" class="tab-btn px-4 py-2.5 text-sm font-medium rounded-t-lg transition flex items-center gap-2 text-slate-600 hover:text-slate-900">
+          <i data-lucide="sliders" class="w-4 h-4"></i> 服務定價/抽成與人員管理
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- 主要內容區 -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 no-print">
+
+    <!-- ==================== 分頁 1：現場開單抽成試算 ==================== -->
+    <section id="tab-billing" class="space-y-6">
+      
+      <!-- 提示條 -->
+      <div class="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200/80 rounded-2xl p-4 flex items-start gap-3 shadow-sm">
+        <div class="p-2 rounded-xl bg-amber-500 text-white shrink-0">
+          <i data-lucide="sparkles" class="w-5 h-5"></i>
+        </div>
+        <div class="text-sm text-slate-700">
+          <strong class="font-semibold text-amber-900">下拉選單即時試算功能：</strong>
+          直接選擇服務項目（洗、剪、染、燙、護），系統自動跳出預設價格與抽成百分比，並立即計算出<strong>「這單抽多少錢」</strong>！若遇特殊打折或加價，也可直接修改數字，抽成即時重新計算。
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- 左側：開單輸入區（佔 2 欄） -->
+        <div class="lg:col-span-2 space-y-5">
+          <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5 sm:p-6">
+            <h2 class="text-base font-bold text-slate-900 flex items-center justify-between mb-4 pb-3 border-b border-slate-100">
+              <span class="flex items-center gap-2">
+                <i data-lucide="file-plus" class="w-5 h-5 text-amber-600"></i> 新增服務客單
+              </span>
+              <span id="billing-order-no" class="text-xs font-mono text-slate-400 bg-slate-100 px-2 py-1 rounded">單號：自動產生</span>
+            </h2>
+
+            <!-- 顧客與人員基本資料 -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">主作設計師 <span class="text-rose-500">*</span></label>
+                <select id="billing-staff-select" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 bg-white font-medium text-slate-800">
+                  <!-- 動態載入設計師清單 -->
+                </select>
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">服務日期 <span class="text-rose-500">*</span></label>
+                <input type="date" id="billing-date" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 bg-white">
+              </div>
+
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">顧客姓名 / 稱謂</label>
+                <input type="text" id="billing-customer" placeholder="例如：林小姐、VIP王先生" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 bg-white">
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">協助助理 (可選)</label>
+                <select id="billing-assistant-select" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 bg-white text-slate-700">
+                  <option value="">無助理協助（全由設計師操作）</option>
+                  <!-- 動態載入助理清單 -->
+                </select>
+              </div>
+              <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1">備註說明 (髮況/色號/折扣等)</label>
+                <input type="text" id="billing-notes" placeholder="例如：雙色染、頭皮過敏、打8折優惠" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 bg-white">
+              </div>
+            </div>
+
+            <!-- 服務項目列表 -->
+            <div class="space-y-3">
+              <div class="flex items-center justify-between">
+                <span class="text-sm font-bold text-slate-800 flex items-center gap-1.5">
+                  <i data-lucide="list-plus" class="w-4 h-4 text-amber-600"></i> 消費服務項目明細
+                </span>
+                <button type="button" onclick="addServiceRow()" class="inline-flex items-center gap-1 text-xs font-semibold text-amber-700 bg-amber-100 hover:bg-amber-200 px-2.5 py-1.5 rounded-lg transition">
+                  <i data-lucide="plus" class="w-3.5 h-3.5"></i> 新增一項服務 / 產品
+                </button>
+              </div>
+
+              <!-- 項目容器（動態插入） -->
+              <div id="service-rows-container" class="space-y-3">
+                <!-- Javascript will render rows here -->
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- 右側：本單即時結算卡片（佔 1 欄） -->
+        <div class="space-y-5">
+          <div class="bg-white rounded-2xl border border-slate-200/80 shadow-md p-5 sm:p-6 sticky top-24">
+            <h3 class="text-sm font-bold text-slate-900 pb-3 border-b border-slate-100 flex items-center justify-between">
+              <span>這單試算結算</span>
+              <span class="text-xs text-amber-600 font-semibold bg-amber-50 px-2 py-0.5 rounded-full">即時試算</span>
+            </h3>
+
+            <!-- 核心大數字：這單抽多少錢 -->
+            <div class="mt-4 p-4 rounded-2xl bg-gradient-to-br from-amber-500 via-amber-600 to-orange-600 text-white shadow-lg shadow-amber-600/20 text-center relative overflow-hidden">
+              <div class="absolute -right-4 -bottom-4 opacity-15">
+                <i data-lucide="coins" class="w-24 h-24"></i>
+              </div>
+              <p class="text-xs font-medium text-amber-100 tracking-wider">🌟 本單設計師應得抽成</p>
+              <div class="mt-1 flex items-baseline justify-center gap-1">
+                <span class="text-lg font-light text-amber-200">NT$</span>
+                <span id="summary-card-commission" class="text-4xl font-extrabold font-numeric tracking-tight">0</span>
+              </div>
+              <p id="summary-card-rate-text" class="mt-1 text-xs text-amber-100 opacity-90">平均抽成率：0%</p>
+            </div>
+
+            <!-- 明細細項 -->
+            <div class="mt-5 space-y-2.5 text-sm">
+              <div class="flex justify-between items-center py-1.5 border-b border-slate-100">
+                <span class="text-slate-500">項目數量合計</span>
+                <span id="summary-card-items-count" class="font-semibold text-slate-800">0 項</span>
+              </div>
+              <div class="flex justify-between items-center py-1.5 border-b border-slate-100">
+                <span class="text-slate-500">顧客應付總額 (客單價)</span>
+                <span class="font-bold text-slate-900 font-numeric text-base">NT$ <span id="summary-card-total-amount">0</span></span>
+              </div>
+              <div id="summary-assistant-row" class="flex justify-between items-center py-1.5 border-b border-slate-100 text-slate-600 hidden">
+                <span class="flex items-center gap-1">
+                  <i data-lucide="user-check" class="w-3.5 h-3.5 text-blue-500"></i> 助理抽成獎勵
+                </span>
+                <span class="font-semibold text-blue-600 font-numeric">NT$ <span id="summary-card-assistant-comm">0</span></span>
+              </div>
+              <div class="flex justify-between items-center py-1.5 text-slate-500">
+                <span>店家營收淨毛額</span>
+                <span class="font-medium text-slate-700 font-numeric">NT$ <span id="summary-card-salon-net">0</span></span>
+              </div>
+            </div>
+
+            <!-- 操作按鈕 -->
+            <div class="mt-6 space-y-2.5">
+              <button type="button" onclick="saveCurrentOrder()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 px-4 rounded-xl shadow-md shadow-emerald-600/20 hover:shadow-lg transition flex items-center justify-center gap-2">
+                <i data-lucide="check-circle" class="w-5 h-5"></i> 儲存此單並計入業績
+              </button>
+              <button type="button" onclick="resetBillingForm()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold py-2.5 px-4 rounded-xl transition flex items-center justify-center gap-1.5 text-xs">
+                <i data-lucide="rotate-ccw" class="w-4 h-4"></i> 清空重填
+              </button>
+            </div>
+
+          </div>
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- ==================== 分頁 2：歷史帳單與每日流水 ==================== -->
+    <section id="tab-history" class="space-y-6 hidden">
+      
+      <!-- 篩選列 -->
+      <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-4 sm:p-5">
+        <div class="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">月份篩選</label>
+            <input type="month" id="history-filter-month" onchange="filterHistoryOrders()" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">工作人員篩選</label>
+            <select id="history-filter-staff" onchange="filterHistoryOrders()" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 bg-white">
+              <option value="ALL">全部人員</option>
+              <!-- 動態載入 -->
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">顧客姓名 / 單號關鍵字</label>
+            <input type="text" id="history-filter-search" oninput="filterHistoryOrders()" placeholder="搜尋顧客或備註..." class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500">
+          </div>
+          <div class="flex gap-2">
+            <button onclick="clearHistoryFilters()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-2 px-3 rounded-xl text-sm transition">
+              重設條件
+            </button>
+            <button onclick="exportHistoryToExcel()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2 px-3 rounded-xl text-sm transition flex items-center justify-center gap-1">
+              <i data-lucide="download" class="w-4 h-4"></i> 匯出流水
+            </button>
+          </div>
+        </div>
+
+        <!-- 篩選結果統計條 -->
+        <div class="mt-4 pt-3 border-t border-slate-100 flex flex-wrap items-center justify-between text-xs text-slate-500 gap-2">
+          <div>符合條件總計：<strong id="history-count" class="text-slate-800 font-numeric text-sm">0</strong> 單</div>
+          <div class="flex gap-4">
+            <span>業績合計：<strong id="history-total-revenue" class="text-slate-900 font-numeric text-sm font-bold">NT$ 0</strong></span>
+            <span>設計師抽成合計：<strong id="history-total-commission" class="text-amber-700 font-numeric text-sm font-bold">NT$ 0</strong></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 帳單流水清單列表 -->
+      <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm text-slate-600">
+            <thead class="bg-slate-50 border-b border-slate-200 text-xs uppercase text-slate-500 font-semibold">
+              <tr>
+                <th class="px-4 py-3">單號 / 日期</th>
+                <th class="px-4 py-3">設計師 / 助理</th>
+                <th class="px-4 py-3">顧客</th>
+                <th class="px-4 py-3">服務明細與項目</th>
+                <th class="px-4 py-3 text-right">實收金額</th>
+                <th class="px-4 py-3 text-right">這單抽成</th>
+                <th class="px-4 py-3 text-center">操作</th>
+              </tr>
+            </thead>
+            <tbody id="history-table-body" class="divide-y divide-slate-100">
+              <!-- 動態載入帳單 -->
+            </tbody>
+          </table>
+        </div>
+        <!-- 空資料提示 -->
+        <div id="history-empty-hint" class="py-12 text-center text-slate-400 hidden">
+          <i data-lucide="inbox" class="w-12 h-12 mx-auto mb-2 stroke-1"></i>
+          <p>尚無符合篩選條件的帳單記錄</p>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ==================== 分頁 3：月薪結算與月報表匯出 ==================== -->
+    <section id="tab-monthly" class="space-y-6 hidden">
+
+      <!-- 月薪結算頂部控制器 -->
+      <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-5">
+        <div class="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div class="flex flex-wrap items-center gap-3">
+            <div>
+              <label class="block text-xs font-semibold text-slate-500 mb-1">結算月份</label>
+              <input type="month" id="monthly-select-month" onchange="calculateMonthlyPayroll()" class="rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500">
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-500 mb-1">結算員工</label>
+              <select id="monthly-select-staff" onchange="calculateMonthlyPayroll()" class="rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 bg-white">
+                <!-- 動態注入 -->
+              </select>
+            </div>
+          </div>
+
+          <!-- 匯出與列印動作群組 -->
+          <div class="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
+            <button onclick="exportMonthlyReportExcel()" class="flex-1 md:flex-none inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-sm shadow-sm transition">
+              <i data-lucide="sheet" class="w-4 h-4"></i> 匯出 Excel 月報表
+            </button>
+            <button onclick="printSalarySlip()" class="flex-1 md:flex-none inline-flex items-center justify-center gap-1.5 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-900 text-white font-semibold text-sm shadow-sm transition">
+              <i data-lucide="printer" class="w-4 h-4"></i> 列印 / 存為 PDF 薪資條
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4 大關鍵指標統計卡 -->
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm">
+          <p class="text-xs text-slate-500 font-medium">當月服務客數</p>
+          <div class="mt-2 flex items-baseline gap-1">
+            <span id="stat-month-clients" class="text-3xl font-extrabold text-slate-900 font-numeric">0</span>
+            <span class="text-xs text-slate-400">人次</span>
+          </div>
+          <p class="text-xs text-slate-400 mt-1">平均客單價：NT$ <span id="stat-month-avg-ticket">0</span></p>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm">
+          <p class="text-xs text-slate-500 font-medium">全月累積業績總額</p>
+          <div class="mt-2 flex items-baseline gap-1">
+            <span class="text-sm font-semibold text-slate-400">NT$</span>
+            <span id="stat-month-revenue" class="text-3xl font-extrabold text-slate-900 font-numeric">0</span>
+          </div>
+          <p class="text-xs text-slate-400 mt-1">包含所有技術服務與商品</p>
+        </div>
+
+        <div class="bg-white rounded-2xl border border-slate-200/80 p-5 shadow-sm">
+          <p class="text-xs text-amber-700 font-medium">技術與產品抽成總額</p>
+          <div class="mt-2 flex items-baseline gap-1">
+            <span class="text-sm font-semibold text-amber-600">NT$</span>
+            <span id="stat-month-commission" class="text-3xl font-extrabold text-amber-600 font-numeric">0</span>
+          </div>
+          <p class="text-xs text-amber-600/80 mt-1">實際抽成收入合計</p>
+        </div>
+
+        <div class="bg-gradient-to-tr from-amber-500 to-orange-500 rounded-2xl p-5 text-white shadow-md shadow-amber-500/20">
+          <p class="text-xs text-amber-100 font-medium">✨ 本月預估實發薪資</p>
+          <div class="mt-2 flex items-baseline gap-1">
+            <span class="text-sm font-semibold text-amber-200">NT$</span>
+            <span id="stat-month-net-pay" class="text-3xl font-black font-numeric tracking-tight">0</span>
+          </div>
+          <p class="text-xs text-amber-100 mt-1">底薪 + 抽成 + 獎金 - 扣除額</p>
+        </div>
+      </div>
+
+      <!-- 薪資細項計算器（底薪、獎金、扣除額可微調） -->
+      <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6">
+        <h3 class="text-sm font-bold text-slate-900 mb-4 pb-2 border-b border-slate-100 flex items-center justify-between">
+          <span class="flex items-center gap-2">
+            <i data-lucide="calculator" class="w-4 h-4 text-amber-600"></i> 月薪結構自訂與試算調整（數值可直接點擊修改）
+          </span>
+          <span class="text-xs text-slate-400">修改後即時連動實發薪資</span>
+        </h3>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">保障底薪 (NT$)</label>
+            <input type="number" id="calc-base-salary" oninput="updateCalculatedNetPay()" value="28000" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm font-numeric focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500">
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">業績抽成 (自動匯總)</label>
+            <input type="number" id="calc-commission" readonly class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-numeric text-amber-700 font-bold">
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">全勤獎金 (NT$)</label>
+            <input type="number" id="calc-attendance-bonus" oninput="updateCalculatedNetPay()" value="2000" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm font-numeric focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500">
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">其他獎金/加給 (NT$)</label>
+            <input type="number" id="calc-other-bonus" oninput="updateCalculatedNetPay()" value="0" placeholder="0" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm font-numeric focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500">
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-rose-600 mb-1">扣款 (勞健保/請假等)</label>
+            <input type="number" id="calc-deductions" oninput="updateCalculatedNetPay()" value="1200" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm font-numeric text-rose-600 focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500">
+          </div>
+        </div>
+
+        <div class="mt-4 p-3 rounded-xl bg-slate-50 border border-slate-200/60 flex items-center justify-between text-xs">
+          <span class="text-slate-600">薪資公式：【保障底薪】+【抽成】+【全勤】+【獎金】—【扣款合計】</span>
+          <span class="font-bold text-slate-900 text-sm">實發合計：NT$ <span id="calc-summary-net" class="text-amber-700 font-numeric text-base">0</span></span>
+        </div>
+      </div>
+
+      <!-- 當月客單業績流水明細表 -->
+      <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+        <div class="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
+          <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+            <i data-lucide="clipboard-list" class="w-4 h-4 text-amber-600"></i> 本月完成服務客單流水列表
+          </h3>
+          <span id="monthly-orders-count-badge" class="text-xs bg-slate-100 text-slate-600 px-2.5 py-1 rounded-full font-medium">共 0 筆</span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-sm text-slate-600">
+            <thead class="bg-slate-50 border-b border-slate-200 text-xs uppercase text-slate-500 font-semibold">
+              <tr>
+                <th class="px-4 py-3">日期</th>
+                <th class="px-4 py-3">單號</th>
+                <th class="px-4 py-3">顧客姓名</th>
+                <th class="px-4 py-3">消費項目清單</th>
+                <th class="px-4 py-3 text-right">客單金額</th>
+                <th class="px-4 py-3 text-right">應得抽成</th>
+                <th class="px-4 py-3">備註</th>
+              </tr>
+            </thead>
+            <tbody id="monthly-table-body" class="divide-y divide-slate-100">
+              <!-- 動態注入月度流水 -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ==================== 分頁 4：服務項目與員工設定 ==================== -->
+    <section id="tab-settings" class="space-y-6 hidden">
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        <!-- 左側：服務項目與預設抽成設定 -->
+        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 space-y-4">
+          <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div>
+              <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <i data-lucide="scissors" class="w-4 h-4 text-amber-600"></i> 美髮服務項目與預設抽成
+              </h3>
+              <p class="text-xs text-slate-500">下拉選單選中時，會自動帶入此處設定之定價與抽成比例</p>
+            </div>
+            <button onclick="openServiceModal()" class="text-xs bg-amber-600 hover:bg-amber-700 text-white font-semibold px-3 py-1.5 rounded-lg transition flex items-center gap-1">
+              <i data-lucide="plus" class="w-3.5 h-3.5"></i> 新增項目
+            </button>
+          </div>
+
+          <div class="overflow-x-auto max-h-[460px] overflow-y-auto">
+            <table class="w-full text-left text-sm text-slate-600">
+              <thead class="bg-slate-50 sticky top-0 text-xs uppercase text-slate-500 font-semibold">
+                <tr>
+                  <th class="px-3 py-2">項目名稱</th>
+                  <th class="px-3 py-2 text-right">預設定價</th>
+                  <th class="px-3 py-2 text-right">預設抽成</th>
+                  <th class="px-3 py-2 text-center">操作</th>
+                </tr>
+              </thead>
+              <tbody id="settings-services-tbody" class="divide-y divide-slate-100">
+                <!-- 動態注入 -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- 右側：員工名單與底薪設定 -->
+        <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 space-y-4">
+          <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div>
+              <h3 class="text-sm font-bold text-slate-900 flex items-center gap-2">
+                <i data-lucide="users" class="w-4 h-4 text-amber-600"></i> 設計師與助理人員設定
+              </h3>
+              <p class="text-xs text-slate-500">設定設計師/助理職稱、預設底薪與全勤獎金</p>
+            </div>
+            <button onclick="openStaffModal()" class="text-xs bg-amber-600 hover:bg-amber-700 text-white font-semibold px-3 py-1.5 rounded-lg transition flex items-center gap-1">
+              <i data-lucide="user-plus" class="w-3.5 h-3.5"></i> 新增人員
+            </button>
+          </div>
+
+          <div class="overflow-x-auto max-h-[460px] overflow-y-auto">
+            <table class="w-full text-left text-sm text-slate-600">
+              <thead class="bg-slate-50 sticky top-0 text-xs uppercase text-slate-500 font-semibold">
+                <tr>
+                  <th class="px-3 py-2">姓名</th>
+                  <th class="px-3 py-2">身分職稱</th>
+                  <th class="px-3 py-2 text-right">預設底薪</th>
+                  <th class="px-3 py-2 text-right">預設全勤</th>
+                  <th class="px-3 py-2 text-center">操作</th>
+                </tr>
+              </thead>
+              <tbody id="settings-staff-tbody" class="divide-y divide-slate-100">
+                <!-- 動態注入 -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- 系統備份與資料重置 -->
+      <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6">
+        <h3 class="text-sm font-bold text-slate-900 mb-3 flex items-center gap-2">
+          <i data-lucide="database" class="w-4 h-4 text-amber-600"></i> 資料備份與還原 (可跨電腦轉移)
+        </h3>
+        <p class="text-xs text-slate-500 mb-4">所有帳單、項目與薪資設定均儲存於此瀏覽器中。您可隨時匯出備份檔案保存，或載入示範資料進行體驗。</p>
+        
+        <div class="flex flex-wrap items-center gap-3">
+          <button onclick="backupDataToJson()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold transition flex items-center gap-1.5">
+            <i data-lucide="download" class="w-4 h-4"></i> 匯出完整備份檔 (JSON)
+          </button>
+          <label class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-semibold cursor-pointer transition flex items-center gap-1.5">
+            <i data-lucide="upload" class="w-4 h-4"></i> 還原備份檔 (JSON)
+            <input type="file" id="import-json-file" accept=".json" onchange="restoreDataFromJson(event)" class="hidden">
+          </label>
+          <button onclick="loadDemoData()" class="px-4 py-2 bg-amber-50 hover:bg-amber-100 text-amber-800 rounded-xl text-xs font-semibold transition flex items-center gap-1.5">
+            <i data-lucide="wand-2" class="w-4 h-4"></i> 載入真實示範帳單資料
+          </button>
+          <button onclick="confirmResetAll()" class="px-4 py-2 bg-rose-50 hover:bg-rose-100 text-rose-700 rounded-xl text-xs font-semibold transition flex items-center gap-1.5 ml-auto">
+            <i data-lucide="trash-2" class="w-4 h-4"></i> 清空所有資料
+          </button>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- ==================== 列印專用專區（列印時才顯示） ==================== -->
+  <div id="printable-slip" class="hidden">
+    <!-- 由 JavaScript 產生標準薪資明細單 -->
+  </div>
+
+  <!-- ==================== 模態視窗 (Modal): 編輯/新增服務項目 ==================== -->
+  <div id="modal-service" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+      <div class="flex justify-between items-center pb-2 border-b border-slate-100">
+        <h4 id="modal-service-title" class="text-base font-bold text-slate-900">新增服務項目</h4>
+        <button onclick="closeServiceModal()" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <input type="hidden" id="modal-service-id">
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 mb-1">服務名稱</label>
+        <input type="text" id="modal-service-name" placeholder="例如：造型剪髮、深層溫塑燙" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">預設定價 (NT$)</label>
+          <input type="number" id="modal-service-price" placeholder="800" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm font-numeric">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">預設抽成比例 (%)</label>
+          <input type="number" id="modal-service-rate" placeholder="50" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm font-numeric">
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 mb-1">項目分類</label>
+        <select id="modal-service-category" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm bg-white">
+          <option value="技術服務">技術服務 (洗/剪/染/燙/護/SPA)</option>
+          <option value="產品銷售">產品銷售 (洗護髮品/造型品)</option>
+        </select>
+      </div>
+      <div class="flex gap-2 pt-2">
+        <button onclick="closeServiceModal()" class="flex-1 py-2.5 bg-slate-100 text-slate-700 font-semibold rounded-xl text-sm">取消</button>
+        <button onclick="saveServiceItem()" class="flex-1 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded-xl text-sm">儲存設定</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== 模態視窗 (Modal): 編輯/新增人員 ==================== -->
+  <div id="modal-staff" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">
+      <div class="flex justify-between items-center pb-2 border-b border-slate-100">
+        <h4 id="modal-staff-title" class="text-base font-bold text-slate-900">新增工作人員</h4>
+        <button onclick="closeStaffModal()" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      <input type="hidden" id="modal-staff-id">
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 mb-1">員工姓名</label>
+        <input type="text" id="modal-staff-name" placeholder="例如：Hank、Emily、小涵" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
+      </div>
+      <div>
+        <label class="block text-xs font-semibold text-slate-600 mb-1">職務角色</label>
+        <select id="modal-staff-role" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm bg-white">
+          <option value="設計師">設計師 (Designer)</option>
+          <option value="助理">美髮助理 (Assistant)</option>
+          <option value="店長/合夥人">店長 / 合夥人</option>
+        </select>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">預設底薪 (NT$)</label>
+          <input type="number" id="modal-staff-base" placeholder="28000" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm font-numeric">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-600 mb-1">預設全勤獎金 (NT$)</label>
+          <input type="number" id="modal-staff-bonus" placeholder="2000" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm font-numeric">
+        </div>
+      </div>
+      <div class="flex gap-2 pt-2">
+        <button onclick="closeStaffModal()" class="flex-1 py-2.5 bg-slate-100 text-slate-700 font-semibold rounded-xl text-sm">取消</button>
+        <button onclick="saveStaffMember()" class="flex-1 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded-xl text-sm">儲存人員</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast 提示訊息 -->
+  <div id="toast" class="fixed bottom-6 right-6 bg-slate-900 text-white px-4 py-3 rounded-2xl shadow-xl z-50 flex items-center gap-2 text-sm transition-all transform translate-y-12 opacity-0 pointer-events-none">
+    <i data-lucide="check" class="w-4 h-4 text-emerald-400"></i>
+    <span id="toast-message">操作完成</span>
+  </div>
+
+  <footer class="text-center py-4 text-xs text-slate-400 border-t border-slate-100 no-print mt-auto">
+    SalonPay 美髮沙龍薪資與抽成計算系統 ‧ 專為美髮設計師與沙龍店家打造
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

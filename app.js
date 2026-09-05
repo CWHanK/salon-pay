@@ -1367,18 +1367,6 @@ function calculateMonthlyPayroll() {
   const staff = appState.staff.find(s => s.id === staffId);
   if (!staff) return;
 
-  const baseSalaryInput = document.getElementById('calc-base-salary');
-  const attendanceBonusInput = document.getElementById('calc-attendance-bonus');
-  
-  if (baseSalaryInput && (!baseSalaryInput.dataset.modified || baseSalaryInput.dataset.staffId !== staffId)) {
-    baseSalaryInput.value = staff.baseSalary;
-    baseSalaryInput.dataset.staffId = staffId;
-  }
-  if (attendanceBonusInput && (!attendanceBonusInput.dataset.modified || attendanceBonusInput.dataset.staffId !== staffId)) {
-    attendanceBonusInput.value = staff.attendanceBonus;
-    attendanceBonusInput.dataset.staffId = staffId;
-  }
-
   const monthlyOrders = appState.orders.filter(order => {
     return order.date.startsWith(monthVal) && (order.staffId === staffId || order.assistantId === staffId);
   });
@@ -1412,16 +1400,15 @@ function calculateMonthlyPayroll() {
 }
 
 function updateCalculatedNetPay() {
-  const baseSalary = parseFloat(document.getElementById('calc-base-salary')?.value) || 0;
   const commission = parseFloat(document.getElementById('calc-commission')?.value) || 0;
-  const attendanceBonus = parseFloat(document.getElementById('calc-attendance-bonus')?.value) || 0;
   const otherBonus = parseFloat(document.getElementById('calc-other-bonus')?.value) || 0;
-  const deductions = parseFloat(document.getElementById('calc-deductions')?.value) || 0;
 
-  const netPay = Math.round(baseSalary + commission + attendanceBonus + otherBonus - deductions);
+  const netPay = Math.round(commission + otherBonus);
 
-  document.getElementById('stat-month-net-pay').textContent = netPay.toLocaleString();
-  document.getElementById('calc-summary-net').textContent = netPay.toLocaleString();
+  const netPayStat = document.getElementById('stat-month-net-pay');
+  if (netPayStat) netPayStat.textContent = netPay.toLocaleString();
+  const summaryNet = document.getElementById('calc-summary-net');
+  if (summaryNet) summaryNet.textContent = netPay.toLocaleString();
 }
 
 function renderMonthlyOrdersTable(monthlyOrders, currentStaffId) {
@@ -1530,12 +1517,9 @@ function exportMonthlyReportExcel() {
   }
 
   // 管理員：完整月薪資結算總表與客單抽成明細
-  const baseSalary = parseFloat(document.getElementById('calc-base-salary')?.value) || 0;
   const commission = parseFloat(document.getElementById('calc-commission')?.value) || 0;
-  const attendance = parseFloat(document.getElementById('calc-attendance-bonus')?.value) || 0;
   const otherBonus = parseFloat(document.getElementById('calc-other-bonus')?.value) || 0;
-  const deductions = parseFloat(document.getElementById('calc-deductions')?.value) || 0;
-  const netPay = Math.round(baseSalary + commission + attendance + otherBonus - deductions);
+  const netPay = Math.round(commission + otherBonus);
 
   const summarySheetData = [
     { '項目': '結算月份', '內容/金額': monthVal },
@@ -1543,11 +1527,8 @@ function exportMonthlyReportExcel() {
     { '項目': '職務身分', '內容/金額': staff.role },
     { '項目': '完成服務客數', '內容/金額': `${monthlyOrders.length} 人次` },
     { '項目': '----------------', '內容/金額': '----------------' },
-    { '項目': '【(+) 保障底薪】', '內容/金額': baseSalary },
     { '項目': '【(+) 業績抽成總額】', '內容/金額': commission },
-    { '項目': '【(+) 全勤獎金】', '內容/金額': attendance },
-    { '項目': '【(+) 績效/其他獎金】', '內容/金額': otherBonus },
-    { '項目': '【(-) 勞健保及請假扣款】', '內容/金額': deductions },
+    { '項目': '【(+) 其他獎金/補貼】', '內容/金額': otherBonus },
     { '項目': '================', '內容/金額': '================' },
     { '項目': '【★ 實發薪資合計】', '內容/金額': netPay },
   ];
@@ -1585,17 +1566,18 @@ function exportMonthlyReportExcel() {
 }
 
 function printSalarySlip() {
+  if (currentUserRole === 'staff') {
+    alert('員工身分無列印薪資單權限！');
+    return;
+  }
   const monthVal = document.getElementById('monthly-select-month')?.value;
   const staffId = document.getElementById('monthly-select-staff')?.value;
   const staff = appState.staff.find(s => s.id === staffId);
   if (!staff || !monthVal) return;
 
-  const baseSalary = parseFloat(document.getElementById('calc-base-salary')?.value) || 0;
   const commission = parseFloat(document.getElementById('calc-commission')?.value) || 0;
-  const attendance = parseFloat(document.getElementById('calc-attendance-bonus')?.value) || 0;
   const otherBonus = parseFloat(document.getElementById('calc-other-bonus')?.value) || 0;
-  const deductions = parseFloat(document.getElementById('calc-deductions')?.value) || 0;
-  const netPay = Math.round(baseSalary + commission + attendance + otherBonus - deductions);
+  const netPay = Math.round(commission + otherBonus);
 
   const monthlyOrders = appState.orders.filter(order => {
     return order.date.startsWith(monthVal) && (order.staffId === staffId || order.assistantId === staffId);
@@ -1628,42 +1610,28 @@ function printSalarySlip() {
       <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
         <thead>
           <tr style="background: #e2e8f0;">
-            <th style="border: 1px solid #cbd5e1; padding: 8px; text-align: left;">加項薪酬明細</th>
+            <th style="border: 1px solid #cbd5e1; padding: 8px; text-align: left;">薪資結算項目</th>
             <th style="border: 1px solid #cbd5e1; padding: 8px; text-align: right;">金額 (NT$)</th>
-            <th style="border: 1px solid #cbd5e1; padding: 8px; text-align: left;">扣除項明細</th>
-            <th style="border: 1px solid #cbd5e1; padding: 8px; text-align: right;">金額 (NT$)</th>
+            <th style="border: 1px solid #cbd5e1; padding: 8px; text-align: left;">說明</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td style="border: 1px solid #cbd5e1; padding: 8px;">保障底薪</td>
-            <td style="border: 1px solid #cbd5e1; padding: 8px; text-align: right;">$ ${baseSalary.toLocaleString()}</td>
-            <td style="border: 1px solid #cbd5e1; padding: 8px;">勞保/健保個人自付額</td>
-            <td style="border: 1px solid #cbd5e1; padding: 8px; text-align: right; color: #e11d48;">$ ${deductions.toLocaleString()}</td>
-          </tr>
-          <tr>
-            <td style="border: 1px solid #cbd5e1; padding: 8px;"><strong>技術服務與產品抽成總計</strong></td>
+            <td style="border: 1px solid #cbd5e1; padding: 8px;"><strong>技術服務與產品業績抽成</strong></td>
             <td style="border: 1px solid #cbd5e1; padding: 8px; text-align: right; font-weight: bold; color: #b45309;">$ ${commission.toLocaleString()}</td>
-            <td style="border: 1px solid #cbd5e1; padding: 8px;">其他代扣/扣款</td>
-            <td style="border: 1px solid #cbd5e1; padding: 8px; text-align: right;">$ 0</td>
+            <td style="border: 1px solid #cbd5e1; padding: 8px; color: #64748b;">當月各項客單累計之抽成實額</td>
           </tr>
           <tr>
-            <td style="border: 1px solid #cbd5e1; padding: 8px;">全勤獎金</td>
-            <td style="border: 1px solid #cbd5e1; padding: 8px; text-align: right;">$ ${attendance.toLocaleString()}</td>
-            <td style="border: 1px solid #cbd5e1; padding: 8px;">-</td>
-            <td style="border: 1px solid #cbd5e1; padding: 8px; text-align: right;">-</td>
-          </tr>
-          <tr>
-            <td style="border: 1px solid #cbd5e1; padding: 8px;">績效/額外獎勵加給</td>
+            <td style="border: 1px solid #cbd5e1; padding: 8px;">其他獎金 / 補貼加給</td>
             <td style="border: 1px solid #cbd5e1; padding: 8px; text-align: right;">$ ${otherBonus.toLocaleString()}</td>
-            <td style="border: 1px solid #cbd5e1; padding: 8px;">-</td>
-            <td style="border: 1px solid #cbd5e1; padding: 8px; text-align: right;">-</td>
+            <td style="border: 1px solid #cbd5e1; padding: 8px; color: #64748b;">主管調整之額外績效或獎金</td>
           </tr>
           <tr style="background: #fef3c7; font-size: 15px; font-weight: bold;">
-            <td colspan="2" style="border: 1px solid #cbd5e1; padding: 10px;">應發金額小計：NT$ ${(baseSalary + commission + attendance + otherBonus).toLocaleString()}</td>
-            <td colspan="2" style="border: 1px solid #cbd5e1; padding: 10px; text-align: right; color: #b45309;">
-              ★ 本月實發薪資淨額：NT$ ${netPay.toLocaleString()}
+            <td style="border: 1px solid #cbd5e1; padding: 10px;">★ 本月實發薪資合計</td>
+            <td style="border: 1px solid #cbd5e1; padding: 10px; text-align: right; color: #b45309;">
+              NT$ ${netPay.toLocaleString()}
             </td>
+            <td style="border: 1px solid #cbd5e1; padding: 10px; color: #b45309;">業績抽成 + 其他獎金</td>
           </tr>
         </tbody>
       </table>
@@ -1752,7 +1720,6 @@ function renderSettingsTables() {
               </span>
             ` : '<span class="text-slate-400 text-[10px]">未綁定帳號</span>'}
           </td>
-          <td class="px-3 py-2.5 text-right font-numeric font-bold text-slate-700">NT$ ${st.baseSalary.toLocaleString()}</td>
           <td class="px-3 py-2.5 text-center space-x-1 whitespace-nowrap">
             <button onclick="editStaffMember('${st.id}')" class="text-xs text-amber-600 hover:text-amber-800 font-semibold p-1">編輯</button>
             <button onclick="deleteStaffMember('${st.id}')" class="text-xs text-rose-500 hover:text-rose-700 p-1">刪除</button>
@@ -1843,8 +1810,6 @@ function openStaffModal() {
   document.getElementById('modal-staff-id').value = '';
   document.getElementById('modal-staff-name').value = '';
   document.getElementById('modal-staff-role').value = '設計師';
-  document.getElementById('modal-staff-base').value = '28000';
-  document.getElementById('modal-staff-bonus').value = '2000';
   populateLinkedUsersDropdown('');
   document.getElementById('modal-staff-title').textContent = '新增工作人員 / 設計師';
   document.getElementById('modal-staff').classList.remove('hidden');
@@ -1857,8 +1822,6 @@ function editStaffMember(staffId) {
   document.getElementById('modal-staff-id').value = staff.id;
   document.getElementById('modal-staff-name').value = staff.name;
   document.getElementById('modal-staff-role').value = staff.role;
-  document.getElementById('modal-staff-base').value = staff.baseSalary;
-  document.getElementById('modal-staff-bonus').value = staff.attendanceBonus;
   populateLinkedUsersDropdown(staff.linkedUid || '');
   document.getElementById('modal-staff-title').textContent = '編輯工作人員';
   document.getElementById('modal-staff').classList.remove('hidden');
@@ -1872,8 +1835,6 @@ async function saveStaffMember() {
   const id = document.getElementById('modal-staff-id').value;
   const name = document.getElementById('modal-staff-name').value.trim();
   const role = document.getElementById('modal-staff-role').value;
-  const baseSalary = parseFloat(document.getElementById('modal-staff-base').value) || 0;
-  const attendanceBonus = parseFloat(document.getElementById('modal-staff-bonus').value) || 0;
 
   const linkedUserSelect = document.getElementById('modal-staff-linked-user');
   const linkedUid = linkedUserSelect ? linkedUserSelect.value : '';
@@ -1890,8 +1851,6 @@ async function saveStaffMember() {
     if (s) {
       s.name = name;
       s.role = role;
-      s.baseSalary = baseSalary;
-      s.attendanceBonus = attendanceBonus;
       s.linkedUid = linkedUid;
       s.linkedEmail = linkedEmail;
     }
@@ -1900,8 +1859,8 @@ async function saveStaffMember() {
       id: 'staff-' + Date.now(),
       name: name,
       role: role,
-      baseSalary: baseSalary,
-      attendanceBonus: attendanceBonus,
+      baseSalary: 0,
+      attendanceBonus: 0,
       linkedUid: linkedUid,
       linkedEmail: linkedEmail
     });

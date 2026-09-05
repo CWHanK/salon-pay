@@ -1,14 +1,13 @@
 /**
  * Firebase 雲端資料庫設定檔
- * 
- * 請將您在 Firebase 控制台取得的 firebaseConfig 貼在下方物件中。
- * 若尚未設定，系統啟動時會在網頁畫面上引導您直接貼上設定！
+ * 專為 SalonPay 沙龍薪資與抽成管理系統配置
  */
 window.FIREBASE_CONFIG = {
-  apiKey: "",
-  authDomain: "",
-  projectId: "",
-  storageBucket: "",
-  messagingSenderId: "",
-  appId: ""
+  apiKey: "AIzaSyC5k5ySWZkH7l0Bo0KLG1qb6Rfy-rimY74",
+  authDomain: "salon-pay-9b2a0.firebaseapp.com",
+  projectId: "salon-pay-9b2a0",
+  storageBucket: "salon-pay-9b2a0.firebasestorage.app",
+  messagingSenderId: "405226842218",
+  appId: "1:405226842218:web:0016343ad5c83ef5330213",
+  measurementId: "G-VXHQJ4Y07M"
 };

@@ -151,9 +151,9 @@ function setAuthMode(isSignUp) {
     if (tabLogin) {
       tabLogin.className = 'py-2.5 rounded-xl transition text-slate-500 hover:text-slate-800 flex items-center justify-center gap-1.5';
     }
-    if (submitText) submitText.textContent = '註冊並加入雲端沙龍';
+    if (submitText) submitText.textContent = '註冊';
     if (roleContainer) roleContainer.classList.remove('hidden');
-    if (emailLabel) emailLabel.textContent = '註冊信箱 (Email)';
+    if (emailLabel) emailLabel.textContent = '信箱';
 
     const selectedRole = document.querySelector('input[name="auth-reg-role"]:checked')?.value || 'staff';
     onAuthRoleChange(selectedRole);
@@ -164,10 +164,10 @@ function setAuthMode(isSignUp) {
     if (tabSignup) {
       tabSignup.className = 'py-2.5 rounded-xl transition text-slate-500 hover:text-slate-800 flex items-center justify-center gap-1.5';
     }
-    if (submitText) submitText.textContent = '登入雲端系統';
+    if (submitText) submitText.textContent = '登入';
     if (roleContainer) roleContainer.classList.add('hidden');
     if (keyContainer) keyContainer.classList.add('hidden');
-    if (emailLabel) emailLabel.textContent = '信箱 (Email)';
+    if (emailLabel) emailLabel.textContent = '信箱';
   }
   if (window.lucide) lucide.createIcons();
 }

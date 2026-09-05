@@ -53,33 +53,32 @@
     <div class="bg-white rounded-3xl max-w-sm sm:max-w-md w-full p-6 sm:p-8 shadow-2xl border border-slate-100 relative">
       
       <!-- 標頭 -->
-      <div class="text-center space-y-2 mb-6">
-        <div class="w-13 h-13 sm:w-14 sm:h-14 rounded-2xl bg-gradient-to-tr from-amber-600 to-amber-400 flex items-center justify-center text-white mx-auto shadow-lg shadow-amber-500/25">
-          <i data-lucide="scissors" class="w-7 h-7"></i>
+      <div class="text-center mb-5">
+        <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-600 to-amber-400 flex items-center justify-center text-white mx-auto shadow-md shadow-amber-500/20 mb-2.5">
+          <i data-lucide="scissors" class="w-6 h-6"></i>
         </div>
-        <h2 class="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">SalonPay 沙龍雲端管理</h2>
-        <p class="text-xs text-slate-500">Google 雲端加密同步 ‧ 個人專屬營業後台</p>
+        <h2 class="text-2xl font-black text-slate-900 tracking-tight">Salon Pay</h2>
       </div>
 
       <!-- 登入 / 註冊 分頁切換 -->
       <div class="grid grid-cols-2 p-1 bg-slate-100 rounded-2xl mb-4 text-xs font-bold">
         <button type="button" onclick="setAuthMode(false)" id="auth-tab-login" class="py-2.5 rounded-xl transition bg-white text-slate-900 shadow-xs flex items-center justify-center gap-1.5">
-          <i data-lucide="log-in" class="w-3.5 h-3.5"></i> 登入帳號
+          <i data-lucide="log-in" class="w-3.5 h-3.5"></i> 登入
         </button>
         <button type="button" onclick="setAuthMode(true)" id="auth-tab-signup" class="py-2.5 rounded-xl transition text-slate-500 hover:text-slate-800 flex items-center justify-center gap-1.5">
-          <i data-lucide="user-plus" class="w-3.5 h-3.5"></i> 註冊新帳號
+          <i data-lucide="user-plus" class="w-3.5 h-3.5"></i> 註冊
         </button>
       </div>
 
       <!-- 登入 / 註冊表單 -->
       <form id="login-form" onsubmit="handleAuthSubmit(event)" class="space-y-3.5">
         <div>
-          <label id="auth-email-label" class="block text-xs font-bold text-slate-700 mb-1">信箱 (Email)</label>
+          <label id="auth-email-label" class="block text-xs font-bold text-slate-700 mb-1">信箱</label>
           <div class="relative">
             <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
               <i data-lucide="mail" class="w-4 h-4"></i>
             </span>
-            <input type="email" id="auth-email" required placeholder="請輸入您的信箱" class="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500">
+            <input type="email" id="auth-email" required placeholder="請輸入信箱" class="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500">
           </div>
         </div>
 
@@ -89,7 +88,7 @@
             <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
               <i data-lucide="lock" class="w-4 h-4"></i>
             </span>
-            <input type="password" id="auth-password" required minlength="6" placeholder="請輸入至少 6 碼密碼" class="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500">
+            <input type="password" id="auth-password" required minlength="6" placeholder="請輸入密碼" class="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500">
           </div>
         </div>
 
@@ -119,7 +118,6 @@
             </span>
             <input type="password" id="auth-admin-key" placeholder="請輸入管理員密鑰" class="w-full pl-8 pr-3 py-2 rounded-xl border border-amber-300 bg-white text-xs font-bold text-slate-900 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 font-mono">
           </div>
-          <p class="text-[11px] text-amber-700 leading-tight">需輸入正確密鑰方可取得管理員權限。</p>
         </div>
 
         <!-- 錯誤提示 -->
@@ -131,12 +129,12 @@
         <!-- 提交按鈕 -->
         <button type="submit" id="auth-submit-btn" class="w-full py-3 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl shadow-md shadow-amber-600/20 hover:shadow-lg transition flex items-center justify-center gap-2 text-sm">
           <i data-lucide="log-in" class="w-4 h-4"></i>
-          <span id="auth-submit-text">登入雲端系統</span>
+          <span id="auth-submit-text">登入</span>
         </button>
       </form>
 
       <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
-        <span class="text-[11px]">SalonPay 沙龍雲端管理</span>
+        <span class="text-[11px]">Salon Pay</span>
         <button type="button" onclick="openCloudConfigModal()" class="text-slate-400 hover:text-slate-700 flex items-center gap-1 text-[11px]">
           <i data-lucide="database" class="w-3.5 h-3.5"></i> Firebase 設定
         </button>

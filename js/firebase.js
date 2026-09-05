@@ -63,7 +63,10 @@ function subscribeToCloudData() {
       appState.services = data.services || [...DEFAULT_SERVICES];
       appState.staff = data.staff || [];
       appState.orders = data.orders || [];
-      salonAdminKey = data.adminSecretKey || DEFAULT_ADMIN_SECRET_KEY;
+      salonAdminKey = (data.adminSecretKey && data.adminSecretKey !== 'SALON888') ? data.adminSecretKey : DEFAULT_ADMIN_SECRET_KEY;
+      if (data.adminSecretKey === 'SALON888' && currentUserRole === 'admin') {
+        storeDocRef.update({ adminSecretKey: DEFAULT_ADMIN_SECRET_KEY }).catch(() => {});
+      }
       const keyDisplay = document.getElementById('settings-current-admin-key');
       if (keyDisplay) keyDisplay.textContent = salonAdminKey;
 

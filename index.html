@@ -505,7 +505,7 @@
     <section id="tab-settings" class="space-y-4 hidden">
 
       <!-- 員工模式專屬帳號資訊卡片 -->
-      <div id="settings-employee-card" class="hidden bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm p-4 sm:p-6 space-y-3">
+      <div id="settings-employee-card" class="hidden bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm p-4 sm:p-6 space-y-4">
         <div class="flex items-center gap-3">
           <div class="w-12 h-12 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold">
             <i data-lucide="user" class="w-6 h-6 text-amber-700"></i>
@@ -519,6 +519,29 @@
           <div class="font-bold text-slate-800">📌 員工使用提示</div>
           <p>您目前以員工身分登入，可隨時進行「現場開單」、查閱「歷史帳單」與「當月工作明細」。</p>
           <p class="text-slate-400 text-[11px]">服務項目定價、抽成比例與薪資結構由沙龍管理員統一設定維護。</p>
+        </div>
+
+        <!-- 🔑 員工憑密鑰升級為管理員區塊 -->
+        <div class="bg-gradient-to-br from-amber-50 to-orange-50/50 p-4 rounded-2xl border border-amber-200/80 space-y-2.5">
+          <div class="flex items-center justify-between">
+            <h4 class="text-xs font-bold text-amber-900 flex items-center gap-1.5">
+              <i data-lucide="shield-alert" class="w-4 h-4 text-amber-600"></i> 管理員身分授權升級
+            </h4>
+            <span class="text-[10px] bg-amber-100/80 text-amber-800 border border-amber-300/60 px-2 py-0.5 rounded-full font-bold">主管密鑰解鎖</span>
+          </div>
+          <p class="text-[11px] text-amber-800/80 leading-relaxed">若您為沙龍負責人或合夥主管，請輸入店家管理員授權密鑰，核對成功後即可立即升級本帳號為管理員，解鎖後台項目與人員管理權限。</p>
+          
+          <div class="flex flex-col sm:flex-row gap-2 pt-1">
+            <div class="relative flex-1">
+              <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-amber-600/70">
+                <i data-lucide="key" class="w-3.5 h-3.5"></i>
+              </span>
+              <input type="password" id="upgrade-admin-key-input" placeholder="請輸入管理員授權密鑰" class="w-full pl-8 pr-3 py-2 rounded-xl border border-amber-300 bg-white text-xs font-mono font-bold text-slate-900 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500">
+            </div>
+            <button type="button" onclick="upgradeSelfToAdmin()" class="px-4 py-2 bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-sm transition whitespace-nowrap">
+              <i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i> 驗證升級
+            </button>
+          </div>
         </div>
       </div>
 
@@ -637,7 +660,7 @@
           </h3>
           <button onclick="changeAdminSecretKey()" class="text-xs text-amber-700 hover:text-amber-800 font-bold">修改密鑰</button>
         </div>
-        <p class="text-[11px] text-slate-400">其他新管理員在註冊時需輸入此密鑰方可取得管理權限：<strong id="settings-current-admin-key" class="text-slate-700 font-mono bg-slate-100 px-2 py-0.5 rounded">SALON888</strong></p>
+        <p class="text-[11px] text-slate-400">其他新管理員在註冊或由員工升級時需輸入此密鑰：<strong id="settings-current-admin-key" class="text-slate-700 font-mono bg-slate-100 px-2 py-0.5 rounded">IMTHEBOSS</strong></p>
       </div>
 
       <!-- 備份與清空 -->

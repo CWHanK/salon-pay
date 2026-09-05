@@ -19,7 +19,7 @@ const DEFAULT_SERVICES = [
 ];
 
 // 預設管理員註冊密鑰
-const DEFAULT_ADMIN_SECRET_KEY = "SALON888";
+const DEFAULT_ADMIN_SECRET_KEY = "IMTHEBOSS";
 
 // 台灣常見折數定義
 const DISCOUNT_OPTIONS = [

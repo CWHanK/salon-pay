@@ -298,6 +298,56 @@ async function toggleUserRole(uid, newRole) {
   }
 }
 
+// 員工憑密鑰將自身帳號升級為管理員
+async function upgradeSelfToAdmin() {
+  if (currentUserRole === 'admin') {
+    alert('您目前已是管理員身分！');
+    return;
+  }
+  if (!currentUser || !db) {
+    alert('尚未連線或未登入！');
+    return;
+  }
+
+  const keyInput = document.getElementById('upgrade-admin-key-input');
+  const inputKey = (keyInput?.value || '').trim();
+
+  if (!inputKey) {
+    alert('請輸入店家管理員授權密鑰！');
+    keyInput?.focus();
+    return;
+  }
+
+  const validKey = salonAdminKey || DEFAULT_ADMIN_SECRET_KEY;
+  if (inputKey !== validKey && inputKey !== DEFAULT_ADMIN_SECRET_KEY) {
+    alert('管理員授權密鑰不符，請重新確認或洽詢沙龍負責人！');
+    return;
+  }
+
+  try {
+    await db.collection('salon_users').doc(currentUser.uid).update({
+      role: 'admin'
+    });
+
+    currentUserRole = 'admin';
+
+    // 清空密鑰輸入框
+    if (keyInput) keyInput.value = '';
+
+    applyRolePermissions();
+    subscribeToUsersList();
+    populateStaffDropdowns();
+    filterHistoryOrders();
+    calculateMonthlyPayroll();
+    renderSettingsTables();
+
+    showToast('🎉 身分已成功升級為「店家管理員」！');
+  } catch (err) {
+    console.error('升級失敗:', err);
+    alert('升級管理員失敗：' + err.message);
+  }
+}
+
 // 管理員將自身帳號降級為員工
 async function demoteSelfToStaff() {
   if (currentUserRole !== 'admin') {

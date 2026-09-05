@@ -350,7 +350,7 @@ async function demoteSelfToStaff() {
   if (!currentUser || !db) return;
 
   const otherAdmins = allRegisteredUsers.filter(u => u.uid !== currentUser.uid && u.role === 'admin');
-  let confirmMsg = '確定要將自己的帳號降級為「員工」身分嗎？\n\n降級後您將轉為員工模式，僅能現場開單與查閱個人歷史帳單，無法再進入月薪結算與後台管理。';
+  let confirmMsg = '確定要將自己的帳號降級為「員工」身分嗎？\n\n降級後您將轉為員工模式，僅能開單與查閱個人歷史紀錄，無法再進入月薪結算與後台管理。';
   if (otherAdmins.length === 0) {
     confirmMsg += '\n\n⚠️ 提醒：店內名單中目前無其他管理員帳號，降級後若需恢復管理權限，需由其他管理員在後台指定或於資料庫調整。';
   }

@@ -13,7 +13,7 @@ function getCurrentYearMonth() {
 // 日期與介面初始化
 function initCurrentDate() {
   const now = new Date();
-  const dateStr = now.toISOString().split('T')[0];
+  const dateStr = typeof getLocalDateString === 'function' ? getLocalDateString(now) : now.toISOString().split('T')[0];
   const dateInput = document.getElementById('billing-date');
   if (dateInput) dateInput.value = dateStr;
 
@@ -21,8 +21,15 @@ function initCurrentDate() {
   const historyMonth = document.getElementById('history-filter-month');
   if (historyMonth) historyMonth.value = currentYM;
 
+  const historyDay = document.getElementById('history-filter-day');
+  if (historyDay) historyDay.value = dateStr;
+
   const monthlyMonth = document.getElementById('monthly-select-month');
   if (monthlyMonth) monthlyMonth.value = currentYM;
+
+  if (typeof initHistoryFilters === 'function') {
+    initHistoryFilters();
+  }
 }
 
 // 分頁切換 (同步手機 Dock 與桌面 Tab)
@@ -53,8 +60,9 @@ function switchTab(tabName) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 
   if (tabName === 'history') {
-    const monthInput = document.getElementById('history-filter-month');
-    if (monthInput && !monthInput.value) monthInput.value = getCurrentYearMonth();
+    if (typeof initHistoryFilters === 'function') {
+      initHistoryFilters();
+    }
     filterHistoryOrders();
   } else if (tabName === 'monthly') {
     const monthInput = document.getElementById('monthly-select-month');

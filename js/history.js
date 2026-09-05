@@ -1,17 +1,117 @@
 /**
- * SalonFlow - 歷史帳單與每日流水 (js/history.js)
+ * SalonFlow - 歷史紀錄 (js/history.js)
  */
 
-function initHistoryFilters() {
+// 當前歷史紀錄查詢週期：'day' | 'month' | 'year'（預設為 'month'）
+let currentHistoryPeriod = 'month';
+
+function setHistoryPeriod(period) {
+  if (currentHistoryPeriod === period) return;
+  const prevPeriod = currentHistoryPeriod;
+  currentHistoryPeriod = period;
+
+  const dayInput = document.getElementById('history-filter-day');
   const monthInput = document.getElementById('history-filter-month');
-  if (monthInput && !monthInput.value) {
-    monthInput.value = getCurrentYearMonth();
+  const yearSelect = document.getElementById('history-filter-year');
+
+  const todayStr = typeof getLocalDateString === 'function' ? getLocalDateString() : new Date().toISOString().split('T')[0];
+  const currentYM = typeof getCurrentYearMonth === 'function' ? getCurrentYearMonth() : todayStr.slice(0, 7);
+
+  if (period === 'day') {
+    if (dayInput && !dayInput.value) {
+      dayInput.value = todayStr;
+    } else if (monthInput && monthInput.value && dayInput) {
+      if (todayStr.startsWith(monthInput.value)) {
+        dayInput.value = todayStr;
+      } else if (!dayInput.value.startsWith(monthInput.value)) {
+        dayInput.value = `${monthInput.value}-01`;
+      }
+    }
+  } else if (period === 'month') {
+    if (prevPeriod === 'day' && dayInput && dayInput.value) {
+      if (monthInput) monthInput.value = dayInput.value.slice(0, 7);
+    } else if (prevPeriod === 'year' && yearSelect && yearSelect.value) {
+      if (currentYM.startsWith(yearSelect.value)) {
+        if (monthInput) monthInput.value = currentYM;
+      } else {
+        if (monthInput) monthInput.value = `${yearSelect.value}-01`;
+      }
+    } else if (monthInput && !monthInput.value) {
+      monthInput.value = currentYM;
+    }
+  } else if (period === 'year') {
+    populateHistoryYearOptions();
+    if (monthInput && monthInput.value && yearSelect) {
+      yearSelect.value = monthInput.value.slice(0, 4);
+    }
+  }
+
+  updateHistoryPeriodUI();
+  filterHistoryOrders();
+}
+
+function updateHistoryPeriodUI() {
+  const periods = ['day', 'month', 'year'];
+  periods.forEach(p => {
+    const btn = document.getElementById(`period-btn-${p}`);
+    const wrapper = document.getElementById(`history-filter-${p}-wrapper`);
+    if (p === currentHistoryPeriod) {
+      btn?.classList.add('bg-amber-600', 'text-white', 'shadow-sm');
+      btn?.classList.remove('text-slate-600', 'hover:text-slate-900');
+      wrapper?.classList.remove('hidden');
+    } else {
+      btn?.classList.remove('bg-amber-600', 'text-white', 'shadow-sm');
+      btn?.classList.add('text-slate-600', 'hover:text-slate-900');
+      wrapper?.classList.add('hidden');
+    }
+  });
+}
+
+function populateHistoryYearOptions() {
+  const yearSelect = document.getElementById('history-filter-year');
+  if (!yearSelect) return;
+  const currentYear = new Date().getFullYear();
+  const years = new Set([currentYear, currentYear - 1]);
+  if (window.appState && appState.orders) {
+    appState.orders.forEach(o => {
+      if (o.date) {
+        const y = parseInt(o.date.split('-')[0], 10);
+        if (!isNaN(y)) years.add(y);
+      }
+    });
+  }
+  const sortedYears = Array.from(years).sort((a, b) => b - a);
+  const currentVal = yearSelect.value || String(currentYear);
+  yearSelect.innerHTML = sortedYears.map(y => `<option value="${y}">${y} 年</option>`).join('');
+  if (years.has(parseInt(currentVal, 10))) {
+    yearSelect.value = currentVal;
+  } else {
+    yearSelect.value = String(currentYear);
   }
 }
 
-function clearHistoryFilters() {
+function initHistoryFilters() {
+  const todayStr = typeof getLocalDateString === 'function' ? getLocalDateString() : new Date().toISOString().split('T')[0];
+  const dayInput = document.getElementById('history-filter-day');
+  if (dayInput && !dayInput.value) {
+    dayInput.value = todayStr;
+  }
   const monthInput = document.getElementById('history-filter-month');
-  if (monthInput) monthInput.value = getCurrentYearMonth();
+  if (monthInput && !monthInput.value) {
+    monthInput.value = typeof getCurrentYearMonth === 'function' ? getCurrentYearMonth() : todayStr.slice(0, 7);
+  }
+  populateHistoryYearOptions();
+  updateHistoryPeriodUI();
+}
+
+function clearHistoryFilters() {
+  const todayStr = typeof getLocalDateString === 'function' ? getLocalDateString() : new Date().toISOString().split('T')[0];
+  const dayInput = document.getElementById('history-filter-day');
+  if (dayInput) dayInput.value = todayStr;
+  const monthInput = document.getElementById('history-filter-month');
+  if (monthInput) monthInput.value = typeof getCurrentYearMonth === 'function' ? getCurrentYearMonth() : todayStr.slice(0, 7);
+  populateHistoryYearOptions();
+
   const historyStaff = document.getElementById('history-filter-staff');
   if (historyStaff) {
     if (currentUserRole === 'staff') {
@@ -24,11 +124,6 @@ function clearHistoryFilters() {
 }
 
 function filterHistoryOrders() {
-  const monthInput = document.getElementById('history-filter-month');
-  if (monthInput && !monthInput.value) {
-    monthInput.value = getCurrentYearMonth();
-  }
-  const monthVal = monthInput?.value || getCurrentYearMonth();
   const staffVal = document.getElementById('history-filter-staff')?.value;
 
   let effectiveStaffId = staffVal;
@@ -45,7 +140,7 @@ function filterHistoryOrders() {
           <div class="p-6 text-center text-amber-800 bg-amber-50 rounded-2xl border border-amber-200">
             <i data-lucide="shield-alert" class="w-8 h-8 mx-auto mb-2 text-amber-600"></i>
             <p class="text-sm font-bold">您的帳號尚未由管理員綁定店內人員身分</p>
-            <p class="text-xs text-slate-500 mt-1">為保障店內隱私，請聯繫管理員完成帳號綁定，綁定後即可在此查閱個人客單流水。</p>
+            <p class="text-xs text-slate-500 mt-1">為保障店內隱私，請聯繫管理員完成帳號綁定，綁定後即可在此查閱個人歷史紀錄。</p>
           </div>
         `;
         if (window.lucide) lucide.createIcons();
@@ -54,8 +149,34 @@ function filterHistoryOrders() {
     }
   }
 
+  // 根據日 / 月 / 年取得比對字串
+  let filterVal = '';
+  const todayStr = typeof getLocalDateString === 'function' ? getLocalDateString() : new Date().toISOString().split('T')[0];
+  if (currentHistoryPeriod === 'day') {
+    const dayInput = document.getElementById('history-filter-day');
+    if (dayInput && !dayInput.value) dayInput.value = todayStr;
+    filterVal = dayInput?.value || todayStr;
+  } else if (currentHistoryPeriod === 'year') {
+    const yearSelect = document.getElementById('history-filter-year');
+    if (yearSelect && !yearSelect.value) populateHistoryYearOptions();
+    filterVal = yearSelect?.value || String(new Date().getFullYear());
+  } else {
+    // 預設為 'month'
+    const monthInput = document.getElementById('history-filter-month');
+    const currentYM = typeof getCurrentYearMonth === 'function' ? getCurrentYearMonth() : todayStr.slice(0, 7);
+    if (monthInput && !monthInput.value) monthInput.value = currentYM;
+    filterVal = monthInput?.value || currentYM;
+  }
+
   const filtered = appState.orders.filter(order => {
-    if (monthVal && !order.date.startsWith(monthVal)) return false;
+    if (filterVal) {
+      if (currentHistoryPeriod === 'day') {
+        if (order.date !== filterVal) return false;
+      } else {
+        // 'month' (YYYY-MM) 或 'year' (YYYY)
+        if (!order.date.startsWith(filterVal)) return false;
+      }
+    }
     if (effectiveStaffId && effectiveStaffId !== 'ALL' && order.staffId !== effectiveStaffId && order.assistantId !== effectiveStaffId) return false;
     return true;
   });
@@ -171,19 +292,42 @@ async function deleteOrder(orderId) {
 }
 
 function exportHistoryToExcel() {
-  const monthVal = document.getElementById('history-filter-month')?.value || '全部月份';
+  let filterVal = '';
+  let periodLabel = '';
+  const todayStr = typeof getLocalDateString === 'function' ? getLocalDateString() : new Date().toISOString().split('T')[0];
+
+  if (currentHistoryPeriod === 'day') {
+    const dayInput = document.getElementById('history-filter-day');
+    filterVal = dayInput?.value || todayStr;
+    periodLabel = `${filterVal}日`;
+  } else if (currentHistoryPeriod === 'year') {
+    const yearSelect = document.getElementById('history-filter-year');
+    filterVal = yearSelect?.value || String(new Date().getFullYear());
+    periodLabel = `${filterVal}年`;
+  } else {
+    const monthInput = document.getElementById('history-filter-month');
+    filterVal = monthInput?.value || (typeof getCurrentYearMonth === 'function' ? getCurrentYearMonth() : todayStr.slice(0, 7));
+    periodLabel = `${filterVal}月`;
+  }
+
   let staffVal = document.getElementById('history-filter-staff')?.value;
   
   if (currentUserRole === 'staff') {
     if (!currentLinkedStaff) {
-      alert('您的帳號尚未由管理員綁定店內人員身分，目前無客單可匯出！');
+      alert('您的帳號尚未由管理員綁定店內人員身分，目前無紀錄可匯出！');
       return;
     }
     staffVal = currentLinkedStaff.id;
   }
 
   const filtered = appState.orders.filter(order => {
-    if (monthVal && monthVal !== '全部月份' && !order.date.startsWith(monthVal)) return false;
+    if (filterVal) {
+      if (currentHistoryPeriod === 'day') {
+        if (order.date !== filterVal) return false;
+      } else {
+        if (!order.date.startsWith(filterVal)) return false;
+      }
+    }
     if (currentUserRole === 'staff') {
       return order.staffId === currentLinkedStaff.id || order.assistantId === currentLinkedStaff.id;
     }
@@ -192,7 +336,7 @@ function exportHistoryToExcel() {
   });
 
   if (filtered.length === 0) {
-    alert('目前篩選條件下無任何客單可匯出！');
+    alert('目前篩選條件下無任何紀錄可匯出！');
     return;
   }
 
@@ -203,7 +347,7 @@ function exportHistoryToExcel() {
         exportData.push({
           '服務日期': o.date,
           '帳單編號': o.orderNo,
-          '顧客稱呼': o.customer,
+          '顧客姓名': o.customer,
           '消費服務項目': it.name,
           '單價': it.price,
           '數量': it.qty,
@@ -216,7 +360,7 @@ function exportHistoryToExcel() {
           '服務日期': o.date,
           '帳單編號': o.orderNo,
           '主作人員': o.staffName,
-          '顧客稱呼': o.customer,
+          '顧客姓名': o.customer,
           '消費服務項目': it.name,
           '單價': it.price,
           '數量': it.qty,
@@ -233,10 +377,10 @@ function exportHistoryToExcel() {
 
   const ws = XLSX.utils.json_to_sheet(exportData);
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, '帳單流水明細');
+  XLSX.utils.book_append_sheet(wb, ws, '歷史紀錄明細');
   const filename = currentUserRole === 'staff' 
-    ? `個人客單流水明細_${currentLinkedStaff.name}_${monthVal}.xlsx`
-    : `沙龍客單流水報表_${monthVal}.xlsx`;
+    ? `個人歷史紀錄_${currentLinkedStaff.name}_${periodLabel}.xlsx`
+    : `沙龍歷史紀錄_${periodLabel}.xlsx`;
   XLSX.writeFile(wb, filename);
-  showToast('Excel 流水報表已成功下載！');
+  showToast('Excel 歷史紀錄已成功下載！');
 }

@@ -109,7 +109,7 @@ function initBillingForm() {
 
 // 自動生成單號
 function generateNewOrderNo() {
-  const dateVal = document.getElementById('billing-date')?.value || new Date().toISOString().split('T')[0];
+  const dateVal = document.getElementById('billing-date')?.value || (typeof getLocalDateString === 'function' ? getLocalDateString() : new Date().toISOString().split('T')[0]);
   const compactDate = dateVal.replace(/-/g, '');
   const randomSuffix = Math.floor(100 + Math.random() * 900);
   const orderNoEl = document.getElementById('billing-order-no');
@@ -285,7 +285,7 @@ async function saveCurrentOrder() {
 
   const staff = currentLinkedStaff;
 
-  const dateVal = document.getElementById('billing-date').value || new Date().toISOString().split('T')[0];
+  const dateVal = document.getElementById('billing-date').value || (typeof getLocalDateString === 'function' ? getLocalDateString() : new Date().toISOString().split('T')[0]);
   const customer = document.getElementById('billing-customer').value.trim() || '現場顧客';
   const notes = document.getElementById('billing-notes').value.trim();
 

@@ -1,0 +1,357 @@
+/**
+ * SalonPay - 認證、登入與身分權限管理 (js/auth.js)
+ */
+
+// 切換登入 / 註冊 模式
+function setAuthMode(isSignUp) {
+  isAuthSignUpMode = isSignUp;
+  const submitText = document.getElementById('auth-submit-text');
+  const roleContainer = document.getElementById('auth-role-container');
+  const keyContainer = document.getElementById('auth-secret-key-container');
+  const emailLabel = document.getElementById('auth-email-label');
+  const tabLogin = document.getElementById('auth-tab-login');
+  const tabSignup = document.getElementById('auth-tab-signup');
+
+  if (isAuthSignUpMode) {
+    if (tabSignup) {
+      tabSignup.className = 'py-2.5 rounded-xl transition bg-white text-slate-900 shadow-xs flex items-center justify-center gap-1.5';
+    }
+    if (tabLogin) {
+      tabLogin.className = 'py-2.5 rounded-xl transition text-slate-500 hover:text-slate-800 flex items-center justify-center gap-1.5';
+    }
+    if (submitText) submitText.textContent = '註冊';
+    if (roleContainer) roleContainer.classList.remove('hidden');
+    if (emailLabel) emailLabel.textContent = '信箱';
+
+    const selectedRole = document.querySelector('input[name="auth-reg-role"]:checked')?.value || 'staff';
+    onAuthRoleChange(selectedRole);
+  } else {
+    if (tabLogin) {
+      tabLogin.className = 'py-2.5 rounded-xl transition bg-white text-slate-900 shadow-xs flex items-center justify-center gap-1.5';
+    }
+    if (tabSignup) {
+      tabSignup.className = 'py-2.5 rounded-xl transition text-slate-500 hover:text-slate-800 flex items-center justify-center gap-1.5';
+    }
+    if (submitText) submitText.textContent = '登入';
+    if (roleContainer) roleContainer.classList.add('hidden');
+    if (keyContainer) keyContainer.classList.add('hidden');
+    if (emailLabel) emailLabel.textContent = '信箱';
+  }
+  if (window.lucide) lucide.createIcons();
+}
+
+function toggleAuthMode() {
+  setAuthMode(!isAuthSignUpMode);
+}
+
+// 註冊時切換身分單選按鈕
+function onAuthRoleChange(role) {
+  const keyContainer = document.getElementById('auth-secret-key-container');
+  const adminKeyInput = document.getElementById('auth-admin-key');
+  if (role === 'admin') {
+    if (keyContainer) keyContainer.classList.remove('hidden');
+    if (adminKeyInput) adminKeyInput.required = true;
+  } else {
+    if (keyContainer) keyContainer.classList.add('hidden');
+    if (adminKeyInput) {
+      adminKeyInput.required = false;
+      adminKeyInput.value = '';
+    }
+  }
+}
+
+// 提交登入/註冊表單
+async function handleAuthSubmit(e) {
+  e.preventDefault();
+  const email = document.getElementById('auth-email').value.trim();
+  const password = document.getElementById('auth-password').value;
+  const submitBtn = document.getElementById('auth-submit-btn');
+
+  hideAuthError();
+  submitBtn.disabled = true;
+  submitBtn.classList.add('opacity-75');
+
+  try {
+    if (isAuthSignUpMode) {
+      const selectedRole = document.querySelector('input[name="auth-reg-role"]:checked')?.value || 'staff';
+
+      // 若註冊為管理員，嚴格比對授權密鑰
+      if (selectedRole === 'admin') {
+        const inputKey = (document.getElementById('auth-admin-key')?.value || '').trim();
+        if (!inputKey || (inputKey !== salonAdminKey && inputKey !== DEFAULT_ADMIN_SECRET_KEY)) {
+          throw new Error('管理員授權密鑰不符！若您是一般員工，請切換身分為「一般員工」註冊。');
+        }
+      }
+
+      const cred = await firebase.auth().createUserWithEmailAndPassword(email, password);
+
+      // 將註冊資料寫入全店 salon_users 集合
+      await db.collection('salon_users').doc(cred.user.uid).set({
+        uid: cred.user.uid,
+        email: email,
+        role: selectedRole,
+        createdAt: new Date().toISOString()
+      });
+
+      showToast(`註冊成功！身分：${selectedRole === 'admin' ? '管理員' : '員工'}`);
+    } else {
+      await firebase.auth().signInWithEmailAndPassword(email, password);
+      showToast('登入成功！已連線至雲端');
+    }
+  } catch (err) {
+    console.error('Auth error:', err);
+    let msg = '認證失敗：' + err.message;
+    if (err.code === 'auth/wrong-password') msg = '密碼輸入錯誤，請重新確認。';
+    if (err.code === 'auth/user-not-found') msg = '此信箱尚未註冊，請點下方註冊新帳號。';
+    if (err.code === 'auth/email-already-in-use') msg = '此信箱已被註冊，請直接登入。';
+    if (err.code === 'auth/weak-password') msg = '密碼強度不足，請輸入至少 6 位字元。';
+    showAuthError(msg);
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.classList.remove('opacity-75');
+  }
+}
+
+// 使用者成功登入之回呼
+async function onUserLoggedIn(user) {
+  const authScreen = document.getElementById('auth-screen');
+  if (authScreen) authScreen.classList.add('hidden');
+
+  // 取得該使用者的角色權限
+  let role = 'staff';
+  try {
+    const userDoc = await db.collection('salon_users').doc(user.uid).get();
+    if (userDoc.exists) {
+      role = userDoc.data().role || 'staff';
+    }
+
+    // 創始帳號（信箱含 hank）永久確保為管理員
+    const isHank = user.email && user.email.toLowerCase().includes('hank');
+    if (isHank) {
+      role = 'admin';
+    }
+
+    await db.collection('salon_users').doc(user.uid).set({
+      uid: user.uid,
+      email: user.email,
+      role: role,
+      updatedAt: new Date().toISOString()
+    }, { merge: true });
+  } catch(e) {
+    console.warn('載入使用者角色時發生錯誤:', e);
+  }
+
+  currentUserRole = role;
+  applyRolePermissions();
+  subscribeToCloudData();
+
+  if (currentUserRole === 'admin') {
+    subscribeToUsersList();
+  }
+}
+
+// 使用者登出之回呼
+function onUserLoggedOut() {
+  if (unsubscribeFirestore) {
+    unsubscribeFirestore();
+    unsubscribeFirestore = null;
+  }
+  if (unsubscribeUsersList) {
+    unsubscribeUsersList();
+    unsubscribeUsersList = null;
+  }
+  currentUser = null;
+  currentLinkedStaff = null;
+  const authScreen = document.getElementById('auth-screen');
+  if (authScreen) authScreen.classList.remove('hidden');
+}
+
+// 登出按鈕
+async function handleSignOut() {
+  if (!confirm('確定要登出系統嗎？')) return;
+  if (firebase.auth) {
+    await firebase.auth().signOut();
+  }
+  showToast('已登出');
+}
+
+function showAuthError(msg) {
+  const box = document.getElementById('auth-error-msg');
+  const text = document.getElementById('auth-error-text');
+  if (box && text) {
+    text.textContent = msg;
+    box.classList.remove('hidden');
+  }
+}
+
+function hideAuthError() {
+  const box = document.getElementById('auth-error-msg');
+  if (box) box.classList.add('hidden');
+}
+
+// 套用當前角色之介面權限 (模式 C 嚴格隔離)
+function applyRolePermissions() {
+  document.body.classList.remove('role-admin', 'role-staff');
+  document.body.classList.add(`role-${currentUserRole}`);
+
+  updateLinkedStaff();
+
+  const userEmail = currentUser ? currentUser.email : '';
+  const emailPrefix = userEmail.split('@')[0];
+  const staffName = currentLinkedStaff ? currentLinkedStaff.name : emailPrefix;
+
+  // 頂部狀態標籤
+  const headerEmail = document.getElementById('header-user-email');
+  if (headerEmail) {
+    if (currentUserRole === 'admin') {
+      headerEmail.innerHTML = `管理員 <span class="font-bold text-slate-800">(${emailPrefix})</span>`;
+    } else {
+      headerEmail.innerHTML = `員工 <span class="font-bold text-slate-800">(${staffName})</span>`;
+    }
+  }
+
+  // 員工設定頁卡片
+  const empName = document.getElementById('settings-employee-name');
+  const empEmail = document.getElementById('settings-employee-email');
+  const empCard = document.getElementById('settings-employee-card');
+  if (empCard) {
+    if (currentUserRole === 'staff') empCard.classList.remove('hidden');
+    else empCard.classList.add('hidden');
+  }
+  if (empName) empName.textContent = currentLinkedStaff ? `${currentLinkedStaff.name} (${currentLinkedStaff.role})` : `店內員工 (${emailPrefix})`;
+  if (empEmail) empEmail.textContent = `登入帳號: ${userEmail}`;
+
+  // 管理員設定頁卡片
+  const adminName = document.getElementById('settings-admin-name');
+  const adminEmail = document.getElementById('settings-admin-email');
+  const adminCard = document.getElementById('settings-admin-card');
+  if (adminCard) {
+    if (currentUserRole === 'admin') adminCard.classList.remove('hidden');
+    else adminCard.classList.add('hidden');
+  }
+  if (adminName) adminName.textContent = currentLinkedStaff ? `${currentLinkedStaff.name} (店家管理員)` : `店家管理員 (${emailPrefix})`;
+  if (adminEmail) adminEmail.textContent = `登入帳號: ${userEmail}`;
+
+  // 導覽列與 Dock 標籤文字
+  const dockMonthlyText = document.querySelector('#dock-btn-monthly span');
+  const tabMonthlyBtn = document.getElementById('tab-btn-monthly');
+
+  if (currentUserRole === 'staff') {
+    if (dockMonthlyText) dockMonthlyText.textContent = '當月工作';
+    if (tabMonthlyBtn) tabMonthlyBtn.innerHTML = '<i data-lucide="calendar-check-2" class="w-4 h-4"></i> 個人當月工作明細';
+
+    // 現場開單頂部卡片：員工不顯示抽成大字，改為顯示顧客應付總金額
+    const titleEl = document.getElementById('summary-card-title');
+    if (titleEl) titleEl.textContent = '📝 顧客現場消費總金額';
+    const commWrap = document.getElementById('summary-card-commission-wrap');
+    if (commWrap) commWrap.classList.add('hidden');
+    const staffTotalWrap = document.getElementById('summary-card-staff-total-wrap');
+    if (staffTotalWrap) {
+      staffTotalWrap.classList.remove('hidden');
+      staffTotalWrap.classList.add('flex');
+    }
+    const rateText = document.getElementById('summary-card-rate-text');
+    if (rateText) rateText.classList.add('hidden');
+    const custPayWrap = document.getElementById('summary-card-customer-pay-wrap');
+    if (custPayWrap) custPayWrap.classList.add('hidden');
+
+    // 月檢視：隱藏列印薪資單按鈕
+    const printSlipBtn = document.getElementById('btn-print-salary-slip');
+    if (printSlipBtn) printSlipBtn.classList.add('hidden');
+  } else {
+    if (dockMonthlyText) dockMonthlyText.textContent = '月薪結算';
+    if (tabMonthlyBtn) tabMonthlyBtn.innerHTML = '<i data-lucide="calendar-check-2" class="w-4 h-4"></i> 月薪結算與月報表匯出';
+
+    const titleEl = document.getElementById('summary-card-title');
+    if (titleEl) titleEl.textContent = '🌟 這單設計師應得抽成';
+    const commWrap = document.getElementById('summary-card-commission-wrap');
+    if (commWrap) commWrap.classList.remove('hidden');
+    const staffTotalWrap = document.getElementById('summary-card-staff-total-wrap');
+    if (staffTotalWrap) {
+      staffTotalWrap.classList.add('hidden');
+      staffTotalWrap.classList.remove('flex');
+    }
+    const rateText = document.getElementById('summary-card-rate-text');
+    if (rateText) rateText.classList.remove('hidden');
+    const custPayWrap = document.getElementById('summary-card-customer-pay-wrap');
+    if (custPayWrap) custPayWrap.classList.remove('hidden');
+
+    const printSlipBtn = document.getElementById('btn-print-salary-slip');
+    if (printSlipBtn) printSlipBtn.classList.remove('hidden');
+  }
+
+  if (window.lucide) lucide.createIcons();
+}
+
+// 管理員在名冊中切換使用者權限
+async function toggleUserRole(uid, newRole) {
+  if (currentUserRole !== 'admin') {
+    alert('僅管理員有調整身分權限！');
+    return;
+  }
+  if (!confirm(`確定要將該帳號身分調整為「${newRole === 'admin' ? '管理員' : '員工'}」嗎？`)) return;
+  try {
+    await db.collection('salon_users').doc(uid).update({ role: newRole });
+    showToast(`已成功將身分更新為 ${newRole === 'admin' ? '管理員' : '員工'}`);
+  } catch(e) {
+    alert('身分更新失敗：' + e.message);
+  }
+}
+
+// 管理員將自身帳號降級為員工
+async function demoteSelfToStaff() {
+  if (currentUserRole !== 'admin') {
+    alert('您目前並非管理員身分！');
+    return;
+  }
+  if (!currentUser || !db) return;
+
+  const otherAdmins = allRegisteredUsers.filter(u => u.uid !== currentUser.uid && u.role === 'admin');
+  let confirmMsg = '確定要將自己的帳號降級為「員工」身分嗎？\n\n降級後您將轉為員工模式，僅能查閱個人客單與當月工作明細，無法再進入管理員後台。';
+  if (otherAdmins.length === 0) {
+    confirmMsg += '\n\n⚠️ 提醒：店內名單中目前無其他管理員帳號，降級後若需恢復管理權限，需由其他管理員在後台指定或於資料庫調整。';
+  }
+
+  if (!confirm(confirmMsg)) return;
+
+  try {
+    await db.collection('salon_users').doc(currentUser.uid).update({
+      role: 'staff'
+    });
+
+    currentUserRole = 'staff';
+
+    applyRolePermissions();
+    populateStaffDropdowns();
+    filterHistoryOrders();
+    calculateMonthlyPayroll();
+    renderSettingsTables();
+
+    showToast('已成功將自身帳號降級為「員工」身分！');
+  } catch (err) {
+    console.error('降級失敗:', err);
+    alert('降級身分失敗：' + err.message);
+  }
+}
+
+// 離線降級本機快取備案
+function loadLocalFallback() {
+  const raw = localStorage.getItem('SALON_PAY_LOCAL_CACHE');
+  if (raw) {
+    try {
+      appState = sanitizeOldMockData(JSON.parse(raw));
+    } catch(e) {}
+  } else {
+    appState = {
+      services: [...DEFAULT_SERVICES],
+      staff: [],
+      orders: []
+    };
+  }
+  applyRolePermissions();
+  populateStaffDropdowns();
+  initBillingForm();
+  initHistoryFilters();
+  initMonthlyView();
+  renderSettingsTables();
+}

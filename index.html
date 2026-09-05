@@ -336,9 +336,12 @@
 
         <div class="pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
           <div>總計：<strong id="history-count" class="text-slate-900 font-bold text-sm">0</strong> 筆</div>
-          <div class="flex gap-2">
+          <div class="flex items-center gap-2 sm:gap-3">
             <span>業績：<strong id="history-total-revenue" class="text-slate-900 font-bold">NT$ 0</strong></span>
             <span class="admin-only-inline">抽成：<strong id="history-total-commission" class="text-amber-700 font-bold">NT$ 0</strong></span>
+            <button type="button" onclick="exportHistoryToExcel()" class="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-bold transition flex items-center gap-1" title="匯出流水報表 Excel">
+              <i data-lucide="sheet" class="w-3.5 h-3.5"></i> 匯出 Excel
+            </button>
           </div>
         </div>
       </div>
@@ -778,6 +781,15 @@
     </div>
   </div>
 
-  <script src="app.js"></script>
+  <!-- 模組化業務邏輯 (Vanilla JS 架構) -->
+  <script src="js/constants.js"></script>
+  <script src="js/state.js"></script>
+  <script src="js/firebase.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/billing.js"></script>
+  <script src="js/history.js"></script>
+  <script src="js/monthly.js"></script>
+  <script src="js/settings.js"></script>
+  <script src="js/main.js"></script>
 </body>
 </html>

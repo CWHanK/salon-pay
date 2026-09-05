@@ -493,6 +493,10 @@ function renderUsersTable() {
 }
 
 async function toggleUserRole(uid, newRole) {
+  if (currentUserRole !== 'admin') {
+    alert('僅管理員有調整身分權限！');
+    return;
+  }
   if (!confirm(`確定要將該帳號身分調整為「${newRole === 'admin' ? '管理員' : '員工'}」嗎？`)) return;
   try {
     await db.collection('salon_users').doc(uid).update({ role: newRole });
@@ -742,21 +746,33 @@ function populateStaffDropdowns() {
   updateLinkedStaff();
 
   if (billingStaff) {
-    if (appState.staff.length === 0) {
-      billingStaff.innerHTML = `<option value="">⚠️ 尚未新增人員 (點此新增)</option>`;
-      billingStaff.onchange = function() {
-        if (this.value === '') openStaffModal();
-      };
-    } else {
-      billingStaff.onchange = null;
-      billingStaff.innerHTML = appState.staff.map(s => `
-        <option value="${s.id}" ${currentLinkedStaff && currentLinkedStaff.id === s.id ? 'selected' : ''}>
-          ${s.name} (${s.role})
-        </option>
-      `).join('');
-
+    if (currentUserRole === 'staff') {
       if (currentLinkedStaff) {
+        billingStaff.innerHTML = `<option value="${currentLinkedStaff.id}">${currentLinkedStaff.name} (${currentLinkedStaff.role})</option>`;
         billingStaff.value = currentLinkedStaff.id;
+        billingStaff.disabled = true;
+      } else {
+        billingStaff.innerHTML = `<option value="">⚠️ 帳號尚未綁定店內人員 (請聯繫管理員)</option>`;
+        billingStaff.disabled = true;
+      }
+    } else {
+      billingStaff.disabled = false;
+      if (appState.staff.length === 0) {
+        billingStaff.innerHTML = `<option value="">⚠️ 尚未新增人員 (點此新增)</option>`;
+        billingStaff.onchange = function() {
+          if (this.value === '') openStaffModal();
+        };
+      } else {
+        billingStaff.onchange = null;
+        billingStaff.innerHTML = appState.staff.map(s => `
+          <option value="${s.id}" ${currentLinkedStaff && currentLinkedStaff.id === s.id ? 'selected' : ''}>
+            ${s.name} (${s.role})
+          </option>
+        `).join('');
+
+        if (currentLinkedStaff) {
+          billingStaff.value = currentLinkedStaff.id;
+        }
       }
     }
   }
@@ -769,10 +785,16 @@ function populateStaffDropdowns() {
   }
 
   if (historyStaff) {
-    if (currentUserRole === 'staff' && currentLinkedStaff) {
-      historyStaff.innerHTML = `
-        <option value="${currentLinkedStaff.id}">${currentLinkedStaff.name} (本人客單)</option>
-      `;
+    if (currentUserRole === 'staff') {
+      if (currentLinkedStaff) {
+        historyStaff.innerHTML = `
+          <option value="${currentLinkedStaff.id}">${currentLinkedStaff.name} (本人客單)</option>
+        `;
+      } else {
+        historyStaff.innerHTML = `
+          <option value="">(尚未綁定人員)</option>
+        `;
+      }
       historyStaff.disabled = true;
     } else {
       historyStaff.disabled = false;
@@ -784,18 +806,26 @@ function populateStaffDropdowns() {
   }
 
   if (monthlyStaff) {
-    if (appState.staff.length === 0) {
-      monthlyStaff.innerHTML = `<option value="">尚無人員資料</option>`;
-    } else if (currentUserRole === 'staff' && currentLinkedStaff) {
-      monthlyStaff.innerHTML = `
-        <option value="${currentLinkedStaff.id}">${currentLinkedStaff.name} (本人)</option>
-      `;
+    if (currentUserRole === 'staff') {
+      if (currentLinkedStaff) {
+        monthlyStaff.innerHTML = `
+          <option value="${currentLinkedStaff.id}">${currentLinkedStaff.name} (本人)</option>
+        `;
+      } else {
+        monthlyStaff.innerHTML = `
+          <option value="">(尚未綁定人員)</option>
+        `;
+      }
       monthlyStaff.disabled = true;
     } else {
       monthlyStaff.disabled = false;
-      monthlyStaff.innerHTML = appState.staff.map(s => `
-        <option value="${s.id}">${s.name} (${s.role})</option>
-      `).join('');
+      if (appState.staff.length === 0) {
+        monthlyStaff.innerHTML = `<option value="">尚無人員資料</option>`;
+      } else {
+        monthlyStaff.innerHTML = appState.staff.map(s => `
+          <option value="${s.id}">${s.name} (${s.role})</option>
+        `).join('');
+      }
     }
   }
 
@@ -1155,7 +1185,15 @@ async function saveCurrentOrder() {
     return;
   }
 
-  const staffId = document.getElementById('billing-staff-select').value;
+  let staffId = document.getElementById('billing-staff-select').value;
+  if (currentUserRole === 'staff') {
+    if (!currentLinkedStaff) {
+      alert('您的帳號尚未由管理員綁定店內人員身分，目前無法開單！請聯繫管理員協助綁定。');
+      return;
+    }
+    staffId = currentLinkedStaff.id;
+  }
+
   const staff = appState.staff.find(s => s.id === staffId);
   if (!staff) {
     alert('請選擇主作設計師！');
@@ -1224,7 +1262,11 @@ async function saveCurrentOrder() {
   appState.orders.unshift(newOrder);
   await syncDataToCloud();
 
-  showToast(`開單成功！業績 NT$ ${totalAmount.toLocaleString()}，抽成 NT$ ${totalCommission.toLocaleString()}`);
+  if (currentUserRole === 'staff') {
+    showToast(`開單成功！顧客消費 NT$ ${totalAmount.toLocaleString()}`);
+  } else {
+    showToast(`開單成功！業績 NT$ ${totalAmount.toLocaleString()}，抽成 NT$ ${totalCommission.toLocaleString()}`);
+  }
   resetBillingForm();
 }
 
@@ -1232,6 +1274,10 @@ function resetBillingForm() {
   document.getElementById('billing-customer').value = '';
   document.getElementById('billing-notes').value = '';
   document.getElementById('billing-assistant-select').value = '';
+  if (currentUserRole === 'staff' && currentLinkedStaff) {
+    const billingStaff = document.getElementById('billing-staff-select');
+    if (billingStaff) billingStaff.value = currentLinkedStaff.id;
+  }
   generateNewOrderNo();
   currentBillingRows = [];
   addServiceRow();
@@ -1250,7 +1296,14 @@ function initHistoryFilters() {
 function clearHistoryFilters() {
   const monthInput = document.getElementById('history-filter-month');
   if (monthInput) monthInput.value = getCurrentYearMonth();
-  document.getElementById('history-filter-staff').value = 'ALL';
+  const historyStaff = document.getElementById('history-filter-staff');
+  if (historyStaff) {
+    if (currentUserRole === 'staff') {
+      historyStaff.value = currentLinkedStaff ? currentLinkedStaff.id : '';
+    } else {
+      historyStaff.value = 'ALL';
+    }
+  }
   document.getElementById('history-filter-search').value = '';
   filterHistoryOrders();
 }
@@ -1265,8 +1318,26 @@ function filterHistoryOrders() {
   const searchVal = document.getElementById('history-filter-search')?.value.trim().toLowerCase();
 
   let effectiveStaffId = staffVal;
-  if (currentUserRole === 'staff' && currentLinkedStaff) {
-    effectiveStaffId = currentLinkedStaff.id;
+  if (currentUserRole === 'staff') {
+    if (currentLinkedStaff) {
+      effectiveStaffId = currentLinkedStaff.id;
+    } else {
+      // 員工尚未綁定店內人員身分，絕不能看全店流水！顯示空列表與專屬提示
+      renderHistoryView([]);
+      const emptyHint = document.getElementById('history-empty-hint');
+      if (emptyHint) {
+        emptyHint.classList.remove('hidden');
+        emptyHint.innerHTML = `
+          <div class="p-6 text-center text-amber-800 bg-amber-50 rounded-2xl border border-amber-200">
+            <i data-lucide="shield-alert" class="w-8 h-8 mx-auto mb-2 text-amber-600"></i>
+            <p class="text-sm font-bold">您的帳號尚未由管理員綁定店內人員身分</p>
+            <p class="text-xs text-slate-500 mt-1">為保障店內隱私，請聯繫管理員完成帳號綁定，綁定後即可在此查閱個人客單流水。</p>
+          </div>
+        `;
+        if (window.lucide) lucide.createIcons();
+      }
+      return;
+    }
   }
 
   const filtered = appState.orders.filter(order => {
@@ -1383,6 +1454,14 @@ function renderHistoryView(ordersList) {
 }
 
 async function deleteOrder(orderId) {
+  const order = appState.orders.find(o => o.id === orderId);
+  if (!order) return;
+  if (currentUserRole === 'staff') {
+    if (!currentLinkedStaff || order.staffId !== currentLinkedStaff.id) {
+      alert('您僅能管理自己開立的客單！');
+      return;
+    }
+  }
   if (!confirm('確定要刪除這筆客單嗎？（將同步從雲端刪除）')) return;
   appState.orders = appState.orders.filter(o => o.id !== orderId);
   await syncDataToCloud();
@@ -1392,11 +1471,22 @@ async function deleteOrder(orderId) {
 
 function exportHistoryToExcel() {
   const monthVal = document.getElementById('history-filter-month')?.value || '全部月份';
-  const staffVal = document.getElementById('history-filter-staff')?.value;
+  let staffVal = document.getElementById('history-filter-staff')?.value;
   
+  if (currentUserRole === 'staff') {
+    if (!currentLinkedStaff) {
+      alert('您的帳號尚未由管理員綁定店內人員身分，目前無客單可匯出！');
+      return;
+    }
+    staffVal = currentLinkedStaff.id;
+  }
+
   const filtered = appState.orders.filter(order => {
     if (monthVal && monthVal !== '全部月份' && !order.date.startsWith(monthVal)) return false;
-    if (staffVal && staffVal !== 'ALL' && order.staffId !== staffVal) return false;
+    if (currentUserRole === 'staff') {
+      return order.staffId === currentLinkedStaff.id || order.assistantId === currentLinkedStaff.id;
+    }
+    if (staffVal && staffVal !== 'ALL' && order.staffId !== staffVal && order.assistantId !== staffVal) return false;
     return true;
   });
 
@@ -1408,32 +1498,51 @@ function exportHistoryToExcel() {
   const exportData = [];
   filtered.forEach(o => {
     o.items.forEach(it => {
-      exportData.push({
-        '服務日期': o.date,
-        '帳單編號': o.orderNo,
-        '主作設計師': o.staffName,
-        '協助助理': o.assistantName || '無',
-        '顧客稱呼': o.customer,
-        '消費服務項目': it.name,
-        '原價定價': it.price,
-        '數量': it.qty,
-        '原價合計': it.originalTotal || (it.price * it.qty),
-        '折扣優惠': getDiscountLabel(it.discount || 1.0),
-        '實收金額': it.amount,
-        '抽成比例(%)': it.rate + '%',
-        '抽成是否打折': it.discountCommission !== false ? '是 (依實收)' : '否 (依原價)',
-        '該項抽成金額': it.commission,
-        '整單總收費': o.totalAmount,
-        '整單總抽成': o.totalCommission,
-        '備註': o.notes || ''
-      });
+      if (currentUserRole === 'staff') {
+        exportData.push({
+          '服務日期': o.date,
+          '帳單編號': o.orderNo,
+          '顧客稱呼': o.customer,
+          '消費服務項目': it.name,
+          '定價單價': it.price,
+          '數量': it.qty,
+          '折扣優惠': getDiscountLabel(it.discount || 1.0),
+          '實收金額': it.amount,
+          '整單實收總額': o.totalAmount,
+          '擔任角色': o.staffId === currentLinkedStaff.id ? '主作設計師' : '協助助理',
+          '備註': o.notes || ''
+        });
+      } else {
+        exportData.push({
+          '服務日期': o.date,
+          '帳單編號': o.orderNo,
+          '主作設計師': o.staffName,
+          '協助助理': o.assistantName || '無',
+          '顧客稱呼': o.customer,
+          '消費服務項目': it.name,
+          '原價定價': it.price,
+          '數量': it.qty,
+          '原價合計': it.originalTotal || (it.price * it.qty),
+          '折扣優惠': getDiscountLabel(it.discount || 1.0),
+          '實收金額': it.amount,
+          '抽成比例(%)': it.rate + '%',
+          '抽成是否打折': it.discountCommission !== false ? '是 (依實收)' : '否 (依原價)',
+          '該項抽成金額': it.commission,
+          '整單總收費': o.totalAmount,
+          '整單總抽成': o.totalCommission,
+          '備註': o.notes || ''
+        });
+      }
     });
   });
 
   const ws = XLSX.utils.json_to_sheet(exportData);
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, '帳單流水明細');
-  XLSX.writeFile(wb, `沙龍客單流水報表_${monthVal}.xlsx`);
+  const filename = currentUserRole === 'staff' 
+    ? `個人客單流水明細_${currentLinkedStaff.name}_${monthVal}.xlsx`
+    : `沙龍客單流水報表_${monthVal}.xlsx`;
+  XLSX.writeFile(wb, filename);
   showToast('Excel 流水報表已成功下載！');
 }
 
@@ -1455,8 +1564,29 @@ function calculateMonthlyPayroll() {
   const monthVal = monthInput?.value || getCurrentYearMonth();
   
   let staffId = document.getElementById('monthly-select-staff')?.value;
-  if (currentUserRole === 'staff' && currentLinkedStaff) {
-    staffId = currentLinkedStaff.id;
+  if (currentUserRole === 'staff') {
+    if (currentLinkedStaff) {
+      staffId = currentLinkedStaff.id;
+    } else {
+      document.getElementById('stat-month-clients').textContent = '0';
+      document.getElementById('stat-month-avg-ticket').textContent = '0';
+      document.getElementById('stat-month-revenue').textContent = '0';
+      document.getElementById('stat-month-commission').textContent = '0';
+      document.getElementById('stat-month-net-pay').textContent = '0';
+      const countBadge = document.getElementById('monthly-orders-count-badge');
+      if (countBadge) countBadge.textContent = '共 0 筆客單';
+      const tbody = document.getElementById('monthly-table-body');
+      if (tbody) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="7" class="py-8 text-center text-amber-800 bg-amber-50 font-semibold">
+              ⚠️ 您的帳號尚未由管理員綁定店內人員身分，無法查閱個人工作明細。請聯繫管理員協助綁定。
+            </td>
+          </tr>
+        `;
+      }
+      return;
+    }
   }
   if (!staffId) return;
 
@@ -1559,7 +1689,11 @@ function renderMonthlyOrdersTable(monthlyOrders, currentStaffId) {
 function exportMonthlyReportExcel() {
   const monthVal = document.getElementById('monthly-select-month')?.value;
   let staffId = document.getElementById('monthly-select-staff')?.value;
-  if (currentUserRole === 'staff' && currentLinkedStaff) {
+  if (currentUserRole === 'staff') {
+    if (!currentLinkedStaff) {
+      alert('您的帳號尚未由管理員綁定店內人員身分，目前無工作明細可匯出！');
+      return;
+    }
     staffId = currentLinkedStaff.id;
   }
   const staff = appState.staff.find(s => s.id === staffId);
@@ -1830,6 +1964,10 @@ function renderSettingsTables() {
 
 // 服務項目 Modal
 function openServiceModal() {
+  if (currentUserRole !== 'admin') {
+    alert('僅管理員有此操作權限！');
+    return;
+  }
   document.getElementById('modal-service-id').value = '';
   document.getElementById('modal-service-name').value = '';
   document.getElementById('modal-service-price').value = '';
@@ -1839,6 +1977,10 @@ function openServiceModal() {
 }
 
 function editServiceItem(serviceId) {
+  if (currentUserRole !== 'admin') {
+    alert('僅管理員有此操作權限！');
+    return;
+  }
   const srv = appState.services.find(s => s.id === serviceId);
   if (!srv) return;
 
@@ -1856,6 +1998,10 @@ function closeServiceModal() {
 }
 
 async function saveServiceItem() {
+  if (currentUserRole !== 'admin') {
+    alert('僅管理員有此操作權限！');
+    return;
+  }
   const id = document.getElementById('modal-service-id').value;
   const name = document.getElementById('modal-service-name').value.trim();
   const price = parseFloat(document.getElementById('modal-service-price').value) || 0;
@@ -1892,6 +2038,10 @@ async function saveServiceItem() {
 }
 
 async function deleteServiceItem(serviceId) {
+  if (currentUserRole !== 'admin') {
+    alert('僅管理員有此操作權限！');
+    return;
+  }
   if (appState.services.length <= 1) {
     alert('至少需保留一項服務項目！');
     return;
@@ -1905,6 +2055,10 @@ async function deleteServiceItem(serviceId) {
 
 // 員工 Modal
 function openStaffModal() {
+  if (currentUserRole !== 'admin') {
+    alert('僅管理員有此操作權限！');
+    return;
+  }
   document.getElementById('modal-staff-id').value = '';
   document.getElementById('modal-staff-name').value = '';
   document.getElementById('modal-staff-role').value = '設計師';
@@ -1914,6 +2068,10 @@ function openStaffModal() {
 }
 
 function editStaffMember(staffId) {
+  if (currentUserRole !== 'admin') {
+    alert('僅管理員有此操作權限！');
+    return;
+  }
   const staff = appState.staff.find(s => s.id === staffId);
   if (!staff) return;
 
@@ -1930,6 +2088,10 @@ function closeStaffModal() {
 }
 
 async function saveStaffMember() {
+  if (currentUserRole !== 'admin') {
+    alert('僅管理員有此操作權限！');
+    return;
+  }
   const id = document.getElementById('modal-staff-id').value;
   const name = document.getElementById('modal-staff-name').value.trim();
   const role = document.getElementById('modal-staff-role').value;
@@ -1974,6 +2136,10 @@ async function saveStaffMember() {
 }
 
 async function deleteStaffMember(staffId) {
+  if (currentUserRole !== 'admin') {
+    alert('僅管理員有此操作權限！');
+    return;
+  }
   if (!confirm('確定要刪除這位工作人員嗎？')) return;
   appState.staff = appState.staff.filter(s => s.id !== staffId);
   await syncDataToCloud();
@@ -1984,6 +2150,10 @@ async function deleteStaffMember(staffId) {
 
 // 備份與還原
 function backupDataToJson() {
+  if (currentUserRole !== 'admin') {
+    alert('僅管理員有備份資料權限！');
+    return;
+  }
   const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(appState, null, 2));
   const downloadAnchor = document.createElement('a');
   downloadAnchor.setAttribute("href", dataStr);
@@ -1995,6 +2165,10 @@ function backupDataToJson() {
 }
 
 function restoreDataFromJson(event) {
+  if (currentUserRole !== 'admin') {
+    alert('僅管理員有還原資料權限！');
+    return;
+  }
   const file = event.target.files[0];
   if (!file) return;
 
@@ -2022,6 +2196,10 @@ function restoreDataFromJson(event) {
 }
 
 async function confirmResetAll() {
+  if (currentUserRole !== 'admin') {
+    alert('僅管理員有清空資料權限！');
+    return;
+  }
   if (!confirm('警告：確定要清空雲端所有資料嗎？此操作不可復原！')) return;
   appState = {
     services: [...DEFAULT_SERVICES],

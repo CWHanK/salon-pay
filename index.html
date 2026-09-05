@@ -61,6 +61,16 @@
         <p class="text-xs text-slate-500">Google 雲端加密同步 ‧ 個人專屬營業後台</p>
       </div>
 
+      <!-- 登入 / 註冊 分頁切換 -->
+      <div class="grid grid-cols-2 p-1 bg-slate-100 rounded-2xl mb-4 text-xs font-bold">
+        <button type="button" onclick="setAuthMode(false)" id="auth-tab-login" class="py-2.5 rounded-xl transition bg-white text-slate-900 shadow-xs flex items-center justify-center gap-1.5">
+          <i data-lucide="log-in" class="w-3.5 h-3.5"></i> 登入帳號
+        </button>
+        <button type="button" onclick="setAuthMode(true)" id="auth-tab-signup" class="py-2.5 rounded-xl transition text-slate-500 hover:text-slate-800 flex items-center justify-center gap-1.5">
+          <i data-lucide="user-plus" class="w-3.5 h-3.5"></i> 註冊新帳號
+        </button>
+      </div>
+
       <!-- 登入 / 註冊表單 -->
       <form id="login-form" onsubmit="handleAuthSubmit(event)" class="space-y-3.5">
         <div>
@@ -87,11 +97,11 @@
         <div id="auth-role-container" class="hidden space-y-2 pt-1 border-t border-slate-100">
           <label class="block text-xs font-bold text-slate-700">註冊身分 <span class="text-rose-500">*</span></label>
           <div class="grid grid-cols-2 gap-2">
-            <label class="flex items-center justify-center gap-1.5 p-2 rounded-xl border border-slate-300 text-xs font-bold cursor-pointer text-slate-700 hover:bg-slate-50 transition" id="auth-role-staff-label">
+            <label class="flex items-center justify-center gap-1.5 p-2.5 rounded-xl border border-slate-300 text-xs font-bold cursor-pointer text-slate-700 hover:bg-slate-50 transition" id="auth-role-staff-label">
               <input type="radio" name="auth-reg-role" value="staff" checked onchange="onAuthRoleChange(this.value)" class="accent-amber-600">
               <span>👤 一般員工</span>
             </label>
-            <label class="flex items-center justify-center gap-1.5 p-2 rounded-xl border border-slate-300 text-xs font-bold cursor-pointer text-slate-700 hover:bg-slate-50 transition" id="auth-role-admin-label">
+            <label class="flex items-center justify-center gap-1.5 p-2.5 rounded-xl border border-slate-300 text-xs font-bold cursor-pointer text-slate-700 hover:bg-slate-50 transition" id="auth-role-admin-label">
               <input type="radio" name="auth-reg-role" value="admin" onchange="onAuthRoleChange(this.value)" class="accent-amber-600">
               <span>👑 沙龍管理員</span>
             </label>
@@ -99,17 +109,20 @@
         </div>
 
         <!-- 註冊專用：管理員密鑰驗證框 -->
-        <div id="auth-secret-key-container" class="hidden space-y-1 bg-amber-50/80 p-3 rounded-2xl border border-amber-200">
-          <label class="block text-xs font-bold text-amber-900">
-            管理員專屬密鑰 <span class="text-rose-500">*</span>
-          </label>
+        <div id="auth-secret-key-container" class="hidden space-y-1.5 bg-amber-50 p-3 rounded-2xl border border-amber-200">
+          <div class="flex items-center justify-between">
+            <label class="block text-xs font-bold text-amber-900">
+              管理員授權密鑰 <span class="text-rose-500">*</span>
+            </label>
+            <span class="text-[10px] text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full font-mono font-bold">預設: SALON888</span>
+          </div>
           <div class="relative">
             <span class="absolute inset-y-0 left-0 flex items-center pl-2.5 text-amber-600">
               <i data-lucide="key" class="w-4 h-4"></i>
             </span>
-            <input type="password" id="auth-admin-key" placeholder="請輸入管理員授權密鑰" class="w-full pl-8 pr-3 py-2 rounded-xl border border-amber-300 bg-white text-xs font-bold text-slate-900 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500">
+            <input type="password" id="auth-admin-key" placeholder="請輸入管理員密鑰 (SALON888)" class="w-full pl-8 pr-3 py-2 rounded-xl border border-amber-300 bg-white text-xs font-bold text-slate-900 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 font-mono">
           </div>
-          <p class="text-[11px] text-amber-700/90 leading-tight">需輸入正確密鑰比對成功後方可具備全店管理員權限。</p>
+          <p class="text-[11px] text-amber-700 leading-tight">比對正確後此帳號即具備全店管理員權限。</p>
         </div>
 
         <!-- 錯誤提示 -->
@@ -125,12 +138,10 @@
         </button>
       </form>
 
-      <div class="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-        <button type="button" onclick="toggleAuthMode()" id="auth-toggle-mode-btn" class="text-amber-700 hover:text-amber-800 font-semibold underline">
-          初次使用？點此註冊新帳號
-        </button>
-        <button type="button" onclick="openCloudConfigModal()" class="text-slate-400 hover:text-slate-700 flex items-center gap-1">
-          <i data-lucide="key" class="w-3.5 h-3.5"></i> Firebase 金鑰
+      <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
+        <span class="text-[11px]">SalonPay 沙龍雲端管理</span>
+        <button type="button" onclick="openCloudConfigModal()" class="text-slate-400 hover:text-slate-700 flex items-center gap-1 text-[11px]">
+          <i data-lucide="database" class="w-3.5 h-3.5"></i> Firebase 設定
         </button>
       </div>
 
@@ -511,6 +522,23 @@
           <p>您目前以員工身分登入，可隨時進行「現場開單」、查閱「歷史帳單」與「當月工作明細」。</p>
           <p class="text-slate-400 text-[11px]">服務項目定價、抽成比例與薪資結構由沙龍管理員統一設定維護。</p>
         </div>
+
+        <!-- 若其實是店家管理員，可在此輸入密鑰升級 -->
+        <div class="p-3.5 bg-amber-50 rounded-2xl border border-amber-200 space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="flex items-center gap-1 text-xs font-bold text-amber-900">
+              <i data-lucide="key" class="w-3.5 h-3.5 text-amber-600"></i> 我是店家負責人 / 升級為管理員
+            </span>
+            <span class="text-[10px] text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full font-mono font-bold">預設密鑰: SALON888</span>
+          </div>
+          <p class="text-[11px] text-amber-700 leading-tight">若您的帳號顯示為員工身分，請輸入管理員授權密鑰即可立即升級為全權管理員：</p>
+          <div class="flex gap-2 pt-1">
+            <input type="password" id="input-upgrade-admin-key" placeholder="輸入管理員密鑰 (SALON888)" class="flex-1 bg-white border border-amber-300 rounded-xl px-3 py-2 text-xs font-bold font-mono text-slate-900">
+            <button type="button" onclick="upgradeToAdmin()" class="bg-amber-600 hover:bg-amber-700 text-white font-bold px-3.5 py-2 rounded-xl text-xs whitespace-nowrap shadow-xs flex items-center gap-1">
+              <i data-lucide="shield-check" class="w-3.5 h-3.5"></i> 升級管理員
+            </button>
+          </div>
+        </div>
       </div>
 
       <!-- 員工管理（管理員專屬） -->
@@ -567,6 +595,33 @@
               </tr>
             </thead>
             <tbody id="settings-services-tbody" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 雲端已註冊帳號名冊與管理員身分管理（管理員專屬） -->
+      <div id="settings-users-box" class="admin-only-block bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm p-4 sm:p-6 space-y-3">
+        <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+          <div>
+            <h3 class="text-sm font-bold text-slate-900 flex items-center gap-1.5">
+              <i data-lucide="users-round" class="w-4 h-4 text-amber-600"></i> 店家註冊帳號與管理員清單
+            </h3>
+            <p class="text-[11px] text-slate-400">目前資料庫內所有註冊使用者與其身分（👑 管理員 / 👤 員工）</p>
+          </div>
+          <span id="settings-users-count-badge" class="text-xs bg-amber-100 text-amber-800 font-bold px-2.5 py-1 rounded-xl">共 0 個帳號</span>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs text-slate-600">
+            <thead class="bg-slate-50 uppercase text-slate-500 font-semibold">
+              <tr>
+                <th class="px-3 py-2">帳號信箱 (Email)</th>
+                <th class="px-3 py-2">目前身分</th>
+                <th class="px-3 py-2">註冊時間</th>
+                <th class="px-3 py-2 text-center">權限切換</th>
+              </tr>
+            </thead>
+            <tbody id="settings-users-tbody" class="divide-y divide-slate-100"></tbody>
           </table>
         </div>
       </div>
@@ -696,10 +751,31 @@
     </div>
   </div>
 
-  <!-- Toast 提示訊息 -->
-  <div id="toast" class="fixed bottom-20 left-1/2 transform -translate-x-1/2 bg-slate-900 text-white px-4 py-2.5 rounded-2xl shadow-xl z-50 flex items-center gap-2 text-xs transition-all opacity-0 pointer-events-none whitespace-nowrap">
-    <i data-lucide="check" class="w-4 h-4 text-emerald-400"></i>
-    <span id="toast-message">操作完成</span>
+  <!-- ==================== 模態視窗: Firebase 金鑰設定 ==================== -->
+  <div id="modal-cloud-config" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-3xl max-w-sm sm:max-w-md w-full p-6 shadow-2xl space-y-4">
+      <div class="flex justify-between items-center pb-2 border-b border-slate-100">
+        <h4 class="text-base font-bold text-slate-900 flex items-center gap-2">
+          <i data-lucide="database" class="w-5 h-5 text-amber-600"></i> Firebase 雲端資料庫設定
+        </h4>
+        <button onclick="closeCloudConfigModal()" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+      
+      <p class="text-xs text-slate-600 leading-relaxed">
+        系統目前已預設連線至 Google Firestore 雲端資料庫。若需切換至其他 Firebase 專案，可在此貼上代碼：
+      </p>
+
+      <textarea id="modal-config-input" rows="7" placeholder='const firebaseConfig = { ... };' class="w-full font-mono text-xs p-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 bg-slate-50"></textarea>
+
+      <div class="flex gap-2 pt-2">
+        <button onclick="closeCloudConfigModal()" class="flex-1 py-2.5 bg-slate-100 text-slate-700 font-semibold rounded-xl text-xs">取消</button>
+        <button onclick="saveCloudConfig()" class="flex-1 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded-xl text-xs flex items-center justify-center gap-1.5">
+          <i data-lucide="save" class="w-4 h-4"></i> 儲存並連線
+        </button>
+      </div>
+    </div>
   </div>
 
   <script src="app.js"></script>

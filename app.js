@@ -135,29 +135,45 @@ function loadLocalFallback() {
 // ==========================================
 // 雲端帳號登入與認證控制 (支援管理員密鑰驗證與身分分權)
 // ==========================================
-function toggleAuthMode() {
-  isAuthSignUpMode = !isAuthSignUpMode;
+function setAuthMode(isSignUp) {
+  isAuthSignUpMode = isSignUp;
   const submitText = document.getElementById('auth-submit-text');
-  const toggleBtn = document.getElementById('auth-toggle-mode-btn');
   const roleContainer = document.getElementById('auth-role-container');
   const keyContainer = document.getElementById('auth-secret-key-container');
   const emailLabel = document.getElementById('auth-email-label');
+  const tabLogin = document.getElementById('auth-tab-login');
+  const tabSignup = document.getElementById('auth-tab-signup');
 
   if (isAuthSignUpMode) {
-    submitText.textContent = '註冊並加入雲端沙龍';
-    toggleBtn.textContent = '已有帳號？點此登入';
+    if (tabSignup) {
+      tabSignup.className = 'py-2.5 rounded-xl transition bg-white text-slate-900 shadow-xs flex items-center justify-center gap-1.5';
+    }
+    if (tabLogin) {
+      tabLogin.className = 'py-2.5 rounded-xl transition text-slate-500 hover:text-slate-800 flex items-center justify-center gap-1.5';
+    }
+    if (submitText) submitText.textContent = '註冊並加入雲端沙龍';
     if (roleContainer) roleContainer.classList.remove('hidden');
     if (emailLabel) emailLabel.textContent = '註冊信箱 (Email)';
 
     const selectedRole = document.querySelector('input[name="auth-reg-role"]:checked')?.value || 'staff';
     onAuthRoleChange(selectedRole);
   } else {
-    submitText.textContent = '登入雲端系統';
-    toggleBtn.textContent = '初次使用？點此註冊新帳號';
+    if (tabLogin) {
+      tabLogin.className = 'py-2.5 rounded-xl transition bg-white text-slate-900 shadow-xs flex items-center justify-center gap-1.5';
+    }
+    if (tabSignup) {
+      tabSignup.className = 'py-2.5 rounded-xl transition text-slate-500 hover:text-slate-800 flex items-center justify-center gap-1.5';
+    }
+    if (submitText) submitText.textContent = '登入雲端系統';
     if (roleContainer) roleContainer.classList.add('hidden');
     if (keyContainer) keyContainer.classList.add('hidden');
     if (emailLabel) emailLabel.textContent = '信箱 (Email)';
   }
+  if (window.lucide) lucide.createIcons();
+}
+
+function toggleAuthMode() {
+  setAuthMode(!isAuthSignUpMode);
 }
 
 function onAuthRoleChange(role) {
@@ -236,17 +252,20 @@ async function onUserLoggedIn(user) {
     const userDoc = await db.collection('salon_users').doc(user.uid).get();
     if (userDoc.exists) {
       role = userDoc.data().role || 'staff';
-    } else {
-      // 既有帳號（如創始 Hank 帳號）首次登入，自動設定為管理員
-      const isHank = user.email && user.email.toLowerCase().includes('hank');
-      role = isHank ? 'admin' : 'staff';
-      await db.collection('salon_users').doc(user.uid).set({
-        uid: user.uid,
-        email: user.email,
-        role: role,
-        createdAt: new Date().toISOString()
-      });
     }
+
+    // 創始帳號（信箱含 hank）永久確保為管理員
+    const isHank = user.email && user.email.toLowerCase().includes('hank');
+    if (isHank) {
+      role = 'admin';
+    }
+
+    await db.collection('salon_users').doc(user.uid).set({
+      uid: user.uid,
+      email: user.email,
+      role: role,
+      updatedAt: new Date().toISOString()
+    }, { merge: true });
   } catch(e) {
     console.warn('載入使用者角色時發生錯誤:', e);
   }
@@ -428,6 +447,90 @@ function populateLinkedUsersDropdown(currentLinkedUid = '') {
       </option>
     `).join('')}
   `;
+}
+
+// 員工輸入密鑰直接升級為管理員
+async function upgradeToAdmin() {
+  const inputKey = (document.getElementById('input-upgrade-admin-key')?.value || '').trim();
+  if (!inputKey) {
+    alert('請輸入管理員授權密鑰！');
+    return;
+  }
+  if (inputKey !== salonAdminKey && inputKey !== DEFAULT_ADMIN_SECRET_KEY) {
+    alert('密鑰不符，無法升級為管理員！');
+    return;
+  }
+  if (!currentUser) return;
+
+  try {
+    await db.collection('salon_users').doc(currentUser.uid).set({
+      uid: currentUser.uid,
+      email: currentUser.email,
+      role: 'admin',
+      updatedAt: new Date().toISOString()
+    }, { merge: true });
+
+    currentUserRole = 'admin';
+    applyRolePermissions();
+    subscribeToUsersList();
+    renderSettingsTables();
+    showToast('驗證成功！您已成功升級為沙龍管理員 👑');
+  } catch(e) {
+    alert('升級失敗：' + e.message);
+  }
+}
+
+// 渲染已註冊使用者名冊（供管理員檢視誰是管理員、誰是員工）
+function renderUsersTable() {
+  const tbody = document.getElementById('settings-users-tbody');
+  const badge = document.getElementById('settings-users-count-badge');
+  if (badge) badge.textContent = `共 ${allRegisteredUsers.length} 個帳號`;
+  if (!tbody) return;
+
+  if (allRegisteredUsers.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="4" class="py-6 text-center text-slate-400">目前尚無其他註冊使用者</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = allRegisteredUsers.map(u => {
+    const isAdmin = u.role === 'admin';
+    const isCurrent = currentUser && currentUser.uid === u.uid;
+    const dateStr = u.createdAt ? u.createdAt.split('T')[0] : (u.updatedAt ? u.updatedAt.split('T')[0] : '-');
+
+    return `
+      <tr class="hover:bg-slate-50 transition text-xs">
+        <td class="px-3 py-2.5 font-bold text-slate-800 whitespace-nowrap">
+          ${u.email}
+          ${isCurrent ? '<span class="ml-1 text-[10px] text-amber-600 font-normal bg-amber-50 px-1.5 py-0.5 rounded-full border border-amber-200">本人</span>' : ''}
+        </td>
+        <td class="px-3 py-2.5 whitespace-nowrap">
+          <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold ${isAdmin ? 'bg-amber-100 text-amber-800 border border-amber-200' : 'bg-slate-100 text-slate-600'}">
+            ${isAdmin ? '👑 沙龍管理員' : '👤 一般員工'}
+          </span>
+        </td>
+        <td class="px-3 py-2.5 text-slate-400 whitespace-nowrap">${dateStr}</td>
+        <td class="px-3 py-2.5 text-center whitespace-nowrap">
+          ${isCurrent ? '<span class="text-[11px] text-slate-400 font-medium">(目前登入中)</span>' : `
+            <button onclick="toggleUserRole('${u.uid}', '${isAdmin ? 'staff' : 'admin'}')" class="text-xs px-2.5 py-1 rounded-xl font-bold border transition ${isAdmin ? 'border-slate-300 text-slate-600 hover:bg-slate-100' : 'border-amber-500 bg-amber-50 text-amber-800 hover:bg-amber-100'}">
+              ${isAdmin ? '降為員工' : '升為管理員'}
+            </button>
+          `}
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  if (window.lucide) lucide.createIcons();
+}
+
+async function toggleUserRole(uid, newRole) {
+  if (!confirm(`確定要將該帳號身分調整為「${newRole === 'admin' ? '👑 沙龍管理員' : '👤 一般員工'}」嗎？`)) return;
+  try {
+    await db.collection('salon_users').doc(uid).update({ role: newRole });
+    showToast(`已成功將身分更新為 ${newRole === 'admin' ? '沙龍管理員' : '一般員工'}`);
+  } catch(e) {
+    alert('身分更新失敗：' + e.message);
+  }
 }
 
 // ==========================================
@@ -1728,6 +1831,8 @@ function renderSettingsTables() {
       `).join('');
     }
   }
+
+  renderUsersTable();
 }
 
 // 服務項目 Modal

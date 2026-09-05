@@ -34,6 +34,7 @@ function initCurrentDate() {
 
 // 分頁切換 (同步手機 Dock 與桌面 Tab)
 function switchTab(tabName) {
+  if (!currentUser) return;
   if ((tabName === 'monthly' || tabName === 'settings') && currentUserRole === 'staff') {
     tabName = 'billing';
   }

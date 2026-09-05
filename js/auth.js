@@ -146,9 +146,6 @@ async function handleAuthSubmit(e) {
 
 // 使用者成功登入之回呼
 async function onUserLoggedIn(user) {
-  const authScreen = document.getElementById('auth-screen');
-  if (authScreen) authScreen.classList.add('hidden');
-
   // 取得該使用者的角色權限
   let role = 'staff';
   try {
@@ -176,7 +173,20 @@ async function onUserLoggedIn(user) {
   }
 
   currentUserRole = role;
+
+  // 1. 標記為已登入狀態並套用角色身分隔離樣式
+  document.body.classList.remove('not-logged-in');
+  document.body.classList.add('logged-in');
   applyRolePermissions();
+
+  // 2. 顯示主應用容器並隱藏登入遮罩
+  const appContainer = document.getElementById('app-container');
+  if (appContainer) appContainer.classList.remove('hidden');
+
+  const authScreen = document.getElementById('auth-screen');
+  if (authScreen) authScreen.classList.add('hidden');
+
+  // 3. 監聽雲端資料
   subscribeToCloudData();
 
   if (currentUserRole === 'admin') {
@@ -195,7 +205,38 @@ function onUserLoggedOut() {
     unsubscribeUsersList = null;
   }
   currentUser = null;
+  currentUserRole = null;
   currentLinkedStaff = null;
+
+  // 1. 清空記憶體中所有業務與敏感資料
+  appState = {
+    services: [],
+    staff: [],
+    orders: []
+  };
+
+  // 2. 清除本機快取中的敏感業務資訊
+  localStorage.removeItem('SALON_PAY_LOCAL_CACHE');
+
+  // 3. 清空渲染過的敏感表格內容
+  const srvTbody = document.getElementById('settings-services-tbody');
+  if (srvTbody) srvTbody.innerHTML = '';
+  const staffTbody = document.getElementById('settings-staff-tbody');
+  if (staffTbody) staffTbody.innerHTML = '';
+  const usersTbody = document.getElementById('settings-users-tbody');
+  if (usersTbody) usersTbody.innerHTML = '';
+  const historyTbody = document.getElementById('history-table-body');
+  if (historyTbody) historyTbody.innerHTML = '';
+  const historyCards = document.getElementById('history-cards-mobile');
+  if (historyCards) historyCards.innerHTML = '';
+
+  // 4. 恢復未登入狀態，嚴格隱藏主應用容器
+  document.body.classList.remove('logged-in', 'role-admin', 'role-staff');
+  document.body.classList.add('not-logged-in');
+
+  const appContainer = document.getElementById('app-container');
+  if (appContainer) appContainer.classList.add('hidden');
+
   const authScreen = document.getElementById('auth-screen');
   if (authScreen) authScreen.classList.remove('hidden');
 }
@@ -223,10 +264,12 @@ function hideAuthError() {
   if (box) box.classList.add('hidden');
 }
 
-// 套用當前角色之介面權限 (模式 C 嚴格隔離)
+/// 套用當前角色之介面權限 (模式 C 嚴格隔離)
 function applyRolePermissions() {
   document.body.classList.remove('role-admin', 'role-staff');
-  document.body.classList.add(`role-${currentUserRole}`);
+  if (currentUserRole) {
+    document.body.classList.add(`role-${currentUserRole}`);
+  }
 
   updateLinkedStaff();
 
@@ -239,8 +282,10 @@ function applyRolePermissions() {
   if (headerEmail) {
     if (currentUserRole === 'admin') {
       headerEmail.innerHTML = `管理員 <span class="font-bold text-slate-800">(${displayAccount})</span>`;
-    } else {
+    } else if (currentUserRole === 'staff') {
       headerEmail.innerHTML = `員工 <span class="font-bold text-slate-800">(${staffName})</span>`;
+    } else {
+      headerEmail.innerHTML = '未登入';
     }
   }
 
@@ -328,12 +373,9 @@ async function upgradeSelfToAdmin() {
   }
 }
 
-// 管理員將自身帳號降級為員工
+// 管理員自願降級為員工
 async function demoteSelfToStaff() {
-  if (currentUserRole !== 'admin') {
-    alert('您目前並非管理員身分！');
-    return;
-  }
+  if (currentUserRole !== 'admin') return;
   if (!currentUser || !db) return;
 
   const otherAdmins = allRegisteredUsers.filter(u => u.uid !== currentUser.uid && u.role === 'admin');
@@ -347,6 +389,7 @@ async function demoteSelfToStaff() {
   try {
     await db.collection('salon_users').doc(currentUser.uid).set({
       role: 'staff',
+      adminKeyHash: '',
       email: currentUser.email || '',
       updatedAt: new Date().toISOString()
     }, { merge: true });
@@ -362,28 +405,25 @@ async function demoteSelfToStaff() {
     showToast('已成功將自身帳號降級為「員工」身分！');
   } catch (err) {
     console.error('降級失敗:', err);
-    alert('降級身分失敗：' + err.message);
+    alert('降級身分失敗：' + (err ? err.message : ''));
   }
 }
 
-// 離線降級本機快取備案
+// 離線降級本機快取備案（未登入者絕不載入任何資料）
 function loadLocalFallback() {
+  if (!currentUser) return;
   const raw = localStorage.getItem('SALON_PAY_LOCAL_CACHE');
   if (raw) {
     try {
       appState = sanitizeOldMockData(JSON.parse(raw));
     } catch(e) {}
-  } else {
-    appState = {
-      services: [...DEFAULT_SERVICES],
-      staff: [],
-      orders: []
-    };
   }
   applyRolePermissions();
   populateStaffDropdowns();
   initBillingForm();
   initHistoryFilters();
-  initMonthlyView();
-  renderSettingsTables();
+  if (currentUserRole === 'admin') {
+    initMonthlyView();
+    renderSettingsTables();
+  }
 }

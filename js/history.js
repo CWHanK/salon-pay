@@ -185,6 +185,7 @@ function filterHistoryOrders() {
 }
 
 function renderHistoryView(ordersList) {
+  if (!currentUser) return;
   const tbody = document.getElementById('history-table-body');
   const cardsContainer = document.getElementById('history-cards-mobile');
   const emptyHint = document.getElementById('history-empty-hint');

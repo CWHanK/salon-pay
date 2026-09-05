@@ -163,6 +163,18 @@ button:active {
 }
 
 /* 🔐 角色身分權限樣式（員工模式下徹底隱藏抽成比例與管理員設定） */
+body.not-logged-in #app-container,
+body:not(.logged-in) #app-container {
+  display: none !important;
+}
+body.not-logged-in .admin-only-block,
+body:not(.logged-in) .admin-only-block,
+body.not-logged-in .admin-only-cell,
+body:not(.logged-in) .admin-only-cell,
+body.not-logged-in .admin-only-inline,
+body:not(.logged-in) .admin-only-inline {
+  display: none !important;
+}
 body.role-staff .admin-only-block {
   display: none !important;
 }

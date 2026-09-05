@@ -2,20 +2,20 @@
  * SalonFlow - 系統靜態常數設定 (js/constants.js)
  */
 
-// 預設服務項目與預設抽成比例
+// 預設服務項目 (全新空白沙龍首創時使用，抽成率預設為 0，需由管理員於後台設定)
 const DEFAULT_SERVICES = [
-  { id: 'srv-1', name: '造型剪髮 (含基礎洗)', price: 800, rate: 50, category: '技術服務' },
-  { id: 'srv-2', name: '舒壓洗髮 (含吹整)', price: 350, rate: 30, category: '技術服務' },
-  { id: 'srv-3', name: '洗髮 + 精緻剪髮', price: 1000, rate: 50, category: '技術服務' },
-  { id: 'srv-4', name: '溫塑熱燙 (全頭)', price: 3500, rate: 45, category: '技術服務' },
-  { id: 'srv-5', name: '設計造型全染', price: 3200, rate: 45, category: '技術服務' },
-  { id: 'srv-6', name: '髮根局部補染', price: 1800, rate: 45, category: '技術服務' },
-  { id: 'srv-7', name: '特殊漂染/耳圈染', price: 4500, rate: 45, category: '技術服務' },
-  { id: 'srv-8', name: '日本黑曜光結構護髮', price: 2000, rate: 40, category: '技術服務' },
-  { id: 'srv-9', name: '草本深層頭皮淨化SPA', price: 1500, rate: 40, category: '技術服務' },
-  { id: 'srv-10', name: '專業沙龍護髮精華油 (100ml)', price: 980, rate: 25, category: '產品銷售' },
-  { id: 'srv-11', name: '控油豐盈洗髮精 (500ml)', price: 850, rate: 25, category: '產品銷售' },
-  { id: 'srv-12', name: '強力定型霧 (300ml)', price: 650, rate: 20, category: '產品銷售' }
+  { id: 'srv-1', name: '造型剪髮 (含基礎洗)', price: 800, rate: 0, category: '技術服務' },
+  { id: 'srv-2', name: '舒壓洗髮 (含吹整)', price: 350, rate: 0, category: '技術服務' },
+  { id: 'srv-3', name: '洗髮 + 精緻剪髮', price: 1000, rate: 0, category: '技術服務' },
+  { id: 'srv-4', name: '溫塑熱燙 (全頭)', price: 3500, rate: 0, category: '技術服務' },
+  { id: 'srv-5', name: '設計造型全染', price: 3200, rate: 0, category: '技術服務' },
+  { id: 'srv-6', name: '髮根局部補染', price: 1800, rate: 0, category: '技術服務' },
+  { id: 'srv-7', name: '特殊漂染/耳圈染', price: 4500, rate: 0, category: '技術服務' },
+  { id: 'srv-8', name: '日本黑曜光結構護髮', price: 2000, rate: 0, category: '技術服務' },
+  { id: 'srv-9', name: '草本深層頭皮淨化SPA', price: 1500, rate: 0, category: '技術服務' },
+  { id: 'srv-10', name: '專業沙龍護髮精華油 (100ml)', price: 980, rate: 0, category: '產品銷售' },
+  { id: 'srv-11', name: '控油豐盈洗髮精 (500ml)', price: 850, rate: 0, category: '產品銷售' },
+  { id: 'srv-12', name: '強力定型霧 (300ml)', price: 650, rate: 0, category: '產品銷售' }
 ];
 
 // 預設管理員密鑰 SHA-256 雜湊 (外部與原始碼中絕不儲存明文)

@@ -10,6 +10,7 @@ function initMonthlyView() {
 }
 
 function calculateMonthlyPayroll() {
+  if (currentUserRole !== 'admin') return;
   const monthInput = document.getElementById('monthly-select-month');
   if (monthInput && !monthInput.value) {
     monthInput.value = getCurrentYearMonth();

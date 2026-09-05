@@ -182,8 +182,16 @@ async function changeAdminSecretKey() {
   }
 }
 
-// 渲染設定頁表格（服務項目與人員清單）
+// 渲染設定頁表格（服務項目與人員清單，僅管理員有權渲染）
 function renderSettingsTables() {
+  if (currentUserRole !== 'admin') {
+    const srvTbody = document.getElementById('settings-services-tbody');
+    if (srvTbody) srvTbody.innerHTML = '';
+    const staffTbody = document.getElementById('settings-staff-tbody');
+    if (staffTbody) staffTbody.innerHTML = '';
+    return;
+  }
+
   const srvTbody = document.getElementById('settings-services-tbody');
   if (srvTbody) {
     srvTbody.innerHTML = appState.services.map(s => `

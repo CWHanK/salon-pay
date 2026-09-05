@@ -2,16 +2,16 @@
  * SalonFlow - 系統狀態與輔助管理 (js/state.js)
  */
 
-// 系統核心業務狀態
+// 系統核心業務狀態（登入前維持全空，通過雲端驗證後方載入資料）
 let appState = {
-  services: [...DEFAULT_SERVICES],
+  services: [],
   staff: [],
   orders: []
 };
 
 // 雲端認證與身分權限狀態
 let currentUser = null;
-let currentUserRole = 'admin'; // 'admin' | 'staff'
+let currentUserRole = null; // 'admin' | 'staff'，未通過驗證前為 null 絕無任何權限
 let currentLinkedStaff = null;
 let allRegisteredUsers = [];
 let salonAdminKeyHash = DEFAULT_ADMIN_KEY_HASH;

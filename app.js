@@ -223,7 +223,7 @@ async function handleAuthSubmit(e) {
         createdAt: new Date().toISOString()
       });
 
-      showToast(`註冊成功！身分：${selectedRole === 'admin' ? '👑 沙龍管理員' : '👤 一般員工'}`);
+      showToast(`註冊成功！身分：${selectedRole === 'admin' ? '管理員' : '員工'}`);
     } else {
       await firebase.auth().signInWithEmailAndPassword(email, password);
       showToast('登入成功！已連線至雲端');
@@ -348,9 +348,9 @@ function applyRolePermissions() {
   const headerEmail = document.getElementById('header-user-email');
   if (headerEmail) {
     if (currentUserRole === 'admin') {
-      headerEmail.innerHTML = `👑 管理員 <span class="font-bold text-slate-800">(${emailPrefix})</span>`;
+      headerEmail.innerHTML = `管理員 <span class="font-bold text-slate-800">(${emailPrefix})</span>`;
     } else {
-      headerEmail.innerHTML = `👤 員工 <span class="font-bold text-slate-800">(${staffName})</span>`;
+      headerEmail.innerHTML = `員工 <span class="font-bold text-slate-800">(${staffName})</span>`;
     }
   }
 
@@ -443,41 +443,10 @@ function populateLinkedUsersDropdown(currentLinkedUid = '') {
     <option value="">(未綁定 - 僅於本店本機排班)</option>
     ${allRegisteredUsers.map(u => `
       <option value="${u.uid}" data-email="${u.email}" ${u.uid === currentLinkedUid ? 'selected' : ''}>
-        ${u.email} (${u.role === 'admin' ? '👑 管理員' : '👤 員工'})
+        ${u.email} (${u.role === 'admin' ? '管理員' : '員工'})
       </option>
     `).join('')}
   `;
-}
-
-// 員工輸入密鑰直接升級為管理員
-async function upgradeToAdmin() {
-  const inputKey = (document.getElementById('input-upgrade-admin-key')?.value || '').trim();
-  if (!inputKey) {
-    alert('請輸入管理員授權密鑰！');
-    return;
-  }
-  if (inputKey !== salonAdminKey && inputKey !== DEFAULT_ADMIN_SECRET_KEY) {
-    alert('密鑰不符，無法升級為管理員！');
-    return;
-  }
-  if (!currentUser) return;
-
-  try {
-    await db.collection('salon_users').doc(currentUser.uid).set({
-      uid: currentUser.uid,
-      email: currentUser.email,
-      role: 'admin',
-      updatedAt: new Date().toISOString()
-    }, { merge: true });
-
-    currentUserRole = 'admin';
-    applyRolePermissions();
-    subscribeToUsersList();
-    renderSettingsTables();
-    showToast('驗證成功！您已成功升級為沙龍管理員 👑');
-  } catch(e) {
-    alert('升級失敗：' + e.message);
-  }
 }
 
 // 渲染已註冊使用者名冊（供管理員檢視誰是管理員、誰是員工）
@@ -504,8 +473,8 @@ function renderUsersTable() {
           ${isCurrent ? '<span class="ml-1 text-[10px] text-amber-600 font-normal bg-amber-50 px-1.5 py-0.5 rounded-full border border-amber-200">本人</span>' : ''}
         </td>
         <td class="px-3 py-2.5 whitespace-nowrap">
-          <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold ${isAdmin ? 'bg-amber-100 text-amber-800 border border-amber-200' : 'bg-slate-100 text-slate-600'}">
-            ${isAdmin ? '👑 沙龍管理員' : '👤 一般員工'}
+          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold ${isAdmin ? 'bg-amber-100 text-amber-800 border border-amber-200' : 'bg-slate-100 text-slate-600'}">
+            ${isAdmin ? '管理員' : '員工'}
           </span>
         </td>
         <td class="px-3 py-2.5 text-slate-400 whitespace-nowrap">${dateStr}</td>
@@ -524,10 +493,10 @@ function renderUsersTable() {
 }
 
 async function toggleUserRole(uid, newRole) {
-  if (!confirm(`確定要將該帳號身分調整為「${newRole === 'admin' ? '👑 沙龍管理員' : '👤 一般員工'}」嗎？`)) return;
+  if (!confirm(`確定要將該帳號身分調整為「${newRole === 'admin' ? '管理員' : '員工'}」嗎？`)) return;
   try {
     await db.collection('salon_users').doc(uid).update({ role: newRole });
-    showToast(`已成功將身分更新為 ${newRole === 'admin' ? '沙龍管理員' : '一般員工'}`);
+    showToast(`已成功將身分更新為 ${newRole === 'admin' ? '管理員' : '員工'}`);
   } catch(e) {
     alert('身分更新失敗：' + e.message);
   }

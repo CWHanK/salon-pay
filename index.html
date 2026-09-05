@@ -99,30 +99,27 @@
           <div class="grid grid-cols-2 gap-2">
             <label class="flex items-center justify-center gap-1.5 p-2.5 rounded-xl border border-slate-300 text-xs font-bold cursor-pointer text-slate-700 hover:bg-slate-50 transition" id="auth-role-staff-label">
               <input type="radio" name="auth-reg-role" value="staff" checked onchange="onAuthRoleChange(this.value)" class="accent-amber-600">
-              <span>👤 一般員工</span>
+              <span>員工</span>
             </label>
             <label class="flex items-center justify-center gap-1.5 p-2.5 rounded-xl border border-slate-300 text-xs font-bold cursor-pointer text-slate-700 hover:bg-slate-50 transition" id="auth-role-admin-label">
               <input type="radio" name="auth-reg-role" value="admin" onchange="onAuthRoleChange(this.value)" class="accent-amber-600">
-              <span>👑 沙龍管理員</span>
+              <span>管理員</span>
             </label>
           </div>
         </div>
 
         <!-- 註冊專用：管理員密鑰驗證框 -->
         <div id="auth-secret-key-container" class="hidden space-y-1.5 bg-amber-50 p-3 rounded-2xl border border-amber-200">
-          <div class="flex items-center justify-between">
-            <label class="block text-xs font-bold text-amber-900">
-              管理員授權密鑰 <span class="text-rose-500">*</span>
-            </label>
-            <span class="text-[10px] text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full font-mono font-bold">預設: SALON888</span>
-          </div>
+          <label class="block text-xs font-bold text-amber-900">
+            管理員授權密鑰 <span class="text-rose-500">*</span>
+          </label>
           <div class="relative">
             <span class="absolute inset-y-0 left-0 flex items-center pl-2.5 text-amber-600">
               <i data-lucide="key" class="w-4 h-4"></i>
             </span>
-            <input type="password" id="auth-admin-key" placeholder="請輸入管理員密鑰 (SALON888)" class="w-full pl-8 pr-3 py-2 rounded-xl border border-amber-300 bg-white text-xs font-bold text-slate-900 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 font-mono">
+            <input type="password" id="auth-admin-key" placeholder="請輸入管理員密鑰" class="w-full pl-8 pr-3 py-2 rounded-xl border border-amber-300 bg-white text-xs font-bold text-slate-900 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 font-mono">
           </div>
-          <p class="text-[11px] text-amber-700 leading-tight">比對正確後此帳號即具備全店管理員權限。</p>
+          <p class="text-[11px] text-amber-700 leading-tight">需輸入正確密鑰方可取得管理員權限。</p>
         </div>
 
         <!-- 錯誤提示 -->
@@ -509,8 +506,8 @@
       <!-- 員工模式專屬帳號資訊卡片 -->
       <div id="settings-employee-card" class="hidden bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm p-4 sm:p-6 space-y-3">
         <div class="flex items-center gap-3">
-          <div class="w-12 h-12 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold text-lg">
-            👤
+          <div class="w-12 h-12 rounded-2xl bg-amber-100 text-amber-800 flex items-center justify-center font-bold">
+            <i data-lucide="user" class="w-6 h-6 text-amber-700"></i>
           </div>
           <div>
             <h3 class="text-sm font-black text-slate-900" id="settings-employee-name">店內員工</h3>
@@ -521,23 +518,6 @@
           <div class="font-bold text-slate-800">📌 員工使用提示</div>
           <p>您目前以員工身分登入，可隨時進行「現場開單」、查閱「歷史帳單」與「當月工作明細」。</p>
           <p class="text-slate-400 text-[11px]">服務項目定價、抽成比例與薪資結構由沙龍管理員統一設定維護。</p>
-        </div>
-
-        <!-- 若其實是店家管理員，可在此輸入密鑰升級 -->
-        <div class="p-3.5 bg-amber-50 rounded-2xl border border-amber-200 space-y-2">
-          <div class="flex items-center justify-between">
-            <span class="flex items-center gap-1 text-xs font-bold text-amber-900">
-              <i data-lucide="key" class="w-3.5 h-3.5 text-amber-600"></i> 我是店家負責人 / 升級為管理員
-            </span>
-            <span class="text-[10px] text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full font-mono font-bold">預設密鑰: SALON888</span>
-          </div>
-          <p class="text-[11px] text-amber-700 leading-tight">若您的帳號顯示為員工身分，請輸入管理員授權密鑰即可立即升級為全權管理員：</p>
-          <div class="flex gap-2 pt-1">
-            <input type="password" id="input-upgrade-admin-key" placeholder="輸入管理員密鑰 (SALON888)" class="flex-1 bg-white border border-amber-300 rounded-xl px-3 py-2 text-xs font-bold font-mono text-slate-900">
-            <button type="button" onclick="upgradeToAdmin()" class="bg-amber-600 hover:bg-amber-700 text-white font-bold px-3.5 py-2 rounded-xl text-xs whitespace-nowrap shadow-xs flex items-center gap-1">
-              <i data-lucide="shield-check" class="w-3.5 h-3.5"></i> 升級管理員
-            </button>
-          </div>
         </div>
       </div>
 
@@ -606,7 +586,7 @@
             <h3 class="text-sm font-bold text-slate-900 flex items-center gap-1.5">
               <i data-lucide="users-round" class="w-4 h-4 text-amber-600"></i> 店家註冊帳號與管理員清單
             </h3>
-            <p class="text-[11px] text-slate-400">目前資料庫內所有註冊使用者與其身分（👑 管理員 / 👤 員工）</p>
+            <p class="text-[11px] text-slate-400">目前資料庫內所有註冊使用者與其身分（管理員 / 員工）</p>
           </div>
           <span id="settings-users-count-badge" class="text-xs bg-amber-100 text-amber-800 font-bold px-2.5 py-1 rounded-xl">共 0 個帳號</span>
         </div>

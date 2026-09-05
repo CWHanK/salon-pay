@@ -136,7 +136,7 @@ async function handleAuthSubmit(e) {
     if (err.code === 'auth/user-not-found') msg = '此帳號尚未註冊，請切換至「註冊」建立新帳號。';
     if (err.code === 'auth/email-already-in-use') msg = '此帳號已被註冊，請直接登入。';
     if (err.code === 'auth/weak-password') msg = '密碼強度不足，請輸入至少 6 位字元。';
-    if (err.code === 'auth/invalid-email') msg = '帳號格式不正確，請使用英文字母或數字（如 hank、amy88）。';
+    if (err.code === 'auth/invalid-email') msg = '帳號格式不正確，請使用英文字母或數字。';
     showAuthError(msg);
   } finally {
     submitBtn.disabled = false;

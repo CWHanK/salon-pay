@@ -27,7 +27,7 @@ function setStaffBindMode(mode) {
     if (btnManual) btnManual.className = 'px-2.5 py-0.5 rounded-md bg-white text-slate-800 shadow-xs transition cursor-pointer';
     if (btnSelect) btnSelect.className = 'px-2.5 py-0.5 rounded-md text-slate-500 hover:text-slate-800 transition cursor-pointer';
     if (helpText) {
-      helpText.innerHTML = '📌 <strong>手動輸入：</strong>請輸入欲預先綁定的自訂帳號（例如 amy、stylist01）；日後該人員以此帳號註冊登入時，系統會自動無縫綁定並啟用開單！';
+      helpText.innerHTML = '📌 <strong>手動輸入：</strong>請輸入欲預先綁定的自訂帳號；日後該人員以此帳號註冊登入時，系統會自動無縫綁定並啟用開單！';
     }
     document.getElementById('modal-staff-email')?.focus();
   }

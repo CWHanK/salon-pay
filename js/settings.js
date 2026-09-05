@@ -2,19 +2,102 @@
  * SalonPay - 系統設定：服務項目、工作人員與帳號管理 (js/settings.js)
  */
 
-// 提示清單：支援選取已註冊使用者，或直接輸入未註冊帳號
-function populateLinkedUsersDropdown(currentLinkedEmail = '') {
-  const datalist = document.getElementById('registered-users-datalist');
-  if (datalist) {
-    datalist.innerHTML = allRegisteredUsers.map(u => {
-      const username = formatEmailToUsername(u.email);
-      return `<option value="${username}">${username} (${u.role === 'admin' ? '管理員' : '已註冊員工'})</option>`;
-    }).join('');
+let currentStaffBindMode = 'select';
+
+// 切換綁定方式模式：'select' (從選單挑選) 或 'manual' (手動輸入自訂帳號)
+function setStaffBindMode(mode) {
+  currentStaffBindMode = mode;
+  const selectWrapper = document.getElementById('staff-bind-select-wrapper');
+  const manualWrapper = document.getElementById('staff-bind-manual-wrapper');
+  const btnSelect = document.getElementById('btn-bind-mode-select');
+  const btnManual = document.getElementById('btn-bind-mode-manual');
+  const helpText = document.getElementById('staff-bind-help-text');
+
+  if (mode === 'select') {
+    selectWrapper?.classList.remove('hidden');
+    manualWrapper?.classList.add('hidden');
+    if (btnSelect) btnSelect.className = 'px-2.5 py-0.5 rounded-md bg-white text-slate-800 shadow-xs transition cursor-pointer';
+    if (btnManual) btnManual.className = 'px-2.5 py-0.5 rounded-md text-slate-500 hover:text-slate-800 transition cursor-pointer';
+    if (helpText) {
+      helpText.innerHTML = '📌 <strong>從選單挑選：</strong>直接點擊選單挑選已註冊人員；若該人員尚未註冊，可點右上方「手動輸入」預先綁定自訂帳號。';
+    }
+  } else {
+    selectWrapper?.classList.add('hidden');
+    manualWrapper?.classList.remove('hidden');
+    if (btnManual) btnManual.className = 'px-2.5 py-0.5 rounded-md bg-white text-slate-800 shadow-xs transition cursor-pointer';
+    if (btnSelect) btnSelect.className = 'px-2.5 py-0.5 rounded-md text-slate-500 hover:text-slate-800 transition cursor-pointer';
+    if (helpText) {
+      helpText.innerHTML = '📌 <strong>手動輸入：</strong>請輸入欲預先綁定的自訂帳號（例如 amy、stylist01）；日後該人員以此帳號註冊登入時，系統會自動無縫綁定並啟用開單！';
+    }
+    document.getElementById('modal-staff-email')?.focus();
+  }
+}
+
+// 監聽下拉選單切換
+function onStaffSelectChange(val) {
+  if (val === '__MANUAL__') {
+    setStaffBindMode('manual');
+  } else if (val) {
+    const emailInput = document.getElementById('modal-staff-email');
+    if (emailInput) emailInput.value = formatEmailToUsername(val);
+  }
+}
+
+// 填入人員綁定選單：跳出已註冊帳號選單供管理者選擇
+function populateLinkedUsersDropdown(currentLinkedEmail = '', editingStaffId = '') {
+  const selectEl = document.getElementById('modal-staff-user-select');
+  const emailInput = document.getElementById('modal-staff-email');
+
+  if (selectEl) {
+    let optionsHtml = '<option value="">-- 點擊展開選擇店內已註冊帳號 --</option>';
+
+    if (allRegisteredUsers.length === 0) {
+      optionsHtml += '<option value="" disabled>(目前無已註冊帳號，請切換手動輸入)</option>';
+    } else {
+      optionsHtml += allRegisteredUsers.map(u => {
+        const username = formatEmailToUsername(u.email);
+        const roleLabel = u.role === 'admin' ? '管理員' : '已註冊員工';
+        const isBound = appState.staff.some(s => s.id !== editingStaffId && (
+          s.linkedUid === u.uid || 
+          (s.linkedEmail && s.linkedEmail.toLowerCase() === u.email.toLowerCase())
+        ));
+        const boundLabel = isBound ? ' · 已綁定他人' : '';
+        return `<option value="${u.email}">${username} (${roleLabel}${boundLabel})</option>`;
+      }).join('');
+    }
+
+    optionsHtml += '<option value="__MANUAL__">➕ 手動輸入尚未註冊的自訂帳號...</option>';
+    selectEl.innerHTML = optionsHtml;
   }
 
-  const emailInput = document.getElementById('modal-staff-email');
-  if (emailInput && currentLinkedEmail) {
-    emailInput.value = formatEmailToUsername(currentLinkedEmail);
+  // 判斷預設選中哪一個
+  if (currentLinkedEmail) {
+    const norm = currentLinkedEmail.toLowerCase();
+    const matchedUser = allRegisteredUsers.find(u => 
+      u.email.toLowerCase() === norm || 
+      formatEmailToUsername(u.email).toLowerCase() === norm ||
+      formatUsernameToEmail(norm) === u.email.toLowerCase()
+    );
+
+    if (matchedUser) {
+      setStaffBindMode('select');
+      if (selectEl) selectEl.value = matchedUser.email;
+      if (emailInput) emailInput.value = formatEmailToUsername(matchedUser.email);
+    } else {
+      // 找不到代表是尚未註冊的自訂帳號，切換為手動輸入模式
+      setStaffBindMode('manual');
+      if (emailInput) emailInput.value = formatEmailToUsername(currentLinkedEmail);
+      if (selectEl) selectEl.value = '__MANUAL__';
+    }
+  } else {
+    if (allRegisteredUsers.length > 0) {
+      setStaffBindMode('select');
+      if (selectEl) selectEl.value = '';
+      if (emailInput) emailInput.value = '';
+    } else {
+      setStaffBindMode('manual');
+      if (emailInput) emailInput.value = '';
+    }
   }
 }
 
@@ -257,9 +340,10 @@ function openStaffModal() {
   if (emailInput) emailInput.value = '';
   const roleEl = document.getElementById('modal-staff-role');
   if (roleEl) roleEl.value = '人員';
-  populateLinkedUsersDropdown('');
+  populateLinkedUsersDropdown('', '');
   document.getElementById('modal-staff-title').textContent = '新增工作人員';
   document.getElementById('modal-staff').classList.remove('hidden');
+  if (window.lucide) lucide.createIcons();
 }
 
 function editStaffMember(staffId) {
@@ -273,12 +357,13 @@ function editStaffMember(staffId) {
   document.getElementById('modal-staff-id').value = staff.id;
   document.getElementById('modal-staff-name').value = staff.name;
   const emailInput = document.getElementById('modal-staff-email');
-  if (emailInput) emailInput.value = staff.linkedEmail || '';
+  if (emailInput) emailInput.value = staff.linkedEmail ? formatEmailToUsername(staff.linkedEmail) : '';
   const roleEl = document.getElementById('modal-staff-role');
   if (roleEl) roleEl.value = staff.role || '人員';
-  populateLinkedUsersDropdown(staff.linkedEmail || '');
+  populateLinkedUsersDropdown(staff.linkedEmail || '', staff.id);
   document.getElementById('modal-staff-title').textContent = '編輯工作人員';
   document.getElementById('modal-staff').classList.remove('hidden');
+  if (window.lucide) lucide.createIcons();
 }
 
 function closeStaffModal() {
@@ -295,19 +380,31 @@ async function saveStaffMember() {
   const roleEl = document.getElementById('modal-staff-role');
   const role = roleEl ? (roleEl.value || '人員') : '人員';
 
-  const emailInput = document.getElementById('modal-staff-email');
-  const rawInput = (emailInput ? emailInput.value : '').trim();
+  let rawInput = '';
+  if (currentStaffBindMode === 'select') {
+    const selectEl = document.getElementById('modal-staff-user-select');
+    const selectVal = selectEl ? selectEl.value : '';
+    if (!selectVal || selectVal === '__MANUAL__') {
+      alert('請從選單中挑選要綁定的帳號，或點右上角切換至「手動輸入」！');
+      selectEl?.focus();
+      return;
+    }
+    rawInput = formatEmailToUsername(selectVal);
+  } else {
+    const emailInput = document.getElementById('modal-staff-email');
+    rawInput = (emailInput ? emailInput.value : '').trim();
+    if (!rawInput) {
+      alert('請輸入人員綁定的自訂帳號（即使該人員「尚未註冊」亦可輸入，等日後註冊時系統會自動對應綁定）！');
+      emailInput?.focus();
+      return;
+    }
+  }
+
   const linkedEmail = formatUsernameToEmail(rawInput);
 
   if (!name) {
     alert('請輸入人員姓名！');
     document.getElementById('modal-staff-name')?.focus();
-    return;
-  }
-
-  if (!rawInput) {
-    alert('請輸入人員綁定的登入帳號（即使該人員「尚未註冊」亦可輸入，等日後註冊時系統會自動對應綁定）！');
-    emailInput?.focus();
     return;
   }
 

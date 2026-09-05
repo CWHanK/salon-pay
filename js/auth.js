@@ -100,7 +100,37 @@ async function handleAuthSubmit(e) {
 
       showToast(`註冊成功！身分：${selectedRole === 'admin' ? '管理員' : '員工'}`);
     } else {
-      await firebase.auth().signInWithEmailAndPassword(email, password);
+      try {
+        await firebase.auth().signInWithEmailAndPassword(email, password);
+      } catch (signInErr) {
+        // 若以自訂帳號登入且報找不到帳號 (auth/user-not-found)，但未輸入 @
+        // 嘗試在本地快取中檢查是否有符合此帳號前綴的舊 Email (例如 csli08159 -> csli08159@gmail.com)
+        if (signInErr.code === 'auth/user-not-found' && !rawInput.includes('@')) {
+          let legacyEmail = null;
+          try {
+            const cachedData = localStorage.getItem('SALON_PAY_LOCAL_CACHE');
+            if (cachedData) {
+              const parsed = JSON.parse(cachedData);
+              if (parsed && Array.isArray(parsed.staff)) {
+                const found = parsed.staff.find(s => 
+                  s.linkedEmail && 
+                  s.linkedEmail.includes('@') && 
+                  s.linkedEmail.split('@')[0].toLowerCase() === rawInput.toLowerCase()
+                );
+                if (found) legacyEmail = found.linkedEmail;
+              }
+            }
+          } catch (_) {}
+
+          if (legacyEmail) {
+            await firebase.auth().signInWithEmailAndPassword(legacyEmail, password);
+          } else {
+            throw signInErr;
+          }
+        } else {
+          throw signInErr;
+        }
+      }
       showToast('登入成功！已連線至雲端');
     }
   } catch (err) {

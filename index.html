@@ -78,7 +78,7 @@
             <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
               <i data-lucide="user" class="w-4 h-4"></i>
             </span>
-            <input type="text" id="auth-email" name="username" autocomplete="username" required placeholder="例如：hank、amy88 (或信箱)" class="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500">
+            <input type="text" id="auth-email" name="username" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" required placeholder="例如：hank、amy88 (或既有帳號)" class="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500">
           </div>
         </div>
 
@@ -737,15 +737,37 @@
         <input type="text" id="modal-staff-name" autocomplete="off" placeholder="例如：Hank、Amy" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500">
       </div>
       <div>
-        <label class="block text-xs font-semibold text-slate-600 mb-1">
-          綁定登入帳號 <span class="text-rose-500">*</span>
-        </label>
-        <div class="relative">
-          <input type="text" id="modal-staff-email" autocomplete="off" list="registered-users-datalist" placeholder="例如：hank、amy88 (或信箱)" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm bg-white font-semibold text-slate-800 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500">
-          <datalist id="registered-users-datalist"></datalist>
+        <div class="flex items-center justify-between mb-1">
+          <label class="block text-xs font-semibold text-slate-700">
+            綁定登入帳號 <span class="text-rose-500">*</span>
+          </label>
+          <div class="inline-flex rounded-lg bg-slate-100 p-0.5 text-[11px] font-bold">
+            <button type="button" id="btn-bind-mode-select" onclick="setStaffBindMode('select')" class="px-2.5 py-0.5 rounded-md bg-white text-slate-800 shadow-xs transition cursor-pointer">
+              從選單挑選
+            </button>
+            <button type="button" id="btn-bind-mode-manual" onclick="setStaffBindMode('manual')" class="px-2.5 py-0.5 rounded-md text-slate-500 hover:text-slate-800 transition cursor-pointer">
+              手動輸入
+            </button>
+          </div>
         </div>
-        <p class="text-[11px] text-amber-800 bg-amber-50/90 p-2 rounded-xl mt-1.5 border border-amber-200/70 leading-relaxed">
-          📌 <strong>支援「未註冊」自訂帳號：</strong>即使該人員尚未註冊，亦可直接輸入其自訂帳號（如 hank）；日後該人員以該帳號註冊登入時，系統會自動無縫綁定並啟用開單！
+
+        <!-- 模式 1: 下拉選單 (手機與電腦原生跳出清單選單) -->
+        <div id="staff-bind-select-wrapper" class="relative">
+          <select id="modal-staff-user-select" onchange="onStaffSelectChange(this.value)" class="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm bg-white font-semibold text-slate-800 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 appearance-none pr-9 cursor-pointer">
+            <!-- 動態填入店內已註冊之帳號 -->
+          </select>
+          <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400">
+            <i data-lucide="chevron-down" class="w-4 h-4"></i>
+          </div>
+        </div>
+
+        <!-- 模式 2: 手動輸入自訂帳號 (支援尚未註冊者) -->
+        <div id="staff-bind-manual-wrapper" class="hidden">
+          <input type="text" id="modal-staff-email" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="例如：amy、stylist01 (自訂帳號)" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm bg-white font-semibold text-slate-800 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500">
+        </div>
+
+        <p id="staff-bind-help-text" class="text-[11px] text-amber-800 bg-amber-50/90 p-2 rounded-xl mt-1.5 border border-amber-200/70 leading-relaxed">
+          📌 <strong>從選單挑選：</strong>點擊上方選單直接挑選已註冊人員；若該人員尚未註冊，可點右上方「手動輸入」預先綁定自訂帳號！
         </p>
       </div>
       <div class="flex gap-2 pt-2">
@@ -846,14 +868,14 @@
   </div>
 
   <!-- 模組化業務邏輯 (Vanilla JS 架構) -->
-  <script src="js/constants.js"></script>
-  <script src="js/state.js"></script>
-  <script src="js/firebase.js"></script>
-  <script src="js/auth.js"></script>
-  <script src="js/billing.js"></script>
-  <script src="js/history.js"></script>
-  <script src="js/monthly.js"></script>
-  <script src="js/settings.js"></script>
-  <script src="js/main.js"></script>
+  <script src="js/constants.js?v=20260905_2"></script>
+  <script src="js/state.js?v=20260905_2"></script>
+  <script src="js/firebase.js?v=20260905_2"></script>
+  <script src="js/auth.js?v=20260905_2"></script>
+  <script src="js/billing.js?v=20260905_2"></script>
+  <script src="js/history.js?v=20260905_2"></script>
+  <script src="js/monthly.js?v=20260905_2"></script>
+  <script src="js/settings.js?v=20260905_2"></script>
+  <script src="js/main.js?v=20260905_2"></script>
 </body>
 </html>

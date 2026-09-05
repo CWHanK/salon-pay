@@ -123,7 +123,7 @@ function renderHistoryView(ordersList) {
           <span class="text-slate-400 font-mono">${order.date}</span>
           <div class="flex items-center gap-3">
             <span class="text-slate-600">實收: <strong>NT$ ${order.totalAmount.toLocaleString()}</strong></span>
-            <span class="admin-only-inline text-amber-700 font-bold text-sm font-numeric">抽: NT$ ${order.totalCommission.toLocaleString()}</span>
+            ${currentUserRole === 'admin' ? `<span class="admin-only-inline text-amber-700 font-bold text-sm font-numeric">抽: NT$ ${order.totalCommission.toLocaleString()}</span>` : ''}
           </div>
         </div>
       </div>
@@ -150,7 +150,7 @@ function renderHistoryView(ordersList) {
           <div>${order.items.map(i => `${i.name} (x${i.qty})`).join('、')}</div>
         </td>
         <td class="px-4 py-3 text-right font-numeric font-bold text-slate-800">NT$ ${order.totalAmount.toLocaleString()}</td>
-        <td class="admin-only-cell px-4 py-3 text-right font-numeric font-extrabold text-amber-700">NT$ ${order.totalCommission.toLocaleString()}</td>
+        <td class="admin-only-cell px-4 py-3 text-right font-numeric font-extrabold text-amber-700">${currentUserRole === 'admin' ? `NT$ ${order.totalCommission.toLocaleString()}` : ''}</td>
         <td class="px-4 py-3 text-center">
           <button onclick="deleteOrder('${order.id}')" class="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg hover:bg-rose-50 transition">
             <i data-lucide="trash-2" class="w-4 h-4"></i>

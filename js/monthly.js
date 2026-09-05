@@ -130,7 +130,7 @@ function renderMonthlyOrdersTable(monthlyOrders, currentStaffId) {
         </td>
         <td class="px-3 py-2.5 text-right font-numeric font-bold text-slate-800 whitespace-nowrap">NT$ ${order.totalAmount.toLocaleString()}</td>
         <td class="admin-only-cell px-3 py-2.5 text-right font-numeric font-extrabold text-amber-700 whitespace-nowrap">
-          NT$ ${earnedComm.toLocaleString()} ${roleTag}
+          ${currentUserRole === 'admin' ? `NT$ ${earnedComm.toLocaleString()} ${roleTag}` : ''}
         </td>
         <td class="px-3 py-2.5 text-slate-400 whitespace-nowrap">${order.notes || '-'}</td>
       </tr>

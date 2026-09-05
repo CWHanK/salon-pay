@@ -176,7 +176,7 @@
       <!-- 電腦端分頁導航 (在手機端隱藏，改用底部 Dock) -->
       <nav class="hidden md:flex space-x-2 -mb-px overflow-x-auto border-t border-slate-100 pt-1">
         <button onclick="switchTab('billing')" id="tab-btn-billing" class="tab-btn active px-4 py-2 text-sm font-medium rounded-t-lg transition flex items-center gap-1.5">
-          <i data-lucide="badge-percent" class="w-4 h-4"></i> 現場開單抽成試算
+          <i data-lucide="clipboard-pen" class="w-4 h-4"></i> 現場開單
         </button>
         <button onclick="switchTab('history')" id="tab-btn-history" class="tab-btn px-4 py-2 text-sm font-medium rounded-t-lg transition flex items-center gap-1.5 text-slate-600 hover:text-slate-900">
           <i data-lucide="receipt" class="w-4 h-4"></i> 歷史帳單與每日流水
@@ -194,7 +194,7 @@
   <!-- 主要內容區 -->
   <main class="flex-1 max-w-7xl w-full mx-auto px-3.5 sm:px-6 lg:px-8 py-4 sm:py-6 no-print">
 
-    <!-- ==================== 分頁 1：現場開單抽成試算 ==================== -->
+    <!-- ==================== 分頁 1：現場開單 ==================== -->
     <section id="tab-billing" class="space-y-4">
       
       <!-- 提示：若尚未建立人員時顯示 -->
@@ -663,7 +663,7 @@
   <!-- ==================== 📱 手機底部專用固定導覽欄 (Bottom Dock) ==================== -->
   <nav class="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200/90 py-1.5 px-2 flex justify-around items-center md:hidden mobile-bottom-dock shadow-lg">
     <button onclick="switchTab('billing')" id="dock-btn-billing" class="dock-item active flex flex-col items-center justify-center p-1.5 text-slate-400 hover:text-amber-700 transition">
-      <i data-lucide="badge-percent" class="w-5 h-5 mb-0.5"></i>
+      <i data-lucide="clipboard-pen" class="w-5 h-5 mb-0.5"></i>
       <span class="text-[11px]">現場開單</span>
     </button>
     <button onclick="switchTab('history')" id="dock-btn-history" class="dock-item flex flex-col items-center justify-center p-1.5 text-slate-400 hover:text-amber-700 transition">

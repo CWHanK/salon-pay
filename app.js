@@ -365,6 +365,17 @@ function applyRolePermissions() {
   if (empName) empName.textContent = currentLinkedStaff ? `${currentLinkedStaff.name} (${currentLinkedStaff.role})` : `店內員工 (${emailPrefix})`;
   if (empEmail) empEmail.textContent = `登入帳號: ${userEmail}`;
 
+  // 管理員設定頁卡片
+  const adminName = document.getElementById('settings-admin-name');
+  const adminEmail = document.getElementById('settings-admin-email');
+  const adminCard = document.getElementById('settings-admin-card');
+  if (adminCard) {
+    if (currentUserRole === 'admin') adminCard.classList.remove('hidden');
+    else adminCard.classList.add('hidden');
+  }
+  if (adminName) adminName.textContent = currentLinkedStaff ? `${currentLinkedStaff.name} (店家管理員)` : `店家管理員 (${emailPrefix})`;
+  if (adminEmail) adminEmail.textContent = `登入帳號: ${userEmail}`;
+
   // 導覽列與 Dock 標籤文字
   const dockMonthlyText = document.querySelector('#dock-btn-monthly span');
   const tabMonthlyBtn = document.getElementById('tab-btn-monthly');
@@ -479,7 +490,11 @@ function renderUsersTable() {
         </td>
         <td class="px-3 py-2.5 text-slate-400 whitespace-nowrap">${dateStr}</td>
         <td class="px-3 py-2.5 text-center whitespace-nowrap">
-          ${isCurrent ? '<span class="text-[11px] text-slate-400 font-medium">(目前登入中)</span>' : `
+          ${isCurrent ? `
+            <button onclick="demoteSelfToStaff()" class="text-xs px-2.5 py-1 rounded-xl font-bold border border-slate-300 text-slate-600 hover:text-rose-600 hover:border-rose-300 hover:bg-rose-50 transition" title="將自己的帳號降級為員工">
+              降為員工
+            </button>
+          ` : `
             <button onclick="toggleUserRole('${u.uid}', '${isAdmin ? 'staff' : 'admin'}')" class="text-xs px-2.5 py-1 rounded-xl font-bold border transition ${isAdmin ? 'border-slate-300 text-slate-600 hover:bg-slate-100' : 'border-amber-500 bg-amber-50 text-amber-800 hover:bg-amber-100'}">
               ${isAdmin ? '降為員工' : '升為管理員'}
             </button>
@@ -503,6 +518,42 @@ async function toggleUserRole(uid, newRole) {
     showToast(`已成功將身分更新為 ${newRole === 'admin' ? '管理員' : '員工'}`);
   } catch(e) {
     alert('身分更新失敗：' + e.message);
+  }
+}
+
+// 管理員將自身帳號降級為員工
+async function demoteSelfToStaff() {
+  if (currentUserRole !== 'admin') {
+    alert('您目前並非管理員身分！');
+    return;
+  }
+  if (!currentUser || !db) return;
+
+  const otherAdmins = allRegisteredUsers.filter(u => u.uid !== currentUser.uid && u.role === 'admin');
+  let confirmMsg = '確定要將自己的帳號降級為「員工」身分嗎？\n\n降級後您將轉為員工模式，僅能查閱個人客單與當月工作明細，無法再進入管理員後台。';
+  if (otherAdmins.length === 0) {
+    confirmMsg += '\n\n⚠️ 提醒：店內名單中目前無其他管理員帳號，降級後若需恢復管理權限，需由其他管理員在後台指定或於資料庫調整。';
+  }
+
+  if (!confirm(confirmMsg)) return;
+
+  try {
+    await db.collection('salon_users').doc(currentUser.uid).update({
+      role: 'staff'
+    });
+
+    currentUserRole = 'staff';
+
+    applyRolePermissions();
+    populateStaffDropdowns();
+    filterHistoryOrders();
+    calculateMonthlyPayroll();
+    renderSettingsTables();
+
+    showToast('已成功將自身帳號降級為「員工」身分！');
+  } catch (err) {
+    console.error('降級失敗:', err);
+    alert('降級身分失敗：' + err.message);
   }
 }
 

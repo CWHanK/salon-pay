@@ -218,7 +218,7 @@ function applyRolePermissions() {
     if (currentUserRole === 'staff') empCard.classList.remove('hidden');
     else empCard.classList.add('hidden');
   }
-  if (empName) empName.textContent = currentLinkedStaff ? `${currentLinkedStaff.name} (${currentLinkedStaff.role})` : `店內員工 (${emailPrefix})`;
+  if (empName) empName.textContent = currentLinkedStaff ? currentLinkedStaff.name : `店內人員 (${emailPrefix})`;
   if (empEmail) empEmail.textContent = `登入帳號: ${userEmail}`;
 
   // 管理員設定頁卡片

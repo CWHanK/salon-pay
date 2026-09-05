@@ -2,19 +2,19 @@
  * SalonPay - 系統設定：服務項目、工作人員與帳號管理 (js/settings.js)
  */
 
-// 下拉選單：綁定已註冊使用者
-function populateLinkedUsersDropdown(currentLinkedUid = '') {
-  const select = document.getElementById('modal-staff-linked-user');
-  if (!select) return;
+// 提示清單：支援選取已註冊使用者，或直接輸入未註冊 Email
+function populateLinkedUsersDropdown(currentLinkedEmail = '') {
+  const datalist = document.getElementById('registered-users-datalist');
+  if (datalist) {
+    datalist.innerHTML = allRegisteredUsers.map(u => `
+      <option value="${u.email}">${u.email} (${u.role === 'admin' ? '管理員' : '已註冊員工'})</option>
+    `).join('');
+  }
 
-  select.innerHTML = `
-    <option value="">(未綁定 - 僅於本店本機排班)</option>
-    ${allRegisteredUsers.map(u => `
-      <option value="${u.uid}" data-email="${u.email}" ${u.uid === currentLinkedUid ? 'selected' : ''}>
-        ${u.email} (${u.role === 'admin' ? '管理員' : '員工'})
-      </option>
-    `).join('')}
-  `;
+  const emailInput = document.getElementById('modal-staff-email');
+  if (emailInput && currentLinkedEmail) {
+    emailInput.value = currentLinkedEmail;
+  }
 }
 
 // 渲染已註冊使用者名冊（供管理員檢視誰是管理員、誰是員工）
@@ -46,7 +46,7 @@ function renderUsersTable() {
           </span>
         </td>
         <td class="px-3 py-2.5 text-slate-400 whitespace-nowrap">${dateStr}</td>
-        <td class="px-3 py-2.5 text-center whitespace-nowrap">
+        <td class="px-3 py-2.5 text-center whitespace-nowrap space-x-1.5">
           ${isCurrent ? `
             <button onclick="demoteSelfToStaff()" class="text-xs px-2.5 py-1 rounded-xl font-bold border border-slate-300 text-slate-600 hover:text-rose-600 hover:border-rose-300 hover:bg-rose-50 transition" title="將自己的帳號降級為員工">
               降為員工
@@ -54,6 +54,9 @@ function renderUsersTable() {
           ` : `
             <button onclick="toggleUserRole('${u.uid}', '${isAdmin ? 'staff' : 'admin'}')" class="text-xs px-2.5 py-1 rounded-xl font-bold border transition ${isAdmin ? 'border-slate-300 text-slate-600 hover:bg-slate-100' : 'border-amber-500 bg-amber-50 text-amber-800 hover:bg-amber-100'}">
               ${isAdmin ? '降為員工' : '升為管理員'}
+            </button>
+            <button onclick="startDeleteUserFlow('${u.uid}', '${u.email}')" class="text-xs px-2.5 py-1 rounded-xl font-bold border border-rose-200 bg-rose-50 text-rose-600 hover:bg-rose-600 hover:text-white transition shadow-2xs inline-flex items-center gap-1" title="刪除此註冊帳號">
+              <i data-lucide="trash-2" class="w-3.5 h-3.5"></i> 刪除
             </button>
           `}
         </td>
@@ -102,7 +105,7 @@ function renderSettingsTables() {
     if (appState.staff.length === 0) {
       staffTbody.innerHTML = `
         <tr>
-          <td colspan="5" class="py-6 text-center text-xs text-slate-400">
+          <td colspan="3" class="py-6 text-center text-xs text-slate-400">
             目前尚未建立工作人員，請點擊上方「新增人員」開始建立！
           </td>
         </tr>
@@ -112,14 +115,11 @@ function renderSettingsTables() {
         <tr class="hover:bg-slate-50 transition">
           <td class="px-3 py-2.5 font-semibold text-slate-900">${st.name}</td>
           <td class="px-3 py-2.5">
-            <span class="px-2 py-0.5 rounded-full text-xs font-medium ${st.role === '助理' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-800'}">
-              ${st.role}
-            </span>
-          </td>
-          <td class="px-3 py-2.5">
             ${st.linkedEmail ? `
-              <span class="inline-flex items-center gap-1 bg-emerald-50 text-emerald-800 border border-emerald-200 px-2 py-0.5 rounded-full text-[10px] font-bold">
-                <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>${st.linkedEmail}
+              <span class="inline-flex items-center gap-1.5 ${st.linkedUid ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-amber-50 text-amber-800 border-amber-200'} border px-2.5 py-0.5 rounded-full text-[11px] font-bold">
+                <span class="w-1.5 h-1.5 rounded-full ${st.linkedUid ? 'bg-emerald-500' : 'bg-amber-400 animate-pulse'}"></span>
+                ${st.linkedEmail}
+                <span class="text-[10px] font-normal opacity-80">${st.linkedUid ? '(已註冊)' : '(未註冊·待綁定)'}</span>
               </span>
             ` : '<span class="text-slate-400 text-[10px]">未綁定帳號</span>'}
           </td>
@@ -234,9 +234,12 @@ function openStaffModal() {
   }
   document.getElementById('modal-staff-id').value = '';
   document.getElementById('modal-staff-name').value = '';
-  document.getElementById('modal-staff-role').value = '設計師';
+  const emailInput = document.getElementById('modal-staff-email');
+  if (emailInput) emailInput.value = '';
+  const roleEl = document.getElementById('modal-staff-role');
+  if (roleEl) roleEl.value = '人員';
   populateLinkedUsersDropdown('');
-  document.getElementById('modal-staff-title').textContent = '新增工作人員 / 設計師';
+  document.getElementById('modal-staff-title').textContent = '新增工作人員';
   document.getElementById('modal-staff').classList.remove('hidden');
 }
 
@@ -250,8 +253,11 @@ function editStaffMember(staffId) {
 
   document.getElementById('modal-staff-id').value = staff.id;
   document.getElementById('modal-staff-name').value = staff.name;
-  document.getElementById('modal-staff-role').value = staff.role;
-  populateLinkedUsersDropdown(staff.linkedUid || '');
+  const emailInput = document.getElementById('modal-staff-email');
+  if (emailInput) emailInput.value = staff.linkedEmail || '';
+  const roleEl = document.getElementById('modal-staff-role');
+  if (roleEl) roleEl.value = staff.role || '人員';
+  populateLinkedUsersDropdown(staff.linkedEmail || '');
   document.getElementById('modal-staff-title').textContent = '編輯工作人員';
   document.getElementById('modal-staff').classList.remove('hidden');
 }
@@ -267,24 +273,34 @@ async function saveStaffMember() {
   }
   const id = document.getElementById('modal-staff-id').value;
   const name = document.getElementById('modal-staff-name').value.trim();
-  const role = document.getElementById('modal-staff-role').value;
+  const roleEl = document.getElementById('modal-staff-role');
+  const role = roleEl ? (roleEl.value || '人員') : '人員';
 
-  const linkedUserSelect = document.getElementById('modal-staff-linked-user');
-  const linkedUid = linkedUserSelect ? linkedUserSelect.value : '';
-  const selectedOpt = linkedUserSelect && linkedUserSelect.selectedIndex >= 0 ? linkedUserSelect.options[linkedUserSelect.selectedIndex] : null;
-  const linkedEmail = selectedOpt ? (selectedOpt.getAttribute('data-email') || '') : '';
+  const emailInput = document.getElementById('modal-staff-email');
+  const linkedEmail = (emailInput ? emailInput.value : '').trim().toLowerCase();
 
   if (!name) {
-    alert('請輸入員工姓名！');
+    alert('請輸入人員姓名！');
+    document.getElementById('modal-staff-name')?.focus();
     return;
   }
+
+  if (!linkedEmail) {
+    alert('請輸入人員綁定的登入帳號/信箱（即使該人員「尚未註冊」亦可輸入，等日後註冊時系統會自動對應綁定）！');
+    emailInput?.focus();
+    return;
+  }
+
+  // 檢查此 Email 是否已經在全店使用者中註冊過
+  const registeredUser = allRegisteredUsers.find(u => u.email && u.email.toLowerCase() === linkedEmail);
+  const linkedUid = registeredUser ? registeredUser.uid : '';
 
   if (id) {
     const s = appState.staff.find(item => item.id === id);
     if (s) {
       s.name = name;
       s.role = role;
-      s.linkedUid = linkedUid;
+      s.linkedUid = linkedUid || (s.linkedEmail === linkedEmail ? s.linkedUid : '');
       s.linkedEmail = linkedEmail;
     }
   } else {
@@ -303,7 +319,9 @@ async function saveStaffMember() {
   applyRolePermissions();
   populateStaffDropdowns();
   renderSettingsTables();
-  showToast(`已儲存工作人員：${name}${linkedEmail ? ` (已綁定帳號 ${linkedEmail})` : ''}`);
+
+  const tipText = registeredUser ? '已對應現有註冊帳號' : '已預先綁定未註冊帳號，日後註冊即可直接連線！';
+  showToast(`已儲存人員：${name} (${tipText})`);
 }
 
 async function deleteStaffMember(staffId) {
@@ -384,4 +402,127 @@ async function confirmResetAll() {
   filterHistoryOrders();
   calculateMonthlyPayroll();
   showToast('已清空所有帳單與人員');
+}
+
+// ==================== 刪除已註冊帳號雙重安全確認機制 ====================
+let pendingDeleteUser = null;
+let deleteUserCountdownTimer = null;
+let deleteUserCountdownSeconds = 5;
+
+// 第 1 步：啟動雙重確認流程，彈出第一道確認視窗
+function startDeleteUserFlow(uid, email) {
+  if (currentUserRole !== 'admin') {
+    alert('僅管理員有刪除帳號權限！');
+    return;
+  }
+  if (currentUser && currentUser.uid === uid) {
+    alert('不可刪除您目前正在登入使用的管理員帳號！');
+    return;
+  }
+
+  pendingDeleteUser = { uid, email };
+
+  const displayEl1 = document.getElementById('delete-user-email-display-1');
+  if (displayEl1) displayEl1.textContent = email;
+
+  document.getElementById('delete-user-step-1')?.classList.remove('hidden');
+  document.getElementById('delete-user-step-2')?.classList.add('hidden');
+  document.getElementById('modal-delete-user')?.classList.remove('hidden');
+
+  if (window.lucide) lucide.createIcons();
+}
+
+// 第 2 步：通過第一道確認，進入第二道安全確認 (強制倒數 5 秒防誤觸)
+function proceedToDeleteUserStep2() {
+  if (!pendingDeleteUser) return;
+
+  const displayEl2 = document.getElementById('delete-user-email-display-2');
+  if (displayEl2) displayEl2.textContent = pendingDeleteUser.email;
+
+  document.getElementById('delete-user-step-1')?.classList.add('hidden');
+  document.getElementById('delete-user-step-2')?.classList.remove('hidden');
+
+  const confirmBtn = document.getElementById('btn-confirm-delete-user');
+  if (confirmBtn) {
+    confirmBtn.disabled = true;
+    confirmBtn.className = 'flex-1 py-2.5 bg-slate-200 text-slate-400 font-bold rounded-xl text-xs cursor-not-allowed transition flex items-center justify-center gap-1.5';
+    confirmBtn.innerHTML = `請稍候 (<span id="delete-countdown-num">5</span>s)`;
+  }
+
+  deleteUserCountdownSeconds = 5;
+  if (deleteUserCountdownTimer) clearInterval(deleteUserCountdownTimer);
+
+  deleteUserCountdownTimer = setInterval(() => {
+    deleteUserCountdownSeconds--;
+    const numEl = document.getElementById('delete-countdown-num');
+    if (numEl) numEl.textContent = deleteUserCountdownSeconds;
+
+    if (deleteUserCountdownSeconds <= 0) {
+      clearInterval(deleteUserCountdownTimer);
+      deleteUserCountdownTimer = null;
+
+      if (confirmBtn) {
+        confirmBtn.disabled = false;
+        confirmBtn.className = 'flex-1 py-2.5 bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white font-bold rounded-xl text-xs shadow-md shadow-rose-600/30 transition flex items-center justify-center gap-1.5 cursor-pointer';
+        confirmBtn.innerHTML = `<i data-lucide="trash-2" class="w-3.5 h-3.5"></i> 確定徹底刪除此帳號`;
+        if (window.lucide) lucide.createIcons();
+      }
+    }
+  }, 1000);
+
+  if (window.lucide) lucide.createIcons();
+}
+
+// 關閉刪除確認視窗並停止計時器
+function closeDeleteUserModal() {
+  if (deleteUserCountdownTimer) {
+    clearInterval(deleteUserCountdownTimer);
+    deleteUserCountdownTimer = null;
+  }
+  pendingDeleteUser = null;
+  document.getElementById('modal-delete-user')?.classList.add('hidden');
+}
+
+// 執行最終刪除帳號操作 (需通過兩道確認後觸發)
+async function executeDeleteUser() {
+  if (!pendingDeleteUser) return;
+  if (currentUserRole !== 'admin') {
+    alert('僅管理員有刪除帳號權限！');
+    closeDeleteUserModal();
+    return;
+  }
+
+  const { uid, email } = pendingDeleteUser;
+  const confirmBtn = document.getElementById('btn-confirm-delete-user');
+  if (confirmBtn) {
+    confirmBtn.disabled = true;
+    confirmBtn.textContent = '刪除處理中...';
+  }
+
+  try {
+    // 1. 從 Firestore salon_users 集合中永久刪除此文件
+    await db.collection('salon_users').doc(uid).delete();
+
+    // 2. 若該使用者已綁定到店內人員，自動解除該人員的 UID 綁定
+    let hasUpdatedStaff = false;
+    appState.staff.forEach(s => {
+      if (s.linkedUid === uid) {
+        s.linkedUid = '';
+        hasUpdatedStaff = true;
+      }
+    });
+
+    if (hasUpdatedStaff) {
+      await syncDataToCloud();
+    }
+
+    closeDeleteUserModal();
+    renderUsersTable();
+    renderSettingsTables();
+    showToast(`已成功徹底刪除帳號：${email}`);
+  } catch (err) {
+    console.error('刪除帳號失敗:', err);
+    alert('刪除帳號失敗：' + err.message);
+    closeDeleteUserModal();
+  }
 }

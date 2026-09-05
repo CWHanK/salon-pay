@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="SalonPay">
   <meta name="theme-color" content="#c28859">
-  <title>美髮業員工薪資與抽成計算系統 | SalonPay 手機雲端版</title>
+  <title>SalonPay</title>
   
   <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -154,10 +154,9 @@
             <i data-lucide="scissors" class="w-4.5 h-4.5"></i>
           </div>
           <div>
-            <h1 class="text-base sm:text-lg font-black text-slate-900 tracking-tight flex items-center gap-1.5">
-              SalonPay <span class="text-[10px] px-1.5 py-0.2 rounded-full bg-emerald-100 text-emerald-800 font-bold">雲端版</span>
+            <h1 class="text-base sm:text-lg font-black text-slate-900 tracking-tight">
+              SalonPay
             </h1>
-            <p class="text-[10px] text-slate-400 -mt-0.5 hidden sm:block">美髮薪資 ‧ 抽成試算 ‧ 月報表</p>
           </div>
         </div>
         
@@ -202,10 +201,10 @@
       <div id="billing-empty-staff-alert" class="admin-only-block hidden bg-amber-500 text-white rounded-2xl p-4 shadow-md flex items-center justify-between gap-3">
         <div class="flex items-center gap-2 text-xs sm:text-sm font-semibold">
           <i data-lucide="user-plus" class="w-5 h-5 shrink-0"></i>
-          <span>您尚未新增工作人員！請先建立第一位設計師即可開單。</span>
+          <span>您尚未新增工作人員！請先建立第一位人員即可開單。</span>
         </div>
         <button onclick="openStaffModal()" class="bg-white text-amber-900 text-xs font-bold px-3 py-1.5 rounded-xl shrink-0 shadow-sm">
-          ＋ 點此新增設計師
+          ＋ 點此新增人員
         </button>
       </div>
 
@@ -244,9 +243,11 @@
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <div class="min-w-0">
             <label class="block text-xs font-bold text-slate-700 mb-1">主作設計師 <span class="text-rose-500">*</span></label>
-            <select id="billing-staff-select" class="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 bg-white">
-              <!-- 動態載入 -->
-            </select>
+            <div id="billing-staff-display" class="w-full min-h-[42px] rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-800 flex items-center gap-2 transition select-none">
+              <i data-lucide="user-check" class="w-4 h-4 text-amber-600 shrink-0"></i>
+              <span id="billing-staff-name" class="truncate text-slate-700">載入中...</span>
+              <input type="hidden" id="billing-staff-select" value="">
+            </div>
           </div>
 
           <div class="min-w-0">
@@ -260,18 +261,10 @@
           </div>
         </div>
 
-        <!-- 助理與備註 -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div class="min-w-0">
-            <label class="block text-xs font-bold text-slate-700 mb-1">協助助理 (無則免選)</label>
-            <select id="billing-assistant-select" class="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 bg-white text-slate-700">
-              <option value="">無助理協助（全由設計師操作）</option>
-            </select>
-          </div>
-          <div class="min-w-0">
-            <label class="block text-xs font-bold text-slate-700 mb-1">備註說明 (髮況/優惠折扣等)</label>
-            <input type="text" id="billing-notes" placeholder="例如：雙色染、頭皮敏感、優惠打8折" class="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 bg-white">
-          </div>
+        <!-- 備註說明 -->
+        <div class="min-w-0">
+          <label class="block text-xs font-bold text-slate-700 mb-1">備註說明 (髮況/特殊需求等)</label>
+          <input type="text" id="billing-notes" placeholder="例如：雙色染、頭皮敏感等" class="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 bg-white">
         </div>
 
         <!-- 服務項目明細 -->
@@ -289,12 +282,6 @@
           <div id="service-rows-container" class="space-y-3">
             <!-- 項目由 JS 渲染 -->
           </div>
-        </div>
-
-        <!-- 助理與店家毛額 (展開選看) -->
-        <div id="summary-assistant-row" class="hidden text-xs text-blue-700 bg-blue-50 p-2.5 rounded-xl flex justify-between items-center">
-          <span>助理提成獎勵 (5%)：</span>
-          <span class="font-bold">NT$ <span id="summary-card-assistant-comm">0</span></span>
         </div>
 
         <!-- 底部大動作按鈕 (手機好按全寬) -->
@@ -488,7 +475,7 @@
                 <th class="px-3 py-2.5 whitespace-nowrap">服務日期</th>
                 <th class="px-3 py-2.5 whitespace-nowrap">單號</th>
                 <th class="px-3 py-2.5 whitespace-nowrap">顧客</th>
-                <th class="px-3 py-2.5">服務項目 (含折數)</th>
+                <th class="px-3 py-2.5">服務項目</th>
                 <th class="px-3 py-2.5 text-right whitespace-nowrap">實收金額</th>
                 <th class="px-3 py-2.5 text-right whitespace-nowrap admin-only-cell">抽成金額</th>
                 <th class="px-3 py-2.5 whitespace-nowrap">備註</th>
@@ -515,10 +502,9 @@
             <p class="text-xs text-slate-500" id="settings-employee-email">帳號: -</p>
           </div>
         </div>
-        <div class="bg-slate-50 p-3 rounded-2xl border border-slate-200/70 text-xs text-slate-600 space-y-1.5">
-          <div class="font-bold text-slate-800">📌 員工使用提示</div>
-          <p>您目前以員工身分登入，可隨時進行「現場開單」、查閱「歷史帳單」與「當月工作明細」。</p>
-          <p class="text-slate-400 text-[11px]">服務項目定價、抽成比例與薪資結構由沙龍管理員統一設定維護。</p>
+        <div class="bg-slate-50 p-3 rounded-2xl border border-slate-200/70 text-xs text-slate-500 font-bold flex items-center gap-2">
+          <i data-lucide="shield-alert" class="w-4 h-4 text-slate-400 shrink-0"></i>
+          <span>權限不足</span>
         </div>
 
         <!-- 🔑 員工憑密鑰升級為管理員區塊 -->
@@ -586,7 +572,6 @@
             <thead class="bg-slate-50 uppercase text-slate-500 font-semibold">
               <tr>
                 <th class="px-3 py-2">姓名</th>
-                <th class="px-3 py-2">職稱</th>
                 <th class="px-3 py-2">綁定帳號</th>
                 <th class="px-3 py-2 text-center">操作</th>
               </tr>
@@ -644,7 +629,7 @@
                 <th class="px-3 py-2">帳號信箱 (Email)</th>
                 <th class="px-3 py-2">目前身分</th>
                 <th class="px-3 py-2">註冊時間</th>
-                <th class="px-3 py-2 text-center">權限切換</th>
+                <th class="px-3 py-2 text-center">操作</th>
               </tr>
             </thead>
             <tbody id="settings-users-tbody" class="divide-y divide-slate-100"></tbody>
@@ -745,35 +730,96 @@
   <div id="modal-staff" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
     <div class="bg-white rounded-3xl max-w-sm sm:max-w-md w-full p-6 shadow-2xl space-y-3.5">
       <div class="flex justify-between items-center pb-2 border-b border-slate-100">
-        <h4 id="modal-staff-title" class="text-base font-bold text-slate-900">新增工作人員 / 設計師</h4>
+        <h4 id="modal-staff-title" class="text-base font-bold text-slate-900">新增工作人員</h4>
         <button onclick="closeStaffModal()" class="text-slate-400 hover:text-slate-600">
           <i data-lucide="x" class="w-5 h-5"></i>
         </button>
       </div>
       <input type="hidden" id="modal-staff-id">
+      <input type="hidden" id="modal-staff-role" value="人員">
       <div>
-        <label class="block text-xs font-semibold text-slate-600 mb-1">員工姓名</label>
-        <input type="text" id="modal-staff-name" placeholder="例如：Hank、Amy" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
+        <label class="block text-xs font-semibold text-slate-600 mb-1">人員姓名 <span class="text-rose-500">*</span></label>
+        <input type="text" id="modal-staff-name" placeholder="例如：Hank、Amy" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500">
       </div>
       <div>
-        <label class="block text-xs font-semibold text-slate-600 mb-1">職務身分</label>
-        <select id="modal-staff-role" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm bg-white">
-          <option value="設計師">設計師 (Designer)</option>
-          <option value="助理">美髮助理 (Assistant)</option>
-          <option value="店長/合夥人">店長 / 合夥人</option>
-        </select>
-      </div>
-      <div>
-        <label class="block text-xs font-semibold text-slate-600 mb-1">綁定已註冊雲端帳號 (對應登入帳號)</label>
-        <select id="modal-staff-linked-user" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm bg-white">
-          <option value="">(未綁定 - 僅於本店本機排班)</option>
-        </select>
-        <p class="text-[11px] text-slate-400 mt-0.5">選擇員工註冊的信箱，對應後該員工登入即可查閱自己的當月工作明細</p>
+        <label class="block text-xs font-semibold text-slate-600 mb-1">
+          綁定登入帳號 / 信箱 <span class="text-rose-500">*</span>
+        </label>
+        <div class="relative">
+          <input type="email" id="modal-staff-email" list="registered-users-datalist" placeholder="請輸入登入信箱 (例如: amy@gmail.com)" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm bg-white font-semibold text-slate-800 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500">
+          <datalist id="registered-users-datalist"></datalist>
+        </div>
+        <p class="text-[11px] text-amber-800 bg-amber-50/90 p-2 rounded-xl mt-1.5 border border-amber-200/70 leading-relaxed">
+          📌 <strong>支援「未註冊」帳號：</strong>即使該人員尚未註冊，亦可直接輸入其 Email 綁定；日後該人員以此信箱註冊登入時，系統會自動無縫綁定並啟用開單！
+        </p>
       </div>
       <div class="flex gap-2 pt-2">
         <button onclick="closeStaffModal()" class="flex-1 py-2.5 bg-slate-100 text-slate-700 font-semibold rounded-xl text-xs">取消</button>
         <button onclick="saveStaffMember()" class="flex-1 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded-xl text-xs">儲存人員</button>
       </div>
+    </div>
+  </div>
+
+  <!-- ==================== 模態視窗: 刪除已註冊帳號雙重安全確認 ==================== -->
+  <div id="modal-delete-user" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-3xl max-w-sm sm:max-w-md w-full p-6 shadow-2xl space-y-4">
+      
+      <!-- 第一道確認視窗 -->
+      <div id="delete-user-step-1" class="space-y-3.5 text-center">
+        <div class="w-12 h-12 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center mx-auto shadow-sm">
+          <i data-lucide="alert-triangle" class="w-6 h-6"></i>
+        </div>
+        <div class="space-y-1">
+          <h4 class="text-base font-black text-slate-900">確定要刪除此註冊帳號嗎？</h4>
+          <span class="inline-block text-[11px] font-bold text-amber-800 bg-amber-100/80 px-2.5 py-0.5 rounded-full">第一道安全確認 (1/2)</span>
+        </div>
+        <p class="text-xs text-slate-600 leading-relaxed">
+          您即將從店內雲端資料庫中移除以下已註冊使用者帳號：
+        </p>
+        <div id="delete-user-email-display-1" class="p-3 bg-slate-100 rounded-2xl font-mono font-bold text-slate-800 text-sm break-all select-all">
+          -
+        </div>
+        <p class="text-[11px] text-slate-400">
+          刪除後該人員將無法再以此身分登入系統。此操作需要經過二次確認方可執行。
+        </p>
+        <div class="flex gap-2 pt-2">
+          <button type="button" onclick="closeDeleteUserModal()" class="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition">
+            取消
+          </button>
+          <button type="button" onclick="proceedToDeleteUserStep2()" class="flex-1 py-2.5 bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white font-bold rounded-xl text-xs shadow-md shadow-amber-600/25 transition flex items-center justify-center gap-1">
+            下一步：二次確認 <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- 第二道確認視窗 (冷卻 5 秒防誤觸) -->
+      <div id="delete-user-step-2" class="space-y-3.5 text-center hidden">
+        <div class="w-12 h-12 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center mx-auto shadow-sm animate-pulse">
+          <i data-lucide="shield-alert" class="w-6 h-6"></i>
+        </div>
+        <div class="space-y-1">
+          <h4 class="text-base font-black text-rose-600">🚨 危險操作：二次安全確認</h4>
+          <span class="inline-block text-[11px] font-bold text-rose-800 bg-rose-100 px-2.5 py-0.5 rounded-full">倒數 5 秒冷卻防誤觸 (2/2)</span>
+        </div>
+        <p class="text-xs text-slate-600 leading-relaxed">
+          此操作為<strong>不可逆之永久刪除</strong>！請再次確認要徹底刪除此帳號：
+        </p>
+        <div id="delete-user-email-display-2" class="p-3 bg-rose-50 border border-rose-200/80 rounded-2xl font-mono font-bold text-rose-700 text-sm break-all select-all">
+          -
+        </div>
+        <p class="text-[11px] text-rose-600 font-medium bg-rose-50/50 p-2 rounded-xl border border-rose-200/40">
+          ⚠️ 為防誤觸，請等待 5 秒倒數結束後，下方確認按鈕方可點擊！
+        </p>
+        <div class="flex gap-2 pt-2">
+          <button type="button" onclick="closeDeleteUserModal()" class="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition">
+            放棄取消
+          </button>
+          <button type="button" id="btn-confirm-delete-user" onclick="executeDeleteUser()" disabled class="flex-1 py-2.5 bg-slate-200 text-slate-400 font-bold rounded-xl text-xs cursor-not-allowed transition flex items-center justify-center gap-1.5">
+            請稍候 (<span id="delete-countdown-num">5</span>s)
+          </button>
+        </div>
+      </div>
+
     </div>
   </div>
 

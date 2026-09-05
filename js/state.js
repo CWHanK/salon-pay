@@ -34,12 +34,28 @@ function updateLinkedStaff() {
   }
   const uid = currentUser.uid;
   const email = (currentUser.email || '').toLowerCase();
+  const emailPrefix = email ? email.split('@')[0] : '';
 
   currentLinkedStaff = appState.staff.find(s => 
     (s.linkedUid && s.linkedUid === uid) || 
     (s.linkedEmail && s.linkedEmail.toLowerCase() === email) ||
-    (s.name && s.name.toLowerCase() === email.split('@')[0])
+    (s.name && emailPrefix && s.name.toLowerCase() === emailPrefix)
   ) || null;
+
+  // 若找到人員但缺少 linkedUid / linkedEmail，補充綁定並同步
+  if (currentLinkedStaff && (!currentLinkedStaff.linkedUid || !currentLinkedStaff.linkedEmail)) {
+    currentLinkedStaff.linkedUid = uid;
+    currentLinkedStaff.linkedEmail = email;
+    if (typeof syncDataToCloud === 'function') syncDataToCloud().catch(() => {});
+  }
+
+  // 若仍未配對到且店內僅有一位未綁定人員，自動進行綁定
+  if (!currentLinkedStaff && appState.staff && appState.staff.length === 1 && !appState.staff[0].linkedUid) {
+    appState.staff[0].linkedUid = uid;
+    appState.staff[0].linkedEmail = email;
+    currentLinkedStaff = appState.staff[0];
+    if (typeof syncDataToCloud === 'function') syncDataToCloud().catch(() => {});
+  }
 }
 
 // 清除先前舊範例人員 (如果有)

@@ -116,10 +116,7 @@ function renderHistoryView(ordersList) {
         </div>
 
         <div class="text-xs text-slate-600 flex flex-wrap gap-1">
-          ${order.items.map(it => {
-            const discTag = it.discount && it.discount < 1.0 ? ` <span class="text-rose-600 font-bold">[${getDiscountLabel(it.discount)}]</span>` : '';
-            return `<span class="bg-slate-100 px-2 py-0.5 rounded">${it.name} (x${it.qty})${discTag}</span>`;
-          }).join('')}
+          ${order.items.map(it => `<span class="bg-slate-100 px-2 py-0.5 rounded">${it.name} (x${it.qty})</span>`).join('')}
         </div>
 
         <div class="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
@@ -150,10 +147,7 @@ function renderHistoryView(ordersList) {
           ${order.notes ? `<div class="text-[11px] text-slate-400 line-clamp-1">${order.notes}</div>` : ''}
         </td>
         <td class="px-4 py-3">
-          <div>${order.items.map(i => {
-            const discTag = i.discount && i.discount < 1.0 ? ` <span class="text-rose-600 font-semibold">[${getDiscountLabel(i.discount)}]</span>` : '';
-            return `${i.name} (x${i.qty})${discTag}`;
-          }).join('、')}</div>
+          <div>${order.items.map(i => `${i.name} (x${i.qty})`).join('、')}</div>
         </td>
         <td class="px-4 py-3 text-right font-numeric font-bold text-slate-800">NT$ ${order.totalAmount.toLocaleString()}</td>
         <td class="admin-only-cell px-4 py-3 text-right font-numeric font-extrabold text-amber-700">NT$ ${order.totalCommission.toLocaleString()}</td>
@@ -220,29 +214,23 @@ function exportHistoryToExcel() {
           '帳單編號': o.orderNo,
           '顧客稱呼': o.customer,
           '消費服務項目': it.name,
-          '定價單價': it.price,
+          '單價': it.price,
           '數量': it.qty,
-          '折扣優惠': getDiscountLabel(it.discount || 1.0),
-          '實收金額': it.amount,
+          '小計金額': it.amount,
           '整單實收總額': o.totalAmount,
-          '擔任角色': o.staffId === currentLinkedStaff.id ? '主作設計師' : '協助助理',
           '備註': o.notes || ''
         });
       } else {
         exportData.push({
           '服務日期': o.date,
           '帳單編號': o.orderNo,
-          '主作設計師': o.staffName,
-          '協助助理': o.assistantName || '無',
+          '主作人員': o.staffName,
           '顧客稱呼': o.customer,
           '消費服務項目': it.name,
-          '原價定價': it.price,
+          '單價': it.price,
           '數量': it.qty,
-          '原價合計': it.originalTotal || (it.price * it.qty),
-          '折扣優惠': getDiscountLabel(it.discount || 1.0),
-          '實收金額': it.amount,
+          '小計金額': it.amount,
           '抽成比例(%)': it.rate + '%',
-          '抽成是否打折': it.discountCommission !== false ? '是 (依實收)' : '否 (依原價)',
           '該項抽成金額': it.commission,
           '整單總收費': o.totalAmount,
           '整單總抽成': o.totalCommission,

@@ -113,11 +113,10 @@ function renderMonthlyOrdersTable(monthlyOrders, currentStaffId) {
     const earnedComm = isMain ? order.totalCommission : order.assistantCommission;
     const roleTag = isMain ? '' : '<span class="text-[10px] bg-blue-100 text-blue-700 px-1 rounded">助理獎勵</span>';
     const itemsText = order.items.map(it => {
-      const discTag = it.discount && it.discount < 1.0 ? ` [${getDiscountLabel(it.discount)}]` : '';
       if (currentUserRole === 'staff') {
-        return `${it.name}${discTag} (x${it.qty})`;
+        return `${it.name} (x${it.qty})`;
       } else {
-        return `${it.name}${discTag} ($${it.price}, 抽${it.rate}%)`;
+        return `${it.name} ($${it.price}, 抽${it.rate}%)`;
       }
     }).join('、');
 
@@ -171,11 +170,9 @@ function exportMonthlyReportExcel() {
           '帳單編號': o.orderNo,
           '顧客姓名': o.customer,
           '消費服務項目': it.name,
+          '單價': it.price,
           '數量': it.qty,
-          '定價單價': it.price,
-          '折扣優惠': getDiscountLabel(it.discount || 1.0),
-          '實收金額': it.amount,
-          '擔任角色': isMain ? '主作設計師' : '協助助理',
+          '小計金額': it.amount,
           '備註': o.notes || ''
         });
       });
@@ -183,8 +180,7 @@ function exportMonthlyReportExcel() {
 
     const summarySheetData = [
       { '項目': '明細月份', '內容': monthVal },
-      { '項目': '員工姓名', '內容': staff.name },
-      { '項目': '職務身分', '內容': staff.role },
+      { '項目': '人員姓名', '內容': staff.name },
       { '項目': '本月完成服務客數', '內容': `${monthlyOrders.length} 人次` },
       { '項目': '本月個人營業額總額', '內容': `NT$ ${totalRev.toLocaleString()}` }
     ];
@@ -206,8 +202,7 @@ function exportMonthlyReportExcel() {
 
   const summarySheetData = [
     { '項目': '結算月份', '內容/金額': monthVal },
-    { '項目': '員工姓名', '內容/金額': staff.name },
-    { '項目': '職務身分', '內容/金額': staff.role },
+    { '項目': '人員姓名', '內容/金額': staff.name },
     { '項目': '完成服務客數', '內容/金額': `${monthlyOrders.length} 人次` },
     { '項目': '----------------', '內容/金額': '----------------' },
     { '項目': '【(+) 業績抽成總額】', '內容/金額': commission },
@@ -227,15 +222,11 @@ function exportMonthlyReportExcel() {
         '帳單號': o.orderNo,
         '顧客姓名': o.customer,
         '消費服務項目': it.name,
-        '定價單價': it.price,
+        '單價': it.price,
         '數量': it.qty,
-        '原價合計': it.originalTotal || (it.price * it.qty),
-        '折扣優惠': getDiscountLabel(it.discount || 1.0),
-        '實收金額': it.amount,
+        '小計金額': it.amount,
         '項目抽成率': it.rate + '%',
-        '抽成是否打折': it.discountCommission !== false ? '是 (依實收)' : '否 (依原價)',
-        '本單設計師抽成': isMain ? it.commission : o.assistantCommission,
-        '擔任角色': isMain ? '主作設計師' : '協助助理',
+        '本單抽成': isMain ? it.commission : o.assistantCommission,
         '備註': o.notes || ''
       });
     });
@@ -284,8 +275,7 @@ function printSalarySlip() {
       </div>
 
       <div style="display: flex; justify-content: space-between; margin-bottom: 16px; background: #f8fafc; padding: 12px; border-radius: 8px;">
-        <div><strong>員工姓名：</strong> ${staff.name}</div>
-        <div><strong>職務角色：</strong> ${staff.role}</div>
+        <div><strong>人員姓名：</strong> ${staff.name}</div>
         <div><strong>全月服務客數：</strong> ${monthlyOrders.length} 人次</div>
         <div><strong>全月技術/商品總業績：</strong> NT$ ${totalRev.toLocaleString()}</div>
       </div>

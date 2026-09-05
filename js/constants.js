@@ -21,15 +21,3 @@ const DEFAULT_SERVICES = [
 // 預設管理員註冊密鑰
 const DEFAULT_ADMIN_SECRET_KEY = "IMTHEBOSS";
 
-// 台灣常見折數定義
-const DISCOUNT_OPTIONS = [
-  { val: 1.0, label: '原價 (無折扣)' },
-  { val: 0.95, label: '95 折 (x0.95)' },
-  { val: 0.90, label: '9 折 (x0.9)' },
-  { val: 0.85, label: '85 折 (x0.85)' },
-  { val: 0.80, label: '8 折 (x0.8)' },
-  { val: 0.75, label: '75 折 (x0.75)' },
-  { val: 0.70, label: '7 折 (x0.7)' },
-  { val: 0.60, label: '6 折 (x0.6)' },
-  { val: 0.50, label: '5 折 (半價)' }
-];

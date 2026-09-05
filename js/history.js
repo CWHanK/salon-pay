@@ -20,7 +20,6 @@ function clearHistoryFilters() {
       historyStaff.value = 'ALL';
     }
   }
-  document.getElementById('history-filter-search').value = '';
   filterHistoryOrders();
 }
 
@@ -31,7 +30,6 @@ function filterHistoryOrders() {
   }
   const monthVal = monthInput?.value || getCurrentYearMonth();
   const staffVal = document.getElementById('history-filter-staff')?.value;
-  const searchVal = document.getElementById('history-filter-search')?.value.trim().toLowerCase();
 
   let effectiveStaffId = staffVal;
   if (currentUserRole === 'staff') {
@@ -59,13 +57,6 @@ function filterHistoryOrders() {
   const filtered = appState.orders.filter(order => {
     if (monthVal && !order.date.startsWith(monthVal)) return false;
     if (effectiveStaffId && effectiveStaffId !== 'ALL' && order.staffId !== effectiveStaffId && order.assistantId !== effectiveStaffId) return false;
-    if (searchVal) {
-      const matchCustomer = order.customer.toLowerCase().includes(searchVal);
-      const matchNotes = order.notes && order.notes.toLowerCase().includes(searchVal);
-      const matchNo = order.orderNo.toLowerCase().includes(searchVal);
-      const matchItems = order.items.some(it => it.name.toLowerCase().includes(searchVal));
-      if (!matchCustomer && !matchNotes && !matchNo && !matchItems) return false;
-    }
     return true;
   });
 

@@ -304,20 +304,16 @@
       
       <!-- 篩選器 -->
       <div class="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm p-4 space-y-3">
-        <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+        <div class="grid grid-cols-2 gap-2.5">
           <div class="min-w-0">
             <label class="block text-[11px] font-bold text-slate-600 mb-1">月份</label>
             <input type="month" id="history-filter-month" onchange="filterHistoryOrders()" class="w-full max-w-full appearance-none rounded-xl border border-slate-300 px-2.5 py-1.5 text-xs font-semibold">
           </div>
-          <div>
+          <div class="min-w-0">
             <label class="block text-[11px] font-bold text-slate-600 mb-1">人員</label>
             <select id="history-filter-staff" onchange="filterHistoryOrders()" class="w-full rounded-xl border border-slate-300 px-2.5 py-1.5 text-xs font-semibold bg-white">
               <option value="ALL">全部人員</option>
             </select>
-          </div>
-          <div class="col-span-2 sm:col-span-1">
-            <label class="block text-[11px] font-bold text-slate-600 mb-1">搜尋顧客</label>
-            <input type="text" id="history-filter-search" autocomplete="off" oninput="filterHistoryOrders()" placeholder="搜尋姓名/備註..." class="w-full rounded-xl border border-slate-300 px-2.5 py-1.5 text-xs">
           </div>
         </div>
 
@@ -872,14 +868,14 @@
   </div>
 
   <!-- 模組化業務邏輯 (Vanilla JS 架構) -->
-  <script src="js/constants.js?v=20260905_4"></script>
-  <script src="js/state.js?v=20260905_4"></script>
-  <script src="js/firebase.js?v=20260905_4"></script>
-  <script src="js/auth.js?v=20260905_4"></script>
-  <script src="js/billing.js?v=20260905_4"></script>
-  <script src="js/history.js?v=20260905_4"></script>
-  <script src="js/monthly.js?v=20260905_4"></script>
-  <script src="js/settings.js?v=20260905_4"></script>
-  <script src="js/main.js?v=20260905_4"></script>
+  <script src="js/constants.js?v=20260905_5"></script>
+  <script src="js/state.js?v=20260905_5"></script>
+  <script src="js/firebase.js?v=20260905_5"></script>
+  <script src="js/auth.js?v=20260905_5"></script>
+  <script src="js/billing.js?v=20260905_5"></script>
+  <script src="js/history.js?v=20260905_5"></script>
+  <script src="js/monthly.js?v=20260905_5"></script>
+  <script src="js/settings.js?v=20260905_5"></script>
+  <script src="js/main.js?v=20260905_5"></script>
 </body>
 </html>

@@ -73,12 +73,12 @@
       <!-- 登入 / 註冊表單 -->
       <form id="login-form" onsubmit="handleAuthSubmit(event)" class="space-y-3.5">
         <div>
-          <label id="auth-email-label" class="block text-xs font-bold text-slate-700 mb-1">信箱</label>
+          <label id="auth-email-label" class="block text-xs font-bold text-slate-700 mb-1">自訂帳號</label>
           <div class="relative">
             <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
-              <i data-lucide="mail" class="w-4 h-4"></i>
+              <i data-lucide="user" class="w-4 h-4"></i>
             </span>
-            <input type="email" id="auth-email" name="username" autocomplete="username" required placeholder="請輸入信箱" class="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500">
+            <input type="text" id="auth-email" name="username" autocomplete="username" required placeholder="例如：hank、amy88 (或信箱)" class="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-300 text-sm focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500">
           </div>
         </div>
 
@@ -738,14 +738,14 @@
       </div>
       <div>
         <label class="block text-xs font-semibold text-slate-600 mb-1">
-          綁定登入帳號 / 信箱 <span class="text-rose-500">*</span>
+          綁定登入帳號 <span class="text-rose-500">*</span>
         </label>
         <div class="relative">
-          <input type="email" id="modal-staff-email" autocomplete="off" list="registered-users-datalist" placeholder="請輸入登入信箱 (例如: amy@gmail.com)" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm bg-white font-semibold text-slate-800 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500">
+          <input type="text" id="modal-staff-email" autocomplete="off" list="registered-users-datalist" placeholder="例如：hank、amy88 (或信箱)" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm bg-white font-semibold text-slate-800 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500">
           <datalist id="registered-users-datalist"></datalist>
         </div>
         <p class="text-[11px] text-amber-800 bg-amber-50/90 p-2 rounded-xl mt-1.5 border border-amber-200/70 leading-relaxed">
-          📌 <strong>支援「未註冊」帳號：</strong>即使該人員尚未註冊，亦可直接輸入其 Email 綁定；日後該人員以此信箱註冊登入時，系統會自動無縫綁定並啟用開單！
+          📌 <strong>支援「未註冊」自訂帳號：</strong>即使該人員尚未註冊，亦可直接輸入其自訂帳號（如 hank）；日後該人員以該帳號註冊登入時，系統會自動無縫綁定並啟用開單！
         </p>
       </div>
       <div class="flex gap-2 pt-2">

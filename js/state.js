@@ -44,13 +44,16 @@ function updateLinkedStaff() {
   }
   const uid = currentUser.uid;
   const email = (currentUser.email || '').toLowerCase();
-  const emailPrefix = email ? email.split('@')[0] : '';
+  const username = formatEmailToUsername(email).toLowerCase();
 
-  currentLinkedStaff = appState.staff.find(s => 
-    (s.linkedUid && s.linkedUid === uid) || 
-    (s.linkedEmail && s.linkedEmail.toLowerCase() === email) ||
-    (s.name && emailPrefix && s.name.toLowerCase() === emailPrefix)
-  ) || null;
+  currentLinkedStaff = appState.staff.find(s => {
+    const sLinkedEmail = s.linkedEmail ? formatUsernameToEmail(s.linkedEmail).toLowerCase() : '';
+    const sLinkedUsername = s.linkedEmail ? formatEmailToUsername(s.linkedEmail).toLowerCase() : '';
+    return (s.linkedUid && s.linkedUid === uid) || 
+      (sLinkedEmail && sLinkedEmail === email) ||
+      (sLinkedUsername && sLinkedUsername === username) ||
+      (s.name && username && s.name.toLowerCase() === username);
+  }) || null;
 
   // 若找到人員但缺少 linkedUid / linkedEmail，補充綁定並同步
   if (currentLinkedStaff && (!currentLinkedStaff.linkedUid || !currentLinkedStaff.linkedEmail)) {

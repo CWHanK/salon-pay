@@ -2,18 +2,19 @@
  * SalonPay - 系統設定：服務項目、工作人員與帳號管理 (js/settings.js)
  */
 
-// 提示清單：支援選取已註冊使用者，或直接輸入未註冊 Email
+// 提示清單：支援選取已註冊使用者，或直接輸入未註冊帳號
 function populateLinkedUsersDropdown(currentLinkedEmail = '') {
   const datalist = document.getElementById('registered-users-datalist');
   if (datalist) {
-    datalist.innerHTML = allRegisteredUsers.map(u => `
-      <option value="${u.email}">${u.email} (${u.role === 'admin' ? '管理員' : '已註冊員工'})</option>
-    `).join('');
+    datalist.innerHTML = allRegisteredUsers.map(u => {
+      const username = formatEmailToUsername(u.email);
+      return `<option value="${username}">${username} (${u.role === 'admin' ? '管理員' : '已註冊員工'})</option>`;
+    }).join('');
   }
 
   const emailInput = document.getElementById('modal-staff-email');
   if (emailInput && currentLinkedEmail) {
-    emailInput.value = currentLinkedEmail;
+    emailInput.value = formatEmailToUsername(currentLinkedEmail);
   }
 }
 
@@ -33,11 +34,12 @@ function renderUsersTable() {
     const isAdmin = u.role === 'admin';
     const isCurrent = currentUser && currentUser.uid === u.uid;
     const dateStr = u.createdAt ? u.createdAt.split('T')[0] : (u.updatedAt ? u.updatedAt.split('T')[0] : '-');
+    const displayAccount = formatEmailToUsername(u.email);
 
     return `
       <tr class="hover:bg-slate-50 transition text-xs">
         <td class="px-3 py-2.5 font-bold text-slate-800 whitespace-nowrap">
-          ${u.email}
+          ${displayAccount}
           ${isCurrent ? '<span class="ml-1 text-[10px] text-amber-600 font-normal bg-amber-50 px-1.5 py-0.5 rounded-full border border-amber-200">本人</span>' : ''}
         </td>
         <td class="px-3 py-2.5 whitespace-nowrap">
@@ -135,7 +137,7 @@ function renderSettingsTables() {
             ${st.linkedEmail ? `
               <span class="inline-flex items-center gap-1.5 ${st.linkedUid ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-amber-50 text-amber-800 border-amber-200'} border px-2.5 py-0.5 rounded-full text-[11px] font-bold">
                 <span class="w-1.5 h-1.5 rounded-full ${st.linkedUid ? 'bg-emerald-500' : 'bg-amber-400 animate-pulse'}"></span>
-                ${st.linkedEmail}
+                ${formatEmailToUsername(st.linkedEmail)}
                 <span class="text-[10px] font-normal opacity-80">${st.linkedUid ? '(已註冊)' : '(未註冊·待綁定)'}</span>
               </span>
             ` : '<span class="text-slate-400 text-[10px]">未綁定帳號</span>'}
@@ -294,7 +296,8 @@ async function saveStaffMember() {
   const role = roleEl ? (roleEl.value || '人員') : '人員';
 
   const emailInput = document.getElementById('modal-staff-email');
-  const linkedEmail = (emailInput ? emailInput.value : '').trim().toLowerCase();
+  const rawInput = (emailInput ? emailInput.value : '').trim();
+  const linkedEmail = formatUsernameToEmail(rawInput);
 
   if (!name) {
     alert('請輸入人員姓名！');
@@ -302,14 +305,19 @@ async function saveStaffMember() {
     return;
   }
 
-  if (!linkedEmail) {
-    alert('請輸入人員綁定的登入帳號/信箱（即使該人員「尚未註冊」亦可輸入，等日後註冊時系統會自動對應綁定）！');
+  if (!rawInput) {
+    alert('請輸入人員綁定的登入帳號（即使該人員「尚未註冊」亦可輸入，等日後註冊時系統會自動對應綁定）！');
     emailInput?.focus();
     return;
   }
 
-  // 檢查此 Email 是否已經在全店使用者中註冊過
-  const registeredUser = allRegisteredUsers.find(u => u.email && u.email.toLowerCase() === linkedEmail);
+  // 檢查此帳號是否已經在全店使用者中註冊過
+  const registeredUser = allRegisteredUsers.find(u => 
+    u.email && (
+      u.email.toLowerCase() === linkedEmail.toLowerCase() ||
+      formatEmailToUsername(u.email).toLowerCase() === rawInput.toLowerCase()
+    )
+  );
   const linkedUid = registeredUser ? registeredUser.uid : '';
 
   if (id) {
@@ -420,7 +428,7 @@ function startDeleteUserFlow(uid, email) {
   pendingDeleteUser = { uid, email };
 
   const displayEl1 = document.getElementById('delete-user-email-display-1');
-  if (displayEl1) displayEl1.textContent = email;
+  if (displayEl1) displayEl1.textContent = formatEmailToUsername(email);
 
   document.getElementById('delete-user-step-1')?.classList.remove('hidden');
   document.getElementById('delete-user-step-2')?.classList.add('hidden');
@@ -434,7 +442,7 @@ function proceedToDeleteUserStep2() {
   if (!pendingDeleteUser) return;
 
   const displayEl2 = document.getElementById('delete-user-email-display-2');
-  if (displayEl2) displayEl2.textContent = pendingDeleteUser.email;
+  if (displayEl2) displayEl2.textContent = formatEmailToUsername(pendingDeleteUser.email);
 
   document.getElementById('delete-user-step-1')?.classList.add('hidden');
   document.getElementById('delete-user-step-2')?.classList.remove('hidden');
@@ -516,7 +524,7 @@ async function executeDeleteUser() {
     closeDeleteUserModal();
     renderUsersTable();
     renderSettingsTables();
-    showToast(`已成功徹底刪除帳號：${email}`);
+    showToast(`已成功徹底刪除帳號：${formatEmailToUsername(email)}`);
   } catch (err) {
     console.error('刪除帳號失敗:', err);
     alert('刪除帳號失敗：' + err.message);

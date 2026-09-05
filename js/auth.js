@@ -21,7 +21,7 @@ function setAuthMode(isSignUp) {
     }
     if (submitText) submitText.textContent = '註冊';
     if (roleContainer) roleContainer.classList.remove('hidden');
-    if (emailLabel) emailLabel.textContent = '信箱';
+    if (emailLabel) emailLabel.textContent = '自訂帳號';
 
     const selectedRole = document.querySelector('input[name="auth-reg-role"]:checked')?.value || 'staff';
     onAuthRoleChange(selectedRole);
@@ -35,7 +35,7 @@ function setAuthMode(isSignUp) {
     if (submitText) submitText.textContent = '登入';
     if (roleContainer) roleContainer.classList.add('hidden');
     if (keyContainer) keyContainer.classList.add('hidden');
-    if (emailLabel) emailLabel.textContent = '信箱';
+    if (emailLabel) emailLabel.textContent = '自訂帳號';
   }
   if (window.lucide) lucide.createIcons();
 }
@@ -63,7 +63,8 @@ function onAuthRoleChange(role) {
 // 提交登入/註冊表單
 async function handleAuthSubmit(e) {
   e.preventDefault();
-  const email = document.getElementById('auth-email').value.trim();
+  const rawInput = document.getElementById('auth-email').value.trim();
+  const email = formatUsernameToEmail(rawInput);
   const password = document.getElementById('auth-password').value;
   const submitBtn = document.getElementById('auth-submit-btn');
 
@@ -91,6 +92,7 @@ async function handleAuthSubmit(e) {
       await db.collection('salon_users').doc(cred.user.uid).set({
         uid: cred.user.uid,
         email: email,
+        username: formatEmailToUsername(email),
         role: selectedRole,
         adminKeyHash: adminKeyHash,
         createdAt: new Date().toISOString()
@@ -105,9 +107,10 @@ async function handleAuthSubmit(e) {
     console.error('Auth error:', err);
     let msg = '認證失敗：' + err.message;
     if (err.code === 'auth/wrong-password') msg = '密碼輸入錯誤，請重新確認。';
-    if (err.code === 'auth/user-not-found') msg = '此信箱尚未註冊，請點下方註冊新帳號。';
-    if (err.code === 'auth/email-already-in-use') msg = '此信箱已被註冊，請直接登入。';
+    if (err.code === 'auth/user-not-found') msg = '此帳號尚未註冊，請切換至「註冊」建立新帳號。';
+    if (err.code === 'auth/email-already-in-use') msg = '此帳號已被註冊，請直接登入。';
     if (err.code === 'auth/weak-password') msg = '密碼強度不足，請輸入至少 6 位字元。';
+    if (err.code === 'auth/invalid-email') msg = '帳號格式不正確，請使用英文字母或數字（如 hank、amy88）。';
     showAuthError(msg);
   } finally {
     submitBtn.disabled = false;
@@ -128,8 +131,9 @@ async function onUserLoggedIn(user) {
       role = userDoc.data().role || 'staff';
     }
 
-    // 創始帳號（信箱含 hank）永久確保為管理員
-    const isHank = user.email && user.email.toLowerCase().includes('hank');
+    // 創始帳號（帳號含 hank）永久確保為管理員
+    const displayAccount = formatEmailToUsername(user.email).toLowerCase();
+    const isHank = displayAccount.includes('hank');
     if (isHank) {
       role = 'admin';
     }
@@ -137,6 +141,7 @@ async function onUserLoggedIn(user) {
     await db.collection('salon_users').doc(user.uid).set({
       uid: user.uid,
       email: user.email,
+      username: formatEmailToUsername(user.email),
       role: role,
       updatedAt: new Date().toISOString()
     }, { merge: true });
@@ -200,14 +205,14 @@ function applyRolePermissions() {
   updateLinkedStaff();
 
   const userEmail = currentUser ? currentUser.email : '';
-  const emailPrefix = userEmail.split('@')[0];
-  const staffName = currentLinkedStaff ? currentLinkedStaff.name : emailPrefix;
+  const displayAccount = formatEmailToUsername(userEmail);
+  const staffName = currentLinkedStaff ? currentLinkedStaff.name : displayAccount;
 
   // 頂部狀態標籤
   const headerEmail = document.getElementById('header-user-email');
   if (headerEmail) {
     if (currentUserRole === 'admin') {
-      headerEmail.innerHTML = `管理員 <span class="font-bold text-slate-800">(${emailPrefix})</span>`;
+      headerEmail.innerHTML = `管理員 <span class="font-bold text-slate-800">(${displayAccount})</span>`;
     } else {
       headerEmail.innerHTML = `員工 <span class="font-bold text-slate-800">(${staffName})</span>`;
     }
@@ -221,8 +226,8 @@ function applyRolePermissions() {
     if (currentUserRole === 'staff') empCard.classList.remove('hidden');
     else empCard.classList.add('hidden');
   }
-  if (empName) empName.textContent = currentLinkedStaff ? currentLinkedStaff.name : `店內人員 (${emailPrefix})`;
-  if (empEmail) empEmail.textContent = `登入帳號: ${userEmail}`;
+  if (empName) empName.textContent = currentLinkedStaff ? currentLinkedStaff.name : `店內人員 (${displayAccount})`;
+  if (empEmail) empEmail.textContent = `登入帳號: ${displayAccount}`;
 
   // 管理員設定頁卡片
   const adminName = document.getElementById('settings-admin-name');
@@ -232,8 +237,8 @@ function applyRolePermissions() {
     if (currentUserRole === 'admin') adminCard.classList.remove('hidden');
     else adminCard.classList.add('hidden');
   }
-  if (adminName) adminName.textContent = currentLinkedStaff ? `${currentLinkedStaff.name} (店家管理員)` : `店家管理員 (${emailPrefix})`;
-  if (adminEmail) adminEmail.textContent = `登入帳號: ${userEmail}`;
+  if (adminName) adminName.textContent = currentLinkedStaff ? `${currentLinkedStaff.name} (店家管理員)` : `店家管理員 (${displayAccount})`;
+  if (adminEmail) adminEmail.textContent = `登入帳號: ${displayAccount}`;
 
   // 桌面導覽列設定標籤文字
   const tabSettingsBtn = document.getElementById('tab-btn-settings');

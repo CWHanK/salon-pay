@@ -139,14 +139,6 @@
           <span id="auth-submit-text">登入</span>
         </button>
       </form>
-
-      <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-400">
-        <span class="text-[11px]">SalonFlow</span>
-        <button type="button" onclick="openCloudConfigModal()" class="text-slate-400 hover:text-slate-700 flex items-center gap-1 text-[11px]">
-          <i data-lucide="database" class="w-3.5 h-3.5"></i> Firebase 設定
-        </button>
-      </div>
-
     </div>
   </div>
 
@@ -829,42 +821,15 @@
     </div>
   </div>
 
-  <!-- ==================== 模態視窗: Firebase 金鑰設定 ==================== -->
-  <div id="modal-cloud-config" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-white rounded-3xl max-w-sm sm:max-w-md w-full p-6 shadow-2xl space-y-4">
-      <div class="flex justify-between items-center pb-2 border-b border-slate-100">
-        <h4 class="text-base font-bold text-slate-900 flex items-center gap-2">
-          <i data-lucide="database" class="w-5 h-5 text-amber-600"></i> Firebase 雲端資料庫設定
-        </h4>
-        <button onclick="closeCloudConfigModal()" class="text-slate-400 hover:text-slate-600">
-          <i data-lucide="x" class="w-5 h-5"></i>
-        </button>
-      </div>
-      
-      <p class="text-xs text-slate-600 leading-relaxed">
-        系統目前已預設連線至 Google Firestore 雲端資料庫。若需切換至其他 Firebase 專案，可在此貼上代碼：
-      </p>
-
-      <textarea id="modal-config-input" rows="7" placeholder='const firebaseConfig = { ... };' class="w-full font-mono text-xs p-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 bg-slate-50"></textarea>
-
-      <div class="flex gap-2 pt-2">
-        <button onclick="closeCloudConfigModal()" class="flex-1 py-2.5 bg-slate-100 text-slate-700 font-semibold rounded-xl text-xs">取消</button>
-        <button onclick="saveCloudConfig()" class="flex-1 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded-xl text-xs flex items-center justify-center gap-1.5">
-          <i data-lucide="save" class="w-4 h-4"></i> 儲存並連線
-        </button>
-      </div>
-    </div>
-  </div>
-
   <!-- 模組化業務邏輯 (Vanilla JS 架構) -->
-  <script src="js/constants.js?v=20260906_2"></script>
-  <script src="js/state.js?v=20260906_2"></script>
-  <script src="js/firebase.js?v=20260906_2"></script>
-  <script src="js/auth.js?v=20260906_2"></script>
-  <script src="js/billing.js?v=20260906_2"></script>
-  <script src="js/history.js?v=20260906_2"></script>
-  <script src="js/monthly.js?v=20260906_2"></script>
-  <script src="js/settings.js?v=20260906_2"></script>
-  <script src="js/main.js?v=20260906_2"></script>
+  <script src="js/constants.js?v=20260906_3"></script>
+  <script src="js/state.js?v=20260906_3"></script>
+  <script src="js/firebase.js?v=20260906_3"></script>
+  <script src="js/auth.js?v=20260906_3"></script>
+  <script src="js/billing.js?v=20260906_3"></script>
+  <script src="js/history.js?v=20260906_3"></script>
+  <script src="js/monthly.js?v=20260906_3"></script>
+  <script src="js/settings.js?v=20260906_3"></script>
+  <script src="js/main.js?v=20260906_3"></script>
 </body>
 </html>

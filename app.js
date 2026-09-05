@@ -469,6 +469,17 @@ function generateNewOrderNo() {
   }
 }
 
+// 取得折數標籤文字 (例如: 0.85 -> 85 折, 0.8 -> 8 折, 1.0 -> 原價)
+function getDiscountLabel(discount) {
+  if (!discount || discount >= 1.0) return '原價 (無折扣)';
+  const pct = Math.round(discount * 100);
+  if (pct % 10 === 0) {
+    return `${pct / 10} 折`;
+  } else {
+    return `${pct} 折`;
+  }
+}
+
 // 新增一列服務項目
 function addServiceRow(presetServiceId = '') {
   const rowId = 'row-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
@@ -481,7 +492,9 @@ function addServiceRow(presetServiceId = '') {
     serviceId: defaultService ? defaultService.id : '',
     price: defaultService ? defaultService.price : 0,
     rate: defaultService ? defaultService.rate : 50,
-    qty: 1
+    qty: 1,
+    discount: 1.0, // 折扣率 (1.0 = 原價, 0.85 = 85折, 0.8 = 8折)
+    discountCommission: true // 抽成是否也打折 (預設 true: 依折後實收金額抽成; false: 依原價抽成)
   };
 
   currentBillingRows.push(newRow);
@@ -525,17 +538,66 @@ function onRowInputChange(rowId, field, value) {
   updateRowCalculations();
 }
 
-// 重新繪製開單項目清單 (手機大字體好點擊版)
+// 折扣選單變更
+function onRowDiscountSelect(rowId, val) {
+  const row = currentBillingRows.find(r => r.rowId === rowId);
+  if (!row) return;
+
+  if (val === 'custom') {
+    const input = prompt('請輸入自訂折數（例如輸入 85 或 8.5 表示 85折，輸入 8 或 80 表示 8折，輸入 75 表示 75折）：', '85');
+    if (input !== null) {
+      let num = parseFloat(input.trim());
+      if (!isNaN(num) && num > 0) {
+        if (num >= 10) num = num / 100;
+        else if (num > 1) num = num / 10;
+        row.discount = Math.min(1.0, Math.max(0.01, num));
+      }
+    }
+  } else {
+    row.discount = parseFloat(val) || 1.0;
+  }
+  renderBillingRows();
+}
+
+// 抽成是否也打折 Checkbox 變更
+function onRowDiscountCommChange(rowId, checked) {
+  const row = currentBillingRows.find(r => r.rowId === rowId);
+  if (!row) return;
+  row.discountCommission = checked;
+  renderBillingRows();
+}
+
+// 重新繪製開單項目清單 (支援折扣選單與抽成打折勾選)
 function renderBillingRows() {
   const container = document.getElementById('service-rows-container');
   if (!container) return;
 
+  const discountOptions = [
+    { val: 1.0, label: '原價 (無折扣)' },
+    { val: 0.95, label: '95 折 (x0.95)' },
+    { val: 0.90, label: '9 折 (x0.9)' },
+    { val: 0.88, label: '88 折 (x0.88)' },
+    { val: 0.85, label: '85 折 (x0.85)' },
+    { val: 0.80, label: '8 折 (x0.8)' },
+    { val: 0.75, label: '75 折 (x0.75)' },
+    { val: 0.70, label: '7 折 (x0.7)' },
+    { val: 0.60, label: '6 折 (x0.6)' },
+    { val: 0.50, label: '5 折 (半價)' }
+  ];
+
   container.innerHTML = currentBillingRows.map((row, index) => {
-    const itemTotal = row.price * row.qty;
-    const itemCommission = Math.round(itemTotal * (row.rate / 100));
+    const originalTotal = row.price * row.qty;
+    const discount = row.discount || 1.0;
+    const finalAmount = Math.round(originalTotal * discount);
+    const isCommDiscounted = row.discountCommission !== false;
+    // 核心計算：若勾選「抽成也打折」，抽成基數為折後實收 finalAmount；否則為原價 originalTotal
+    const commBase = isCommDiscounted ? finalAmount : originalTotal;
+    const itemCommission = Math.round(commBase * (row.rate / 100));
+
+    const isPredefined = discountOptions.some(opt => Math.abs(opt.val - discount) < 0.001);
 
     return `
-      <div id="${row.rowId}" class="service-row-item p-3.5 sm:p-4 bg-slate-50/95 hover:bg-slate-50 border border-slate-200/90 rounded-2xl transition space-y-3 shadow-sm">
+      <div id="${row.rowId}" class="service-row-item p-3.5 sm:p-4 bg-slate-50/95 hover:bg-slate-50 border border-slate-200/90 rounded-2xl transition space-y-2.5 shadow-sm">
         
         <!-- 頂部：序號、下拉選單與刪除按鈕 -->
         <div class="flex items-center justify-between gap-2">
@@ -544,7 +606,7 @@ function renderBillingRows() {
               ${index + 1}
             </span>
             <div class="flex-1 min-w-0">
-              <label class="block text-[11px] font-bold text-slate-500 mb-0.5">選擇服務項目 (下拉即帶出金額)</label>
+              <label class="block text-[11px] font-bold text-slate-500 mb-0.5">選擇服務項目 (下拉即帶出金額與抽成)</label>
               <select onchange="onServiceSelectChange('${row.rowId}', this.value)" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500">
                 ${appState.services.map(s => `
                   <option value="${s.id}" ${s.id === row.serviceId ? 'selected' : ''}>
@@ -560,11 +622,16 @@ function renderBillingRows() {
           </button>
         </div>
 
-        <!-- 數值調整與即時單項小計 (手機好按大輸入框) -->
+        <!-- 數值調整：單價、數量、抽成%、折扣選單 -->
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-slate-200/70">
           <div>
-            <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">收費單價 ($)</label>
+            <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">單價 ($)</label>
             <input type="number" value="${row.price}" oninput="onRowInputChange('${row.rowId}', 'price', this.value)" class="w-full rounded-xl border border-slate-300 px-3 py-1.5 text-sm font-numeric bg-white font-bold text-slate-900 focus:ring-1 focus:ring-amber-500">
+          </div>
+
+          <div>
+            <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">數量</label>
+            <input type="number" min="1" value="${row.qty}" oninput="onRowInputChange('${row.rowId}', 'qty', this.value)" class="w-full rounded-xl border border-slate-300 px-3 py-1.5 text-sm font-numeric bg-white focus:ring-1 focus:ring-amber-500">
           </div>
 
           <div>
@@ -576,15 +643,43 @@ function renderBillingRows() {
           </div>
 
           <div>
-            <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">數量</label>
-            <input type="number" min="1" value="${row.qty}" oninput="onRowInputChange('${row.rowId}', 'qty', this.value)" class="w-full rounded-xl border border-slate-300 px-3 py-1.5 text-sm font-numeric bg-white focus:ring-1 focus:ring-amber-500">
-          </div>
-
-          <div class="bg-amber-100/70 rounded-xl p-1.5 flex flex-col justify-center text-right border border-amber-200">
-            <div class="text-[10px] text-slate-500">此項抽成</div>
-            <div class="text-sm font-black text-amber-900 font-numeric">NT$ ${itemCommission.toLocaleString()}</div>
+            <label class="block text-[11px] font-bold text-rose-700 mb-0.5">折扣優惠 (折數)</label>
+            <select onchange="onRowDiscountSelect('${row.rowId}', this.value)" class="w-full rounded-xl border border-rose-300 bg-rose-50/40 px-2.5 py-1.5 text-sm font-bold text-rose-900 focus:ring-1 focus:ring-rose-500">
+              ${discountOptions.map(opt => `
+                <option value="${opt.val}" ${Math.abs(opt.val - discount) < 0.001 ? 'selected' : ''}>
+                  ${opt.label}
+                </option>
+              `).join('')}
+              <option value="custom" ${!isPredefined ? 'selected' : ''}>
+                ✍️ 自訂 (${getDiscountLabel(discount)})
+              </option>
+            </select>
           </div>
         </div>
+
+        <!-- 折扣連動設定 (Checkbox) + 實收與抽成即時小計 -->
+        <div class="pt-2 border-t border-slate-200/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <label class="inline-flex items-center gap-2 cursor-pointer text-xs font-bold py-1.5 px-3 rounded-xl border transition select-none ${discount < 1.0 ? (isCommDiscounted ? 'bg-amber-50 border-amber-300 text-amber-900' : 'bg-blue-50 border-blue-200 text-blue-900') : 'bg-slate-100/70 border-slate-200 text-slate-500'}">
+            <input type="checkbox" onchange="onRowDiscountCommChange('${row.rowId}', this.checked)" ${isCommDiscounted ? 'checked' : ''} class="w-4 h-4 rounded text-amber-600 focus:ring-amber-500 accent-amber-600">
+            <span>抽成也打折</span>
+            <span class="text-[10px] font-normal opacity-90">
+              ${discount < 1.0 ? (isCommDiscounted ? '(依折後實收抽成)' : '(依原價抽成，店家吸收)') : ''}
+            </span>
+          </label>
+
+          <div class="flex items-center justify-between sm:justify-end gap-3 text-xs">
+            <div>
+              <span class="text-slate-500 text-[11px]">實收金額:</span>
+              <strong class="text-slate-900 font-numeric text-sm font-bold">NT$ ${finalAmount.toLocaleString()}</strong>
+              ${discount < 1.0 ? `<span class="text-[10px] text-slate-400 line-through ml-0.5">($${originalTotal.toLocaleString()})</span>` : ''}
+            </div>
+            <div class="bg-amber-100/80 px-2.5 py-1 rounded-xl border border-amber-200 text-right">
+              <span class="text-[10px] text-amber-800 font-medium">這項抽成:</span>
+              <strong class="text-amber-950 font-numeric font-black text-sm">NT$ ${itemCommission.toLocaleString()}</strong>
+            </div>
+          </div>
+        </div>
+
       </div>
     `;
   }).join('');
@@ -600,9 +695,14 @@ function updateRowCalculations() {
   let totalItemsCount = 0;
 
   currentBillingRows.forEach(row => {
-    const itemTotal = row.price * row.qty;
-    const itemComm = Math.round(itemTotal * (row.rate / 100));
-    totalAmount += itemTotal;
+    const originalTotal = row.price * row.qty;
+    const discount = row.discount || 1.0;
+    const finalAmount = Math.round(originalTotal * discount);
+    const isCommDiscounted = row.discountCommission !== false;
+    const commBase = isCommDiscounted ? finalAmount : originalTotal;
+    const itemComm = Math.round(commBase * (row.rate / 100));
+
+    totalAmount += finalAmount;
     totalCommission += itemComm;
     totalItemsCount += row.qty;
   });
@@ -672,16 +772,24 @@ async function saveCurrentOrder() {
   const itemsDetail = currentBillingRows.map(r => {
     const srv = appState.services.find(s => s.id === r.serviceId);
     const name = srv ? srv.name : '自訂美髮項目';
-    const amount = r.price * r.qty;
-    const commission = Math.round(amount * (r.rate / 100));
+    const originalTotal = r.price * r.qty;
+    const discount = r.discount || 1.0;
+    const finalAmount = Math.round(originalTotal * discount);
+    const isCommDiscounted = r.discountCommission !== false;
+    const commBase = isCommDiscounted ? finalAmount : originalTotal;
+    const commission = Math.round(commBase * (r.rate / 100));
+
     return {
       serviceId: r.serviceId,
       name: name,
       price: r.price,
       rate: r.rate,
       qty: r.qty,
-      amount: amount,
-      commission: commission
+      discount: discount,
+      discountCommission: isCommDiscounted,
+      originalTotal: originalTotal,
+      amount: finalAmount, // 顧客實付金額
+      commission: commission // 設計師應得抽成
     };
   });
 
@@ -817,9 +925,10 @@ function renderHistoryView(ordersList) {
         </div>
 
         <div class="text-xs text-slate-600 flex flex-wrap gap-1">
-          ${order.items.map(it => `
-            <span class="bg-slate-100 px-2 py-0.5 rounded">${it.name} (x${it.qty})</span>
-          `).join('')}
+          ${order.items.map(it => {
+            const discTag = it.discount && it.discount < 1.0 ? ` <span class="text-rose-600 font-bold">[${getDiscountLabel(it.discount)}]</span>` : '';
+            return `<span class="bg-slate-100 px-2 py-0.5 rounded">${it.name} (x${it.qty})${discTag}</span>`;
+          }).join('')}
         </div>
 
         <div class="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
@@ -850,7 +959,10 @@ function renderHistoryView(ordersList) {
           ${order.notes ? `<div class="text-[11px] text-slate-400 line-clamp-1">${order.notes}</div>` : ''}
         </td>
         <td class="px-4 py-3">
-          <div>${order.items.map(i => `${i.name} (x${i.qty})`).join('、')}</div>
+          <div>${order.items.map(i => {
+            const discTag = i.discount && i.discount < 1.0 ? ` <span class="text-rose-600 font-semibold">[${getDiscountLabel(i.discount)}]</span>` : '';
+            return `${i.name} (x${i.qty})${discTag}`;
+          }).join('、')}</div>
         </td>
         <td class="px-4 py-3 text-right font-numeric font-bold text-slate-800">NT$ ${order.totalAmount.toLocaleString()}</td>
         <td class="px-4 py-3 text-right font-numeric font-extrabold text-amber-700">NT$ ${order.totalCommission.toLocaleString()}</td>
@@ -899,10 +1011,13 @@ function exportHistoryToExcel() {
         '協助助理': o.assistantName || '無',
         '顧客稱呼': o.customer,
         '消費服務項目': it.name,
-        '收費單價': it.price,
+        '原價定價': it.price,
         '數量': it.qty,
-        '該項小計': it.amount,
+        '原價合計': it.originalTotal || (it.price * it.qty),
+        '折扣優惠': getDiscountLabel(it.discount || 1.0),
+        '實收金額': it.amount,
         '抽成比例(%)': it.rate + '%',
+        '抽成是否打折': it.discountCommission !== false ? '是 (依實收)' : '否 (依原價)',
         '該項抽成金額': it.commission,
         '整單總收費': o.totalAmount,
         '整單總抽成': o.totalCommission,
@@ -1019,7 +1134,10 @@ function renderMonthlyOrdersTable(monthlyOrders, currentStaffId) {
     const isMain = order.staffId === currentStaffId;
     const earnedComm = isMain ? order.totalCommission : order.assistantCommission;
     const roleTag = isMain ? '' : '<span class="text-[10px] bg-blue-100 text-blue-700 px-1 rounded">助理獎勵</span>';
-    const itemsText = order.items.map(it => `${it.name} ($${it.price}, 抽${it.rate}%)`).join('、');
+    const itemsText = order.items.map(it => {
+      const discTag = it.discount && it.discount < 1.0 ? ` [${getDiscountLabel(it.discount)}]` : '';
+      return `${it.name}${discTag} ($${it.price}, 抽${it.rate}%)`;
+    }).join('、');
 
     return `
       <tr class="hover:bg-slate-50 transition text-xs">
@@ -1086,8 +1204,11 @@ function exportMonthlyReportExcel() {
         '消費服務項目': it.name,
         '定價單價': it.price,
         '數量': it.qty,
-        '收費金額': it.amount,
+        '原價合計': it.originalTotal || (it.price * it.qty),
+        '折扣優惠': getDiscountLabel(it.discount || 1.0),
+        '實收金額': it.amount,
         '項目抽成率': it.rate + '%',
+        '抽成是否打折': it.discountCommission !== false ? '是 (依實收)' : '否 (依原價)',
         '本單設計師抽成': isMain ? it.commission : o.assistantCommission,
         '擔任角色': isMain ? '主作設計師' : '協助助理',
         '備註': o.notes || ''

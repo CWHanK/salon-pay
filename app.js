@@ -1,6 +1,5 @@
 /**
- * SalonPay - 美髮沙龍員工薪資與抽成計算系統
- * 核心邏輯腳本
+ * SalonPay - 美髮沙龍員工薪資與抽成計算系統 (Firebase 雲端同步版)
  */
 
 // 預設資料：服務項目與抽成比例
@@ -26,157 +25,317 @@ const DEFAULT_STAFF = [
   { id: 'staff-3', name: '小涵 (技術助理)', role: '助理', baseSalary: 26000, attendanceBonus: 2000 }
 ];
 
-// 產生今日與示範月度初始資料
-function getInitialOrders() {
-  const today = new Date();
-  const yyyy = today.getFullYear();
-  const mm = String(today.getMonth() + 1).padStart(2, '0');
-  
-  return [
-    {
-      id: 'ord-101',
-      orderNo: `T-${yyyy}${mm}01-001`,
-      date: `${yyyy}-${mm}-01`,
-      staffId: 'staff-1',
-      staffName: 'Hank (設計師)',
-      assistantId: 'staff-3',
-      assistantName: '小涵 (技術助理)',
-      customer: '陳小姐 (VIP)',
-      notes: '洗+剪 + 結構式護髮，指定 Hank',
-      items: [
-        { serviceId: 'srv-3', name: '洗髮 + 精緻剪髮', price: 1000, rate: 50, qty: 1, amount: 1000, commission: 500 },
-        { serviceId: 'srv-8', name: '日本黑曜光結構護髮', price: 2000, rate: 40, qty: 1, amount: 2000, commission: 800 }
-      ],
-      totalAmount: 3000,
-      totalCommission: 1300,
-      assistantCommission: 150,
-      salonNet: 1550,
-      createdAt: new Date().toISOString()
-    },
-    {
-      id: 'ord-102',
-      orderNo: `T-${yyyy}${mm}02-002`,
-      date: `${yyyy}-${mm}-02`,
-      staffId: 'staff-1',
-      staffName: 'Hank (設計師)',
-      assistantId: '',
-      assistantName: '',
-      customer: '張先生',
-      notes: '油頭修剪',
-      items: [
-        { serviceId: 'srv-1', name: '造型剪髮 (含基礎洗)', price: 800, rate: 50, qty: 1, amount: 800, commission: 400 }
-      ],
-      totalAmount: 800,
-      totalCommission: 400,
-      assistantCommission: 0,
-      salonNet: 400,
-      createdAt: new Date().toISOString()
-    },
-    {
-      id: 'ord-103',
-      orderNo: `T-${yyyy}${mm}03-003`,
-      date: `${yyyy}-${mm}-03`,
-      staffId: 'staff-1',
-      staffName: 'Hank (設計師)',
-      assistantId: 'staff-3',
-      assistantName: '小涵 (技術助理)',
-      customer: '王小姐',
-      notes: '溫塑熱燙 + 帶一瓶護髮油',
-      items: [
-        { serviceId: 'srv-4', name: '溫塑熱燙 (全頭)', price: 3500, rate: 45, qty: 1, amount: 3500, commission: 1575 },
-        { serviceId: 'srv-10', name: '專業沙龍護髮精華油 (100ml)', price: 980, rate: 25, qty: 1, amount: 980, commission: 245 }
-      ],
-      totalAmount: 4480,
-      totalCommission: 1820,
-      assistantCommission: 200,
-      salonNet: 2460,
-      createdAt: new Date().toISOString()
-    },
-    {
-      id: 'ord-104',
-      orderNo: `T-${yyyy}${mm}04-004`,
-      date: `${yyyy}-${mm}-04`,
-      staffId: 'staff-2',
-      staffName: 'Emily (設計師)',
-      assistantId: '',
-      assistantName: '',
-      customer: '林小姐',
-      notes: '設計全染 + 護髮',
-      items: [
-        { serviceId: 'srv-5', name: '設計造型全染', price: 3200, rate: 45, qty: 1, amount: 3200, commission: 1440 },
-        { serviceId: 'srv-8', name: '日本黑曜光結構護髮', price: 2000, rate: 40, qty: 1, amount: 2000, commission: 800 }
-      ],
-      totalAmount: 5200,
-      totalCommission: 2240,
-      assistantCommission: 0,
-      salonNet: 2960,
-      createdAt: new Date().toISOString()
-    }
-  ];
-}
-
 // 系統核心狀態
-const STORAGE_KEY = 'SALON_PAY_DATA_V2';
 let appState = {
-  services: [],
-  staff: [],
+  services: [...DEFAULT_SERVICES],
+  staff: [...DEFAULT_STAFF],
   orders: []
 };
+
+// 雲端與認證狀態變數
+let currentUser = null;
+let firebaseApp = null;
+let db = null;
+let isAuthSignUpMode = false;
+let unsubscribeFirestore = null;
 
 // 現場開單明細行狀態暫存
 let currentBillingRows = [];
 
-// 初始化應用程式
+// ==========================================
+// 初始化流程
+// ==========================================
 document.addEventListener('DOMContentLoaded', () => {
-  loadDataFromStorage();
   initCurrentDate();
+  initFirebase();
+  lucide.createIcons();
+});
+
+// 初始化 Firebase 雲端服務
+function initFirebase() {
+  let config = window.FIREBASE_CONFIG;
+  const storedConfig = localStorage.getItem('SALON_FIREBASE_CONFIG');
+  if (storedConfig) {
+    try {
+      config = JSON.parse(storedConfig);
+    } catch (e) {}
+  }
+
+  // 檢查是否具備必要的金鑰
+  if (!config || !config.apiKey || config.apiKey === '') {
+    // 尚未綁定 Firebase，顯示提示
+    const configAlert = document.getElementById('auth-config-alert');
+    if (configAlert) configAlert.classList.remove('hidden');
+    // 先載入本機快取資料讓介面有東西
+    loadLocalFallback();
+    return;
+  }
+
+  try {
+    if (!firebase.apps.length) {
+      firebaseApp = firebase.initializeApp(config);
+    } else {
+      firebaseApp = firebase.app();
+    }
+
+    db = firebase.firestore();
+    // 啟用離線支援
+    db.enablePersistence({ synchronizeTabs: true }).catch(err => {
+      console.warn('離線快取提示:', err.code);
+    });
+
+    // 監聽登入狀態改變
+    firebase.auth().onAuthStateChanged(user => {
+      if (user) {
+        currentUser = user;
+        onUserLoggedIn(user);
+      } else {
+        currentUser = null;
+        onUserLoggedOut();
+      }
+    });
+
+  } catch (err) {
+    console.error('Firebase 初始化失敗:', err);
+    showAuthError('Firebase 初始化錯誤：' + err.message);
+  }
+}
+
+function loadLocalFallback() {
+  const raw = localStorage.getItem('SALON_PAY_LOCAL_CACHE');
+  if (raw) {
+    try {
+      appState = JSON.parse(raw);
+    } catch(e) {}
+  } else {
+    appState = {
+      services: [...DEFAULT_SERVICES],
+      staff: [...DEFAULT_STAFF],
+      orders: []
+    };
+  }
   populateStaffDropdowns();
   initBillingForm();
   initHistoryFilters();
   initMonthlyView();
   renderSettingsTables();
-  lucide.createIcons();
-});
+}
 
-// 載入本機資料
-function loadDataFromStorage() {
-  const raw = localStorage.getItem(STORAGE_KEY);
-  if (raw) {
-    try {
-      appState = JSON.parse(raw);
-    } catch (e) {
-      console.error('資料解析失敗，初始化為預設值', e);
-      resetToDefaultState();
-    }
+// ==========================================
+// 雲端帳號登入與認證控制 (Authentication)
+// ==========================================
+function toggleAuthMode() {
+  isAuthSignUpMode = !isAuthSignUpMode;
+  const submitText = document.getElementById('auth-submit-text');
+  const toggleBtn = document.getElementById('auth-toggle-mode-btn');
+
+  if (isAuthSignUpMode) {
+    submitText.textContent = '註冊並建立沙龍帳號';
+    toggleBtn.textContent = '已有帳號？點此登入';
   } else {
-    resetToDefaultState();
+    submitText.textContent = '登入雲端系統';
+    toggleBtn.textContent = '初次使用？點此註冊新帳號';
   }
 }
 
-function resetToDefaultState() {
-  appState = {
-    services: [...DEFAULT_SERVICES],
-    staff: [...DEFAULT_STAFF],
-    orders: getInitialOrders()
-  };
-  saveDataToStorage();
+async function handleAuthSubmit(e) {
+  e.preventDefault();
+  const email = document.getElementById('auth-email').value.trim();
+  const password = document.getElementById('auth-password').value;
+  const submitBtn = document.getElementById('auth-submit-btn');
+
+  hideAuthError();
+  submitBtn.disabled = true;
+  submitBtn.classList.add('opacity-75');
+
+  try {
+    if (isAuthSignUpMode) {
+      // 註冊新帳號
+      const cred = await firebase.auth().createUserWithEmailAndPassword(email, password);
+      // 初次註冊建立基本雲端範本資料
+      await db.collection('users').doc(cred.user.uid).set(appState);
+      showToast('註冊成功！已建立您的專屬沙龍資料庫');
+    } else {
+      // 登入現有帳號
+      await firebase.auth().signInWithEmailAndPassword(email, password);
+      showToast('登入成功！已連線至雲端');
+    }
+  } catch (err) {
+    console.error('Auth error:', err);
+    let msg = '認證失敗：' + err.message;
+    if (err.code === 'auth/wrong-password') msg = '密碼輸入錯誤，請重新確認。';
+    if (err.code === 'auth/user-not-found') msg = '此信箱尚未註冊，請點下方註冊新帳號。';
+    if (err.code === 'auth/email-already-in-use') msg = '此信箱已被註冊，請直接登入。';
+    if (err.code === 'auth/weak-password') msg = '密碼強度不足，請輸入至少 6 位字元。';
+    showAuthError(msg);
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.classList.remove('opacity-75');
+  }
 }
 
-function saveDataToStorage() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
+function onUserLoggedIn(user) {
+  // 隱藏登入遮罩
+  const authScreen = document.getElementById('auth-screen');
+  if (authScreen) authScreen.classList.add('hidden');
+
+  // 更新 Header 顯示的使用者信箱
+  const emailEl = document.getElementById('header-user-email');
+  if (emailEl) emailEl.textContent = user.email;
+
+  // 開始即時監聽 Firestore 雲端資料庫
+  subscribeToCloudData(user.uid);
 }
 
+function onUserLoggedOut() {
+  if (unsubscribeFirestore) {
+    unsubscribeFirestore();
+    unsubscribeFirestore = null;
+  }
+  const authScreen = document.getElementById('auth-screen');
+  if (authScreen) authScreen.classList.remove('hidden');
+}
+
+async function handleSignOut() {
+  if (!confirm('確定要登出系統嗎？')) return;
+  if (firebase.auth) {
+    await firebase.auth().signOut();
+  }
+  showToast('已登出');
+}
+
+function showAuthError(msg) {
+  const box = document.getElementById('auth-error-msg');
+  const text = document.getElementById('auth-error-text');
+  if (box && text) {
+    text.textContent = msg;
+    box.classList.remove('hidden');
+  }
+}
+
+function hideAuthError() {
+  const box = document.getElementById('auth-error-msg');
+  if (box) box.classList.add('hidden');
+}
+
+// ==========================================
+// Firestore 雲端即時同步 (Realtime Cloud Sync)
+// ==========================================
+function subscribeToCloudData(uid) {
+  const userDocRef = db.collection('users').doc(uid);
+
+  unsubscribeFirestore = userDocRef.onSnapshot(doc => {
+    if (doc.exists) {
+      const data = doc.data();
+      appState.services = data.services || [...DEFAULT_SERVICES];
+      appState.staff = data.staff || [...DEFAULT_STAFF];
+      appState.orders = data.orders || [];
+    } else {
+      // 若第一次使用尚無文件，則自動初始化寫入
+      userDocRef.set(appState);
+    }
+
+    // 快取到本地
+    localStorage.setItem('SALON_PAY_LOCAL_CACHE', JSON.stringify(appState));
+
+    // 重新渲染畫面所有元件
+    populateStaffDropdowns();
+    initBillingForm();
+    filterHistoryOrders();
+    calculateMonthlyPayroll();
+    renderSettingsTables();
+  }, err => {
+    console.error('Firestore 即時同步錯誤:', err);
+  });
+}
+
+// 儲存資料同步到雲端
+async function syncDataToCloud() {
+  // 本地先存一份
+  localStorage.setItem('SALON_PAY_LOCAL_CACHE', JSON.stringify(appState));
+
+  if (currentUser && db) {
+    try {
+      await db.collection('users').doc(currentUser.uid).set(appState);
+    } catch (err) {
+      console.error('上傳雲端失敗:', err);
+      showToast('⚠️ 離線暫存中，恢復網路後將自動同步雲端');
+    }
+  }
+}
+
+// ==========================================
+// 雲端金鑰貼上設定視窗 (Modal Cloud Config)
+// ==========================================
+function openCloudConfigModal() {
+  const modal = document.getElementById('modal-cloud-config');
+  const input = document.getElementById('modal-config-input');
+  
+  let currentCfg = window.FIREBASE_CONFIG;
+  const stored = localStorage.getItem('SALON_FIREBASE_CONFIG');
+  if (stored) {
+    try { currentCfg = JSON.parse(stored); } catch(e){}
+  }
+
+  if (input && currentCfg && currentCfg.apiKey) {
+    input.value = JSON.stringify(currentCfg, null, 2);
+  }
+  if (modal) modal.classList.remove('hidden');
+}
+
+function closeCloudConfigModal() {
+  const modal = document.getElementById('modal-cloud-config');
+  if (modal) modal.classList.add('hidden');
+}
+
+function saveCloudConfig() {
+  const raw = document.getElementById('modal-config-input').value.trim();
+  if (!raw) {
+    alert('請輸入或貼上 Firebase Config 代碼！');
+    return;
+  }
+
+  try {
+    let parsedConfig = null;
+    if (raw.includes('{') && raw.includes('}')) {
+      // 擷取大括弧內的 JSON / 物件內容
+      const jsonStr = raw.substring(raw.indexOf('{'), raw.lastIndexOf('}') + 1)
+        // 修正非嚴格 JSON 屬性名稱 (例如 apiKey: -> "apiKey":)
+        .replace(/([{,]\s*)([a-zA-Z0-9_]+)\s*:/g, '$1"$2":')
+        .replace(/'/g, '"')
+        .replace(/,\s*}/g, '}');
+      parsedConfig = JSON.parse(jsonStr);
+    } else {
+      parsedConfig = JSON.parse(raw);
+    }
+
+    if (!parsedConfig.apiKey || !parsedConfig.projectId) {
+      throw new Error('解析結果缺少 apiKey 或 projectId');
+    }
+
+    localStorage.setItem('SALON_FIREBASE_CONFIG', JSON.stringify(parsedConfig));
+    window.FIREBASE_CONFIG = parsedConfig;
+
+    closeCloudConfigModal();
+    showToast('Firebase 金鑰設定成功！重新連線雲端...');
+
+    setTimeout(() => {
+      window.location.reload();
+    }, 800);
+
+  } catch (err) {
+    alert('金鑰格式解析錯誤，請確認貼上的內容包含正確的 apiKey 與 projectId！\n\n錯誤訊息：' + err.message);
+  }
+}
+
+// ==========================================
 // 日期與介面初始化
+// ==========================================
 function initCurrentDate() {
   const now = new Date();
   const dateStr = now.toISOString().split('T')[0];
   const dateInput = document.getElementById('billing-date');
   if (dateInput) dateInput.value = dateStr;
-
-  const currentDatetime = document.getElementById('current-datetime');
-  if (currentDatetime) {
-    currentDatetime.textContent = `系統日期：${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日`;
-  }
 }
 
 // 渲染所有設計師/助理下拉選單
@@ -185,9 +344,6 @@ function populateStaffDropdowns() {
   const billingAssistant = document.getElementById('billing-assistant-select');
   const historyStaff = document.getElementById('history-filter-staff');
   const monthlyStaff = document.getElementById('monthly-select-staff');
-
-  const designers = appState.staff.filter(s => s.role !== '助理');
-  const assistants = appState.staff.filter(s => s.role === '助理');
 
   if (billingStaff) {
     billingStaff.innerHTML = appState.staff.map(s => `
@@ -252,7 +408,6 @@ function switchTab(tabName) {
 function initBillingForm() {
   generateNewOrderNo();
   currentBillingRows = [];
-  // 預設新增一筆空白服務列供直接選擇
   addServiceRow();
 }
 
@@ -350,14 +505,12 @@ function renderBillingRows() {
             </div>
           </div>
 
-          <!-- 刪除此項按鈕 -->
           <button type="button" onclick="removeServiceRow('${row.rowId}')" class="text-xs text-rose-500 hover:text-rose-700 p-1 rounded-lg hover:bg-rose-50 transition self-end sm:self-center flex items-center gap-1" title="刪除此項目">
             <i data-lucide="trash-2" class="w-4 h-4"></i>
             <span class="sm:hidden">刪除項目</span>
           </button>
         </div>
 
-        <!-- 數值調整與單項小計 -->
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1 border-t border-slate-200/60">
           <div>
             <label class="block text-[11px] font-medium text-slate-500 mb-0.5">收費單價 (NT$)</label>
@@ -409,7 +562,6 @@ function updateRowCalculations() {
   const assistantRow = document.getElementById('summary-assistant-row');
   
   if (assistantId) {
-    // 助理協助洗頭或上捲，提撥固定比例或獎勵（預設按客單 5% 獎勵計入助理）
     assistantComm = Math.round(totalAmount * 0.05);
     if (assistantRow) assistantRow.classList.remove('hidden');
   } else {
@@ -419,7 +571,6 @@ function updateRowCalculations() {
   const salonNet = Math.max(0, totalAmount - totalCommission - assistantComm);
   const avgRate = totalAmount > 0 ? ((totalCommission / totalAmount) * 100).toFixed(1) : 0;
 
-  // 更新介面
   document.getElementById('summary-card-commission').textContent = totalCommission.toLocaleString();
   document.getElementById('summary-card-rate-text').textContent = `平均抽成率：${avgRate}%`;
   document.getElementById('summary-card-items-count').textContent = `${totalItemsCount} 項服務`;
@@ -428,11 +579,10 @@ function updateRowCalculations() {
   document.getElementById('summary-card-salon-net').textContent = salonNet.toLocaleString();
 }
 
-// 助理切換時更新計算
 document.getElementById('billing-assistant-select')?.addEventListener('change', updateRowCalculations);
 
-// 儲存當前單據
-function saveCurrentOrder() {
+// 儲存當前單據並同步雲端
+async function saveCurrentOrder() {
   if (currentBillingRows.length === 0) {
     alert('請至少新增一項服務項目！');
     return;
@@ -451,7 +601,6 @@ function saveCurrentOrder() {
   const assistantId = document.getElementById('billing-assistant-select').value;
   const assistant = appState.staff.find(s => s.id === assistantId);
 
-  // 取得完整項目內容
   const itemsDetail = currentBillingRows.map(r => {
     const srv = appState.services.find(s => s.id === r.serviceId);
     const name = srv ? srv.name : '自訂美髮項目';
@@ -497,13 +646,10 @@ function saveCurrentOrder() {
     createdAt: new Date().toISOString()
   };
 
-  // 加入狀態並儲存本機
   appState.orders.unshift(newOrder);
-  saveDataToStorage();
+  await syncDataToCloud();
 
-  showToast(`已成功儲存客單！業績 NT$ ${totalAmount.toLocaleString()}，抽成 NT$ ${totalCommission.toLocaleString()}`);
-
-  // 重置表單迎接下一單
+  showToast(`已成功開單並同步雲端！業績 NT$ ${totalAmount.toLocaleString()}，抽成 NT$ ${totalCommission.toLocaleString()}`);
   resetBillingForm();
 }
 
@@ -545,11 +691,8 @@ function filterHistoryOrders() {
   const searchVal = document.getElementById('history-filter-search')?.value.trim().toLowerCase();
 
   const filtered = appState.orders.filter(order => {
-    // 月份篩選
     if (monthVal && !order.date.startsWith(monthVal)) return false;
-    // 人員篩選
     if (staffVal && staffVal !== 'ALL' && order.staffId !== staffVal && order.assistantId !== staffVal) return false;
-    // 關鍵字搜尋
     if (searchVal) {
       const matchCustomer = order.customer.toLowerCase().includes(searchVal);
       const matchNotes = order.notes && order.notes.toLowerCase().includes(searchVal);
@@ -632,12 +775,12 @@ function renderHistoryTable(ordersList) {
   lucide.createIcons();
 }
 
-function deleteOrder(orderId) {
-  if (!confirm('確定要作廢並刪除這筆帳單記錄嗎？')) return;
+async function deleteOrder(orderId) {
+  if (!confirm('確定要刪除這筆帳單記錄嗎？（將同步刪除雲端記錄）')) return;
   appState.orders = appState.orders.filter(o => o.id !== orderId);
-  saveDataToStorage();
+  await syncDataToCloud();
   filterHistoryOrders();
-  showToast('帳單已刪除');
+  showToast('帳單已從雲端刪除');
 }
 
 // 匯出歷史流水到 Excel
@@ -698,7 +841,6 @@ function initMonthlyView() {
   }
 }
 
-// 計算月薪核心
 function calculateMonthlyPayroll() {
   const monthVal = document.getElementById('monthly-select-month')?.value;
   const staffId = document.getElementById('monthly-select-staff')?.value;
@@ -707,7 +849,6 @@ function calculateMonthlyPayroll() {
   const staff = appState.staff.find(s => s.id === staffId);
   if (!staff) return;
 
-  // 載入該員工預設底薪與全勤
   const baseSalaryInput = document.getElementById('calc-base-salary');
   const attendanceBonusInput = document.getElementById('calc-attendance-bonus');
   
@@ -720,7 +861,6 @@ function calculateMonthlyPayroll() {
     attendanceBonusInput.dataset.staffId = staffId;
   }
 
-  // 篩選當月該員工所有訂單
   const monthlyOrders = appState.orders.filter(order => {
     return order.date.startsWith(monthVal) && (order.staffId === staffId || order.assistantId === staffId);
   });
@@ -734,7 +874,6 @@ function calculateMonthlyPayroll() {
       totalRevenue += o.totalAmount;
       totalCommission += o.totalCommission;
     } else if (o.assistantId === staffId) {
-      // 若為助理身份參與本單
       totalRevenue += o.totalAmount;
       totalCommission += o.assistantCommission;
     }
@@ -742,24 +881,18 @@ function calculateMonthlyPayroll() {
 
   const avgTicket = totalClients > 0 ? Math.round(totalRevenue / totalClients) : 0;
 
-  // 更新 KPI 卡
   document.getElementById('stat-month-clients').textContent = totalClients;
   document.getElementById('stat-month-avg-ticket').textContent = avgTicket.toLocaleString();
   document.getElementById('stat-month-revenue').textContent = totalRevenue.toLocaleString();
   document.getElementById('stat-month-commission').textContent = totalCommission.toLocaleString();
 
-  // 更新計算器抽成欄位
   const commissionInput = document.getElementById('calc-commission');
   if (commissionInput) commissionInput.value = totalCommission;
 
-  // 重新計算實發薪資
   updateCalculatedNetPay();
-
-  // 渲染當月流水明細表格
   renderMonthlyOrdersTable(monthlyOrders, staffId);
 }
 
-// 實發薪資聯動計算
 function updateCalculatedNetPay() {
   const baseSalary = parseFloat(document.getElementById('calc-base-salary')?.value) || 0;
   const commission = parseFloat(document.getElementById('calc-commission')?.value) || 0;
@@ -767,7 +900,6 @@ function updateCalculatedNetPay() {
   const otherBonus = parseFloat(document.getElementById('calc-other-bonus')?.value) || 0;
   const deductions = parseFloat(document.getElementById('calc-deductions')?.value) || 0;
 
-  // 實發金額 = 底薪 + 抽成 + 全勤 + 其他獎金 - 扣除額
   const netPay = Math.round(baseSalary + commission + attendanceBonus + otherBonus - deductions);
 
   document.getElementById('stat-month-net-pay').textContent = netPay.toLocaleString();
@@ -796,7 +928,6 @@ function renderMonthlyOrdersTable(monthlyOrders, currentStaffId) {
     const isMain = order.staffId === currentStaffId;
     const earnedComm = isMain ? order.totalCommission : order.assistantCommission;
     const roleTag = isMain ? '' : '<span class="text-[10px] bg-blue-100 text-blue-700 px-1 rounded">助理獎勵</span>';
-
     const itemsText = order.items.map(it => `${it.name} ($${it.price}, 抽${it.rate}%)`).join('、');
 
     return `
@@ -817,7 +948,6 @@ function renderMonthlyOrdersTable(monthlyOrders, currentStaffId) {
   }).join('');
 }
 
-// 匯出月報表至 Excel (包含月度薪資摘要 + 客單明細兩頁 Sheet)
 function exportMonthlyReportExcel() {
   const monthVal = document.getElementById('monthly-select-month')?.value;
   const staffId = document.getElementById('monthly-select-staff')?.value;
@@ -837,7 +967,6 @@ function exportMonthlyReportExcel() {
 
   const wb = XLSX.utils.book_new();
 
-  // Sheet 1: 薪資結算總表
   const summarySheetData = [
     { '項目': '結算月份', '內容/金額': monthVal },
     { '項目': '員工姓名', '內容/金額': staff.name },
@@ -855,7 +984,6 @@ function exportMonthlyReportExcel() {
   const ws1 = XLSX.utils.json_to_sheet(summarySheetData);
   XLSX.utils.book_append_sheet(wb, ws1, '月薪資結算總表');
 
-  // Sheet 2: 當月客單流水明細
   const detailData = [];
   monthlyOrders.forEach(o => {
     const isMain = o.staffId === staffId;
@@ -883,7 +1011,6 @@ function exportMonthlyReportExcel() {
   showToast(`已匯出 ${staff.name} 的 ${monthVal} Excel 月報表！`);
 }
 
-// 列印 / 產生 PDF 薪資明細單
 function printSalarySlip() {
   const monthVal = document.getElementById('monthly-select-month')?.value;
   const staffId = document.getElementById('monthly-select-staff')?.value;
@@ -913,14 +1040,11 @@ function printSalarySlip() {
 
   printContainer.innerHTML = `
     <div style="font-family: 'Noto Sans TC', sans-serif; max-width: 800px; margin: 0 auto; color: #111;">
-      
-      <!-- 表頭 -->
       <div style="text-align: center; border-bottom: 2px solid #333; padding-bottom: 12px; margin-bottom: 16px;">
         <h1 style="font-size: 24px; font-weight: 800; margin: 0;">SALON 美髮沙龍 員工薪資結算明細單</h1>
         <p style="font-size: 14px; color: #555; margin: 4px 0 0 0;">結算月份：${year} 年 ${month} 月度 ‧ 列印日期：${new Date().toLocaleDateString('zh-TW')}</p>
       </div>
 
-      <!-- 員工基本資料 -->
       <div style="display: flex; justify-content: space-between; margin-bottom: 16px; background: #f8fafc; padding: 12px; border-radius: 8px;">
         <div><strong>員工姓名：</strong> ${staff.name}</div>
         <div><strong>職務角色：</strong> ${staff.role}</div>
@@ -928,7 +1052,6 @@ function printSalarySlip() {
         <div><strong>全月技術/商品總業績：</strong> NT$ ${totalRev.toLocaleString()}</div>
       </div>
 
-      <!-- 薪資結構試算表 -->
       <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px;">
         <thead>
           <tr style="background: #e2e8f0;">
@@ -972,7 +1095,6 @@ function printSalarySlip() {
         </tbody>
       </table>
 
-      <!-- 顧客抽成明細摘錄 -->
       <h3 style="font-size: 14px; font-weight: bold; margin-bottom: 8px;">服務客單抽成摘錄表 (共 ${monthlyOrders.length} 筆)</h3>
       <table style="width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 24px;">
         <thead>
@@ -999,16 +1121,13 @@ function printSalarySlip() {
         </tbody>
       </table>
 
-      <!-- 簽名欄位 -->
       <div style="display: flex; justify-content: space-between; margin-top: 30px; padding-top: 20px; border-top: 1px dashed #94a3b8;">
         <div>店長 / 負責人覆核簽名：___________________</div>
         <div>員工本人核對簽收：___________________</div>
       </div>
-
     </div>
   `;
 
-  // 觸發列印
   window.print();
 }
 
@@ -1016,7 +1135,6 @@ function printSalarySlip() {
 // 設定頁面：服務項目與人員管理 (Settings Tab)
 // ==========================================
 function renderSettingsTables() {
-  // 渲染服務清單
   const srvTbody = document.getElementById('settings-services-tbody');
   if (srvTbody) {
     srvTbody.innerHTML = appState.services.map(s => `
@@ -1035,7 +1153,6 @@ function renderSettingsTables() {
     `).join('');
   }
 
-  // 渲染員工清單
   const staffTbody = document.getElementById('settings-staff-tbody');
   if (staffTbody) {
     staffTbody.innerHTML = appState.staff.map(st => `
@@ -1057,7 +1174,7 @@ function renderSettingsTables() {
   }
 }
 
-// 服務項目 Modal 控制
+// 服務項目 Modal
 function openServiceModal() {
   document.getElementById('modal-service-id').value = '';
   document.getElementById('modal-service-name').value = '';
@@ -1084,7 +1201,7 @@ function closeServiceModal() {
   document.getElementById('modal-service').classList.add('hidden');
 }
 
-function saveServiceItem() {
+async function saveServiceItem() {
   const id = document.getElementById('modal-service-id').value;
   const name = document.getElementById('modal-service-name').value.trim();
   const price = parseFloat(document.getElementById('modal-service-price').value) || 0;
@@ -1097,7 +1214,6 @@ function saveServiceItem() {
   }
 
   if (id) {
-    // 編輯現有項目
     const item = appState.services.find(s => s.id === id);
     if (item) {
       item.name = name;
@@ -1106,7 +1222,6 @@ function saveServiceItem() {
       item.category = category;
     }
   } else {
-    // 新增項目
     appState.services.push({
       id: 'srv-' + Date.now(),
       name: name,
@@ -1116,25 +1231,25 @@ function saveServiceItem() {
     });
   }
 
-  saveDataToStorage();
+  await syncDataToCloud();
   closeServiceModal();
   renderSettingsTables();
-  showToast('服務項目已儲存');
+  showToast('服務項目已同步更新');
 }
 
-function deleteServiceItem(serviceId) {
+async function deleteServiceItem(serviceId) {
   if (appState.services.length <= 1) {
     alert('至少需保留一項服務項目！');
     return;
   }
   if (!confirm('確定要刪除此服務項目嗎？')) return;
   appState.services = appState.services.filter(s => s.id !== serviceId);
-  saveDataToStorage();
+  await syncDataToCloud();
   renderSettingsTables();
   showToast('項目已刪除');
 }
 
-// 員工 Modal 控制
+// 員工 Modal
 function openStaffModal() {
   document.getElementById('modal-staff-id').value = '';
   document.getElementById('modal-staff-name').value = '';
@@ -1162,7 +1277,7 @@ function closeStaffModal() {
   document.getElementById('modal-staff').classList.add('hidden');
 }
 
-function saveStaffMember() {
+async function saveStaffMember() {
   const id = document.getElementById('modal-staff-id').value;
   const name = document.getElementById('modal-staff-name').value.trim();
   const role = document.getElementById('modal-staff-role').value;
@@ -1192,21 +1307,21 @@ function saveStaffMember() {
     });
   }
 
-  saveDataToStorage();
+  await syncDataToCloud();
   closeStaffModal();
   populateStaffDropdowns();
   renderSettingsTables();
-  showToast('人員資料已儲存');
+  showToast('人員資料已更新');
 }
 
-function deleteStaffMember(staffId) {
+async function deleteStaffMember(staffId) {
   if (appState.staff.length <= 1) {
     alert('系統至少需保留一位工作人員！');
     return;
   }
   if (!confirm('確定要刪除這位工作人員嗎？')) return;
   appState.staff = appState.staff.filter(s => s.id !== staffId);
-  saveDataToStorage();
+  await syncDataToCloud();
   populateStaffDropdowns();
   renderSettingsTables();
   showToast('人員已刪除');
@@ -1219,11 +1334,11 @@ function backupDataToJson() {
   const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(appState, null, 2));
   const downloadAnchor = document.createElement('a');
   downloadAnchor.setAttribute("href", dataStr);
-  downloadAnchor.setAttribute("download", `SalonPay_Backup_${new Date().toISOString().split('T')[0]}.json`);
+  downloadAnchor.setAttribute("download", `SalonPay_CloudBackup_${new Date().toISOString().split('T')[0]}.json`);
   document.body.appendChild(downloadAnchor);
   downloadAnchor.click();
   downloadAnchor.remove();
-  showToast('已匯出完整系統備份檔案！');
+  showToast('已匯出系統備份檔案！');
 }
 
 function restoreDataFromJson(event) {
@@ -1231,20 +1346,20 @@ function restoreDataFromJson(event) {
   if (!file) return;
 
   const reader = new FileReader();
-  reader.onload = function(e) {
+  reader.onload = async function(e) {
     try {
       const imported = JSON.parse(e.target.result);
       if (imported.services && imported.staff && imported.orders) {
         appState = imported;
-        saveDataToStorage();
+        await syncDataToCloud();
         populateStaffDropdowns();
         renderSettingsTables();
         initBillingForm();
         filterHistoryOrders();
         calculateMonthlyPayroll();
-        showToast('資料還原成功！');
+        showToast('資料還原並同步雲端成功！');
       } else {
-        alert('檔案格式不正確，找不到預期之系統結構！');
+        alert('檔案格式不正確！');
       }
     } catch (err) {
       alert('解析 JSON 備份檔失敗：' + err.message);
@@ -1253,36 +1368,39 @@ function restoreDataFromJson(event) {
   reader.readAsText(file);
 }
 
-function loadDemoData() {
-  if (!confirm('載入示範資料將重新設置示範帳單與項目，是否繼續？')) return;
-  resetToDefaultState();
+async function loadDemoData() {
+  if (!confirm('重新載入示範資料將更新您的資料庫，是否繼續？')) return;
+  appState = {
+    services: [...DEFAULT_SERVICES],
+    staff: [...DEFAULT_STAFF],
+    orders: []
+  };
+  await syncDataToCloud();
   populateStaffDropdowns();
   renderSettingsTables();
   initBillingForm();
   filterHistoryOrders();
   calculateMonthlyPayroll();
-  showToast('已成功載入示範帳單資料！');
+  showToast('已重設為預設項目資料！');
 }
 
-function confirmResetAll() {
-  if (!confirm('警告：確定要清空所有資料嗎？此操作不可復原！')) return;
+async function confirmResetAll() {
+  if (!confirm('警告：確定要清空雲端所有資料嗎？此操作不可復原！')) return;
   appState = {
     services: [...DEFAULT_SERVICES],
     staff: [{ id: 'staff-1', name: '店長設計師', role: '設計師', baseSalary: 30000, attendanceBonus: 2000 }],
     orders: []
   };
-  saveDataToStorage();
+  await syncDataToCloud();
   populateStaffDropdowns();
   renderSettingsTables();
   initBillingForm();
   filterHistoryOrders();
   calculateMonthlyPayroll();
-  showToast('已重設為全新系統狀態');
+  showToast('已清空所有帳單');
 }
 
-// ==========================================
-// 簡易 Toast 提示小工具
-// ==========================================
+// Toast
 let toastTimer = null;
 function showToast(msg) {
   const toast = document.getElementById('toast');

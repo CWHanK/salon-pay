@@ -1,4 +1,4 @@
-/* 美髮沙龍薪資與抽成管理系統 - 樣式表 */
+/* 美髮沙龍薪資與抽成管理系統 - 手機與雲端優化樣式表 */
 @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600;700;900&display=swap');
 
 :root {
@@ -9,66 +9,77 @@
   --salon-light: #fefae0;
 }
 
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
 body {
   font-family: 'Noto Sans TC', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   background-color: #f8fafc;
   color: #1e293b;
+  /* 手機安全區適配 (iPhone 底部橫條) */
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
-/* 數字等寬字體，方便金額對齊 */
+/* 數字等寬字體 */
 .font-numeric {
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.01em;
 }
 
+/* 📱 手機端強制防縮放：防止 iOS Safari 點擊 input 時畫面放大破版 */
+@media (max-width: 768px) {
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+}
+
 /* 滾動條美化 */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 4px;
+  height: 4px;
 }
 ::-webkit-scrollbar-track {
-  background: #f1f5f9;
+  background: transparent;
 }
 ::-webkit-scrollbar-thumb {
   background: #cbd5e1;
   border-radius: 4px;
 }
-::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
-}
 
-/* 亮眼動畫與微互動 */
+/* 標籤按鈕狀態 */
 .tab-btn.active {
   color: #c28859;
   border-bottom: 2.5px solid #c28859;
-  font-weight: 600;
+  font-weight: 700;
   background-color: #fff7ed;
 }
 
-.card-hover {
-  transition: all 0.2s ease-in-out;
+/* 手機底部 Dock 導覽標籤 */
+.dock-item.active {
+  color: #c28859;
+  font-weight: 700;
 }
-.card-hover:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.07), 0 8px 10px -6px rgba(0, 0, 0, 0.04);
-}
-
-/* 抽成醒目標籤 */
-.badge-commission {
-  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
-  color: #92400e;
-  border: 1px solid #fcd34d;
+.dock-item.active svg {
+  stroke: #c28859;
+  transform: scale(1.1);
+  transition: transform 0.15s ease;
 }
 
-/* 快速開單服務項目列表卡片 */
+/* 觸控微回饋 */
+button:active {
+  transform: scale(0.98);
+}
+
+/* 快速開單服務項目列表卡片動畫 */
 .service-row-item {
-  animation: fadeIn 0.25s ease-in-out;
+  animation: slideUp 0.2s ease-out;
 }
 
-@keyframes fadeIn {
+@keyframes slideUp {
   from {
     opacity: 0;
-    transform: translateY(6px);
+    transform: translateY(8px);
   }
   to {
     opacity: 1;
@@ -86,7 +97,6 @@ body {
     margin: 0 !important;
   }
 
-  /* 隱藏網頁操作介面 */
   header,
   nav,
   .no-print,
@@ -95,23 +105,19 @@ body {
   #tab-settings,
   .action-buttons,
   button,
+  .mobile-bottom-dock,
   .toast-container {
     display: none !important;
   }
 
-  /* 只顯示列印專用報表容器 */
   #printable-slip {
     display: block !important;
     width: 100% !important;
     margin: 0 !important;
-    padding: 15mm !important;
+    padding: 12mm !important;
     border: none !important;
     box-shadow: none !important;
     background: transparent !important;
-  }
-
-  .print-page-break {
-    page-break-after: always;
   }
 
   table {

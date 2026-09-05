@@ -1,8 +1,8 @@
 /**
- * SalonPay - 美髮沙龍員工薪資與抽成計算系統 (Firebase 雲端同步版)
+ * SalonPay - 美髮沙龍員工薪資與抽成計算系統 (手機佈局 + Firebase 雲端版)
  */
 
-// 預設資料：服務項目與抽成比例
+// 預設資料：服務項目與抽成比例 (保留專業美髮服務項目以供下拉選用)
 const DEFAULT_SERVICES = [
   { id: 'srv-1', name: '造型剪髮 (含基礎洗)', price: 800, rate: 50, category: '技術服務' },
   { id: 'srv-2', name: '舒壓洗髮 (含吹整)', price: 350, rate: 30, category: '技術服務' },
@@ -18,17 +18,13 @@ const DEFAULT_SERVICES = [
   { id: 'srv-12', name: '強力定型霧 (300ml)', price: 650, rate: 20, category: '產品銷售' },
 ];
 
-// 預設員工資料
-const DEFAULT_STAFF = [
-  { id: 'staff-1', name: 'Hank (設計師)', role: '設計師', baseSalary: 28000, attendanceBonus: 2000 },
-  { id: 'staff-2', name: 'Emily (設計師)', role: '設計師', baseSalary: 30000, attendanceBonus: 2000 },
-  { id: 'staff-3', name: '小涵 (技術助理)', role: '助理', baseSalary: 26000, attendanceBonus: 2000 }
-];
+// 預設人員已全部清空，由使用者自行建立專屬團隊
+const DEFAULT_STAFF = [];
 
 // 系統核心狀態
 let appState = {
   services: [...DEFAULT_SERVICES],
-  staff: [...DEFAULT_STAFF],
+  staff: [],
   orders: []
 };
 
@@ -51,6 +47,18 @@ document.addEventListener('DOMContentLoaded', () => {
   lucide.createIcons();
 });
 
+// 清除先前舊範例人員 (如果有)
+function sanitizeOldMockData(data) {
+  if (data && Array.isArray(data.staff)) {
+    data.staff = data.staff.filter(s => 
+      !s.name.includes('Hank (設計師)') && 
+      !s.name.includes('Emily (設計師)') && 
+      !s.name.includes('小涵 (技術助理)')
+    );
+  }
+  return data;
+}
+
 // 初始化 Firebase 雲端服務
 function initFirebase() {
   let config = window.FIREBASE_CONFIG;
@@ -61,12 +69,9 @@ function initFirebase() {
     } catch (e) {}
   }
 
-  // 檢查是否具備必要的金鑰
   if (!config || !config.apiKey || config.apiKey === '') {
-    // 尚未綁定 Firebase，顯示提示
     const configAlert = document.getElementById('auth-config-alert');
     if (configAlert) configAlert.classList.remove('hidden');
-    // 先載入本機快取資料讓介面有東西
     loadLocalFallback();
     return;
   }
@@ -79,12 +84,10 @@ function initFirebase() {
     }
 
     db = firebase.firestore();
-    // 啟用離線支援
     db.enablePersistence({ synchronizeTabs: true }).catch(err => {
       console.warn('離線快取提示:', err.code);
     });
 
-    // 監聽登入狀態改變
     firebase.auth().onAuthStateChanged(user => {
       if (user) {
         currentUser = user;
@@ -105,12 +108,12 @@ function loadLocalFallback() {
   const raw = localStorage.getItem('SALON_PAY_LOCAL_CACHE');
   if (raw) {
     try {
-      appState = JSON.parse(raw);
+      appState = sanitizeOldMockData(JSON.parse(raw));
     } catch(e) {}
   } else {
     appState = {
       services: [...DEFAULT_SERVICES],
-      staff: [...DEFAULT_STAFF],
+      staff: [],
       orders: []
     };
   }
@@ -122,7 +125,7 @@ function loadLocalFallback() {
 }
 
 // ==========================================
-// 雲端帳號登入與認證控制 (Authentication)
+// 雲端帳號登入與認證控制
 // ==========================================
 function toggleAuthMode() {
   isAuthSignUpMode = !isAuthSignUpMode;
@@ -130,7 +133,7 @@ function toggleAuthMode() {
   const toggleBtn = document.getElementById('auth-toggle-mode-btn');
 
   if (isAuthSignUpMode) {
-    submitText.textContent = '註冊並建立沙龍帳號';
+    submitText.textContent = '註冊並建立專屬沙龍';
     toggleBtn.textContent = '已有帳號？點此登入';
   } else {
     submitText.textContent = '登入雲端系統';
@@ -150,13 +153,15 @@ async function handleAuthSubmit(e) {
 
   try {
     if (isAuthSignUpMode) {
-      // 註冊新帳號
       const cred = await firebase.auth().createUserWithEmailAndPassword(email, password);
-      // 初次註冊建立基本雲端範本資料
-      await db.collection('users').doc(cred.user.uid).set(appState);
+      // 初次註冊建立乾淨的個人沙龍資料庫
+      await db.collection('users').doc(cred.user.uid).set({
+        services: [...DEFAULT_SERVICES],
+        staff: [],
+        orders: []
+      });
       showToast('註冊成功！已建立您的專屬沙龍資料庫');
     } else {
-      // 登入現有帳號
       await firebase.auth().signInWithEmailAndPassword(email, password);
       showToast('登入成功！已連線至雲端');
     }
@@ -175,15 +180,12 @@ async function handleAuthSubmit(e) {
 }
 
 function onUserLoggedIn(user) {
-  // 隱藏登入遮罩
   const authScreen = document.getElementById('auth-screen');
   if (authScreen) authScreen.classList.add('hidden');
 
-  // 更新 Header 顯示的使用者信箱
   const emailEl = document.getElementById('header-user-email');
-  if (emailEl) emailEl.textContent = user.email;
+  if (emailEl) emailEl.textContent = user.email.split('@')[0];
 
-  // 開始即時監聽 Firestore 雲端資料庫
   subscribeToCloudData(user.uid);
 }
 
@@ -219,39 +221,35 @@ function hideAuthError() {
 }
 
 // ==========================================
-// Firestore 雲端即時同步 (Realtime Cloud Sync)
+// Firestore 雲端即時同步
 // ==========================================
 function subscribeToCloudData(uid) {
   const userDocRef = db.collection('users').doc(uid);
 
   unsubscribeFirestore = userDocRef.onSnapshot(doc => {
     if (doc.exists) {
-      const data = doc.data();
+      const data = sanitizeOldMockData(doc.data());
       appState.services = data.services || [...DEFAULT_SERVICES];
-      appState.staff = data.staff || [...DEFAULT_STAFF];
+      appState.staff = data.staff || [];
       appState.orders = data.orders || [];
     } else {
-      // 若第一次使用尚無文件，則自動初始化寫入
       userDocRef.set(appState);
     }
 
-    // 快取到本地
     localStorage.setItem('SALON_PAY_LOCAL_CACHE', JSON.stringify(appState));
 
-    // 重新渲染畫面所有元件
     populateStaffDropdowns();
     initBillingForm();
     filterHistoryOrders();
     calculateMonthlyPayroll();
     renderSettingsTables();
+    checkStaffEmptyState();
   }, err => {
     console.error('Firestore 即時同步錯誤:', err);
   });
 }
 
-// 儲存資料同步到雲端
 async function syncDataToCloud() {
-  // 本地先存一份
   localStorage.setItem('SALON_PAY_LOCAL_CACHE', JSON.stringify(appState));
 
   if (currentUser && db) {
@@ -265,7 +263,7 @@ async function syncDataToCloud() {
 }
 
 // ==========================================
-// 雲端金鑰貼上設定視窗 (Modal Cloud Config)
+// 雲端金鑰貼上設定視窗
 // ==========================================
 function openCloudConfigModal() {
   const modal = document.getElementById('modal-cloud-config');
@@ -298,9 +296,7 @@ function saveCloudConfig() {
   try {
     let parsedConfig = null;
     if (raw.includes('{') && raw.includes('}')) {
-      // 擷取大括弧內的 JSON / 物件內容
       const jsonStr = raw.substring(raw.indexOf('{'), raw.lastIndexOf('}') + 1)
-        // 修正非嚴格 JSON 屬性名稱 (例如 apiKey: -> "apiKey":)
         .replace(/([{,]\s*)([a-zA-Z0-9_]+)\s*:/g, '$1"$2":')
         .replace(/'/g, '"')
         .replace(/,\s*}/g, '}');
@@ -338,6 +334,18 @@ function initCurrentDate() {
   if (dateInput) dateInput.value = dateStr;
 }
 
+// 檢查是否尚無人員，顯示提示引導
+function checkStaffEmptyState() {
+  const emptyAlert = document.getElementById('billing-empty-staff-alert');
+  if (emptyAlert) {
+    if (appState.staff.length === 0) {
+      emptyAlert.classList.remove('hidden');
+    } else {
+      emptyAlert.classList.add('hidden');
+    }
+  }
+}
+
 // 渲染所有設計師/助理下拉選單
 function populateStaffDropdowns() {
   const billingStaff = document.getElementById('billing-staff-select');
@@ -346,9 +354,17 @@ function populateStaffDropdowns() {
   const monthlyStaff = document.getElementById('monthly-select-staff');
 
   if (billingStaff) {
-    billingStaff.innerHTML = appState.staff.map(s => `
-      <option value="${s.id}">${s.name} (${s.role})</option>
-    `).join('');
+    if (appState.staff.length === 0) {
+      billingStaff.innerHTML = `<option value="">⚠️ 尚未新增人員 (點此新增)</option>`;
+      billingStaff.onchange = function() {
+        if (this.value === '') openStaffModal();
+      };
+    } else {
+      billingStaff.onchange = null;
+      billingStaff.innerHTML = appState.staff.map(s => `
+        <option value="${s.id}">${s.name} (${s.role})</option>
+      `).join('');
+    }
   }
 
   if (billingAssistant) {
@@ -366,30 +382,43 @@ function populateStaffDropdowns() {
   }
 
   if (monthlyStaff) {
-    monthlyStaff.innerHTML = appState.staff.map(s => `
-      <option value="${s.id}">${s.name} (${s.role})</option>
-    `).join('');
+    if (appState.staff.length === 0) {
+      monthlyStaff.innerHTML = `<option value="">尚無人員資料</option>`;
+    } else {
+      monthlyStaff.innerHTML = appState.staff.map(s => `
+        <option value="${s.id}">${s.name} (${s.role})</option>
+      `).join('');
+    }
   }
+
+  checkStaffEmptyState();
 }
 
 // ==========================================
-// 分頁切換 (Tab Navigation)
+// 分頁切換 (同步手機 Dock 與桌面 Tab)
 // ==========================================
 function switchTab(tabName) {
   const tabs = ['billing', 'history', 'monthly', 'settings'];
   tabs.forEach(t => {
     const el = document.getElementById(`tab-${t}`);
-    const btn = document.getElementById(`tab-btn-${t}`);
+    const desktopBtn = document.getElementById(`tab-btn-${t}`);
+    const dockBtn = document.getElementById(`dock-btn-${t}`);
+
     if (t === tabName) {
       el?.classList.remove('hidden');
-      btn?.classList.add('active');
-      btn?.classList.remove('text-slate-600');
+      desktopBtn?.classList.add('active');
+      desktopBtn?.classList.remove('text-slate-600');
+      dockBtn?.classList.add('active');
     } else {
       el?.classList.add('hidden');
-      btn?.classList.remove('active');
-      btn?.classList.add('text-slate-600');
+      desktopBtn?.classList.remove('active');
+      desktopBtn?.classList.add('text-slate-600');
+      dockBtn?.classList.remove('active');
     }
   });
+
+  // 捲動至頁面頂端
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 
   if (tabName === 'history') {
     filterHistoryOrders();
@@ -477,7 +506,7 @@ function onRowInputChange(rowId, field, value) {
   updateRowCalculations();
 }
 
-// 重新繪製開單項目清單
+// 重新繪製開單項目清單 (手機大字體好點擊版)
 function renderBillingRows() {
   const container = document.getElementById('service-rows-container');
   if (!container) return;
@@ -487,15 +516,17 @@ function renderBillingRows() {
     const itemCommission = Math.round(itemTotal * (row.rate / 100));
 
     return `
-      <div id="${row.rowId}" class="service-row-item p-3.5 bg-slate-50/90 hover:bg-slate-50 border border-slate-200/90 rounded-2xl transition space-y-3">
-        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-          <div class="flex items-center gap-2 w-full sm:w-auto">
+      <div id="${row.rowId}" class="service-row-item p-3.5 sm:p-4 bg-slate-50/95 hover:bg-slate-50 border border-slate-200/90 rounded-2xl transition space-y-3 shadow-sm">
+        
+        <!-- 頂部：序號、下拉選單與刪除按鈕 -->
+        <div class="flex items-center justify-between gap-2">
+          <div class="flex items-center gap-2 flex-1 min-w-0">
             <span class="w-6 h-6 rounded-full bg-amber-100 text-amber-800 text-xs font-bold flex items-center justify-center shrink-0">
               ${index + 1}
             </span>
-            <div class="flex-1 sm:w-64">
-              <label class="block text-[11px] font-semibold text-slate-500 mb-0.5">選擇服務項目 (下拉自動帶入)</label>
-              <select onchange="onServiceSelectChange('${row.rowId}', this.value)" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-1.5 text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500">
+            <div class="flex-1 min-w-0">
+              <label class="block text-[11px] font-bold text-slate-500 mb-0.5">選擇服務項目 (下拉即帶出金額)</label>
+              <select onchange="onServiceSelectChange('${row.rowId}', this.value)" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500">
                 ${appState.services.map(s => `
                   <option value="${s.id}" ${s.id === row.serviceId ? 'selected' : ''}>
                     ${s.name} [定價$${s.price} | 抽${s.rate}%]
@@ -505,34 +536,34 @@ function renderBillingRows() {
             </div>
           </div>
 
-          <button type="button" onclick="removeServiceRow('${row.rowId}')" class="text-xs text-rose-500 hover:text-rose-700 p-1 rounded-lg hover:bg-rose-50 transition self-end sm:self-center flex items-center gap-1" title="刪除此項目">
-            <i data-lucide="trash-2" class="w-4 h-4"></i>
-            <span class="sm:hidden">刪除項目</span>
+          <button type="button" onclick="removeServiceRow('${row.rowId}')" class="p-2 text-slate-400 hover:text-rose-600 rounded-xl hover:bg-rose-50 transition shrink-0" title="刪除項目">
+            <i data-lucide="trash-2" class="w-5 h-5"></i>
           </button>
         </div>
 
-        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 pt-1 border-t border-slate-200/60">
+        <!-- 數值調整與即時單項小計 (手機好按大輸入框) -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-slate-200/70">
           <div>
-            <label class="block text-[11px] font-medium text-slate-500 mb-0.5">收費單價 (NT$)</label>
-            <input type="number" value="${row.price}" oninput="onRowInputChange('${row.rowId}', 'price', this.value)" class="w-full rounded-lg border border-slate-300 px-2.5 py-1 text-sm font-numeric bg-white font-semibold text-slate-800 focus:ring-1 focus:ring-amber-500">
+            <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">收費單價 ($)</label>
+            <input type="number" value="${row.price}" oninput="onRowInputChange('${row.rowId}', 'price', this.value)" class="w-full rounded-xl border border-slate-300 px-3 py-1.5 text-sm font-numeric bg-white font-bold text-slate-900 focus:ring-1 focus:ring-amber-500">
           </div>
 
           <div>
-            <label class="block text-[11px] font-medium text-amber-700 mb-0.5">抽成比例 (%)</label>
+            <label class="block text-[11px] font-semibold text-amber-800 mb-0.5">抽成 (%)</label>
             <div class="relative">
-              <input type="number" min="0" max="100" value="${row.rate}" oninput="onRowInputChange('${row.rowId}', 'rate', this.value)" class="w-full rounded-lg border border-amber-300 bg-amber-50/50 px-2.5 py-1 text-sm font-numeric font-bold text-amber-800 focus:ring-1 focus:ring-amber-500 pr-6">
-              <span class="absolute right-2 top-1.5 text-xs text-amber-700 font-bold">%</span>
+              <input type="number" min="0" max="100" value="${row.rate}" oninput="onRowInputChange('${row.rowId}', 'rate', this.value)" class="w-full rounded-xl border border-amber-300 bg-amber-50/60 px-3 py-1.5 text-sm font-numeric font-extrabold text-amber-900 focus:ring-1 focus:ring-amber-500 pr-6">
+              <span class="absolute right-2 top-2 text-xs text-amber-700 font-bold">%</span>
             </div>
           </div>
 
           <div>
-            <label class="block text-[11px] font-medium text-slate-500 mb-0.5">數量</label>
-            <input type="number" min="1" value="${row.qty}" oninput="onRowInputChange('${row.rowId}', 'qty', this.value)" class="w-full rounded-lg border border-slate-300 px-2.5 py-1 text-sm font-numeric bg-white focus:ring-1 focus:ring-amber-500">
+            <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">數量</label>
+            <input type="number" min="1" value="${row.qty}" oninput="onRowInputChange('${row.rowId}', 'qty', this.value)" class="w-full rounded-xl border border-slate-300 px-3 py-1.5 text-sm font-numeric bg-white focus:ring-1 focus:ring-amber-500">
           </div>
 
-          <div class="bg-amber-100/60 rounded-lg p-1.5 flex flex-col justify-center text-right border border-amber-200/60">
-            <div class="text-[10px] text-slate-500">此項抽成金額</div>
-            <div class="text-sm font-bold text-amber-800 font-numeric">NT$ ${itemCommission.toLocaleString()}</div>
+          <div class="bg-amber-100/70 rounded-xl p-1.5 flex flex-col justify-center text-right border border-amber-200">
+            <div class="text-[10px] text-slate-500">此項抽成</div>
+            <div class="text-sm font-black text-amber-900 font-numeric">NT$ ${itemCommission.toLocaleString()}</div>
           </div>
         </div>
       </div>
@@ -543,7 +574,7 @@ function renderBillingRows() {
   updateRowCalculations();
 }
 
-// 更新右側結算卡片總數值
+// 更新結算卡片總數值
 function updateRowCalculations() {
   let totalAmount = 0;
   let totalCommission = 0;
@@ -571,18 +602,36 @@ function updateRowCalculations() {
   const salonNet = Math.max(0, totalAmount - totalCommission - assistantComm);
   const avgRate = totalAmount > 0 ? ((totalCommission / totalAmount) * 100).toFixed(1) : 0;
 
-  document.getElementById('summary-card-commission').textContent = totalCommission.toLocaleString();
-  document.getElementById('summary-card-rate-text').textContent = `平均抽成率：${avgRate}%`;
-  document.getElementById('summary-card-items-count').textContent = `${totalItemsCount} 項服務`;
-  document.getElementById('summary-card-total-amount').textContent = totalAmount.toLocaleString();
-  document.getElementById('summary-card-assistant-comm').textContent = assistantComm.toLocaleString();
-  document.getElementById('summary-card-salon-net').textContent = salonNet.toLocaleString();
+  // 更新介面金額
+  const commEls = document.querySelectorAll('.summary-commission-display');
+  commEls.forEach(el => el.textContent = totalCommission.toLocaleString());
+
+  const rateEl = document.getElementById('summary-card-rate-text');
+  if (rateEl) rateEl.textContent = `平均抽成率：${avgRate}%`;
+
+  const countEl = document.getElementById('summary-card-items-count');
+  if (countEl) countEl.textContent = `${totalItemsCount} 項服務`;
+
+  const totEl = document.getElementById('summary-card-total-amount');
+  if (totEl) totEl.textContent = totalAmount.toLocaleString();
+
+  const asstEl = document.getElementById('summary-card-assistant-comm');
+  if (asstEl) asstEl.textContent = assistantComm.toLocaleString();
+
+  const netEl = document.getElementById('summary-card-salon-net');
+  if (netEl) netEl.textContent = salonNet.toLocaleString();
 }
 
 document.getElementById('billing-assistant-select')?.addEventListener('change', updateRowCalculations);
 
 // 儲存當前單據並同步雲端
 async function saveCurrentOrder() {
+  if (appState.staff.length === 0) {
+    alert('系統中尚無人員！請先點擊上方提示或前往「設定」新增第一位設計師！');
+    openStaffModal();
+    return;
+  }
+
   if (currentBillingRows.length === 0) {
     alert('請至少新增一項服務項目！');
     return;
@@ -596,7 +645,7 @@ async function saveCurrentOrder() {
   }
 
   const dateVal = document.getElementById('billing-date').value || new Date().toISOString().split('T')[0];
-  const customer = document.getElementById('billing-customer').value.trim() || '現場一般顧客';
+  const customer = document.getElementById('billing-customer').value.trim() || '現場顧客';
   const notes = document.getElementById('billing-notes').value.trim();
   const assistantId = document.getElementById('billing-assistant-select').value;
   const assistant = appState.staff.find(s => s.id === assistantId);
@@ -649,7 +698,7 @@ async function saveCurrentOrder() {
   appState.orders.unshift(newOrder);
   await syncDataToCloud();
 
-  showToast(`已成功開單並同步雲端！業績 NT$ ${totalAmount.toLocaleString()}，抽成 NT$ ${totalCommission.toLocaleString()}`);
+  showToast(`開單成功！業績 NT$ ${totalAmount.toLocaleString()}，抽成 NT$ ${totalCommission.toLocaleString()}`);
   resetBillingForm();
 }
 
@@ -663,7 +712,7 @@ function resetBillingForm() {
 }
 
 // ==========================================
-// 歷史帳單與每日流水 (History Tab)
+// 歷史帳單與每日流水 (History Tab - 手機卡片式優化)
 // ==========================================
 function initHistoryFilters() {
   const monthInput = document.getElementById('history-filter-month');
@@ -703,11 +752,12 @@ function filterHistoryOrders() {
     return true;
   });
 
-  renderHistoryTable(filtered);
+  renderHistoryView(filtered);
 }
 
-function renderHistoryTable(ordersList) {
+function renderHistoryView(ordersList) {
   const tbody = document.getElementById('history-table-body');
+  const cardsContainer = document.getElementById('history-cards-mobile');
   const emptyHint = document.getElementById('history-empty-hint');
   const countEl = document.getElementById('history-count');
   const totalRevEl = document.getElementById('history-total-revenue');
@@ -727,63 +777,85 @@ function renderHistoryTable(ordersList) {
 
   if (ordersList.length === 0) {
     if (tbody) tbody.innerHTML = '';
+    if (cardsContainer) cardsContainer.innerHTML = '';
     if (emptyHint) emptyHint.classList.remove('hidden');
     return;
   }
 
   if (emptyHint) emptyHint.classList.add('hidden');
 
-  tbody.innerHTML = ordersList.map(order => {
-    const itemsSummary = order.items.map(it => `
-      <span class="inline-block bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-xs mr-1 mb-1">
-        ${it.name} (x${it.qty}) <strong class="text-amber-700">抽${it.rate}%</strong>
-      </span>
-    `).join('');
+  // 手機專屬卡片流
+  if (cardsContainer) {
+    cardsContainer.innerHTML = ordersList.map(order => `
+      <div class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-sm space-y-2.5">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <span class="font-bold text-slate-900 text-sm">${order.customer}</span>
+            <span class="text-xs bg-amber-50 text-amber-800 font-semibold px-2 py-0.5 rounded-full">${order.staffName}</span>
+          </div>
+          <button onclick="deleteOrder('${order.id}')" class="text-slate-400 hover:text-rose-600 p-1">
+            <i data-lucide="trash-2" class="w-4 h-4"></i>
+          </button>
+        </div>
 
-    return `
-      <tr class="hover:bg-slate-50/80 transition">
+        <div class="text-xs text-slate-600 flex flex-wrap gap-1">
+          ${order.items.map(it => `
+            <span class="bg-slate-100 px-2 py-0.5 rounded">${it.name} (x${it.qty})</span>
+          `).join('')}
+        </div>
+
+        <div class="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
+          <span class="text-slate-400 font-mono">${order.date}</span>
+          <div class="flex items-center gap-3">
+            <span class="text-slate-600">實收: <strong>NT$ ${order.totalAmount.toLocaleString()}</strong></span>
+            <span class="text-amber-700 font-bold text-sm font-numeric">抽: NT$ ${order.totalCommission.toLocaleString()}</span>
+          </div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  // 電腦端表格
+  if (tbody) {
+    tbody.innerHTML = ordersList.map(order => `
+      <tr class="hover:bg-slate-50/80 transition text-xs">
         <td class="px-4 py-3 whitespace-nowrap">
-          <div class="font-mono text-xs font-semibold text-slate-800">${order.orderNo}</div>
-          <div class="text-xs text-slate-400">${order.date}</div>
+          <div class="font-mono font-semibold text-slate-800">${order.orderNo}</div>
+          <div class="text-slate-400">${order.date}</div>
         </td>
         <td class="px-4 py-3 whitespace-nowrap">
-          <div class="font-medium text-slate-900 text-xs">${order.staffName}</div>
+          <div class="font-medium text-slate-900">${order.staffName}</div>
           ${order.assistantName ? `<div class="text-[11px] text-blue-600">助：${order.assistantName}</div>` : ''}
         </td>
         <td class="px-4 py-3">
-          <div class="font-semibold text-slate-800 text-xs">${order.customer}</div>
+          <div class="font-semibold text-slate-800">${order.customer}</div>
           ${order.notes ? `<div class="text-[11px] text-slate-400 line-clamp-1">${order.notes}</div>` : ''}
         </td>
         <td class="px-4 py-3">
-          <div class="max-w-xs sm:max-w-md">${itemsSummary}</div>
+          <div>${order.items.map(i => `${i.name} (x${i.qty})`).join('、')}</div>
         </td>
-        <td class="px-4 py-3 text-right font-numeric font-bold text-slate-800 whitespace-nowrap">
-          NT$ ${order.totalAmount.toLocaleString()}
-        </td>
-        <td class="px-4 py-3 text-right font-numeric font-extrabold text-amber-700 whitespace-nowrap">
-          NT$ ${order.totalCommission.toLocaleString()}
-        </td>
-        <td class="px-4 py-3 text-center whitespace-nowrap">
-          <button onclick="deleteOrder('${order.id}')" class="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg hover:bg-rose-50 transition" title="刪除此帳單">
+        <td class="px-4 py-3 text-right font-numeric font-bold text-slate-800">NT$ ${order.totalAmount.toLocaleString()}</td>
+        <td class="px-4 py-3 text-right font-numeric font-extrabold text-amber-700">NT$ ${order.totalCommission.toLocaleString()}</td>
+        <td class="px-4 py-3 text-center">
+          <button onclick="deleteOrder('${order.id}')" class="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg hover:bg-rose-50 transition">
             <i data-lucide="trash-2" class="w-4 h-4"></i>
           </button>
         </td>
       </tr>
-    `;
-  }).join('');
+    `).join('');
+  }
 
   lucide.createIcons();
 }
 
 async function deleteOrder(orderId) {
-  if (!confirm('確定要刪除這筆帳單記錄嗎？（將同步刪除雲端記錄）')) return;
+  if (!confirm('確定要刪除這筆客單嗎？（將同步從雲端刪除）')) return;
   appState.orders = appState.orders.filter(o => o.id !== orderId);
   await syncDataToCloud();
   filterHistoryOrders();
-  showToast('帳單已從雲端刪除');
+  showToast('客單已從雲端刪除');
 }
 
-// 匯出歷史流水到 Excel
 function exportHistoryToExcel() {
   const monthVal = document.getElementById('history-filter-month')?.value || '全部月份';
   const staffVal = document.getElementById('history-filter-staff')?.value;
@@ -829,7 +901,7 @@ function exportHistoryToExcel() {
 }
 
 // ==========================================
-// 月薪結算與月報表 (Monthly Payroll & Reports)
+// 月薪結算與月報表
 // ==========================================
 function initMonthlyView() {
   const monthInput = document.getElementById('monthly-select-month');
@@ -1132,7 +1204,7 @@ function printSalarySlip() {
 }
 
 // ==========================================
-// 設定頁面：服務項目與人員管理 (Settings Tab)
+// 設定頁面：服務項目與人員管理
 // ==========================================
 function renderSettingsTables() {
   const srvTbody = document.getElementById('settings-services-tbody');
@@ -1155,22 +1227,32 @@ function renderSettingsTables() {
 
   const staffTbody = document.getElementById('settings-staff-tbody');
   if (staffTbody) {
-    staffTbody.innerHTML = appState.staff.map(st => `
-      <tr class="hover:bg-slate-50 transition">
-        <td class="px-3 py-2.5 font-semibold text-slate-900">${st.name}</td>
-        <td class="px-3 py-2.5">
-          <span class="px-2 py-0.5 rounded-full text-xs font-medium ${st.role === '助理' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-800'}">
-            ${st.role}
-          </span>
-        </td>
-        <td class="px-3 py-2.5 text-right font-numeric font-bold text-slate-700">NT$ ${st.baseSalary.toLocaleString()}</td>
-        <td class="px-3 py-2.5 text-right font-numeric text-slate-600">NT$ ${st.attendanceBonus.toLocaleString()}</td>
-        <td class="px-3 py-2.5 text-center space-x-1 whitespace-nowrap">
-          <button onclick="editStaffMember('${st.id}')" class="text-xs text-amber-600 hover:text-amber-800 font-semibold p-1">編輯</button>
-          <button onclick="deleteStaffMember('${st.id}')" class="text-xs text-rose-500 hover:text-rose-700 p-1">刪除</button>
-        </td>
-      </tr>
-    `).join('');
+    if (appState.staff.length === 0) {
+      staffTbody.innerHTML = `
+        <tr>
+          <td colspan="5" class="py-6 text-center text-xs text-slate-400">
+            目前尚未建立工作人員，請點擊上方「新增人員」開始建立！
+          </td>
+        </tr>
+      `;
+    } else {
+      staffTbody.innerHTML = appState.staff.map(st => `
+        <tr class="hover:bg-slate-50 transition">
+          <td class="px-3 py-2.5 font-semibold text-slate-900">${st.name}</td>
+          <td class="px-3 py-2.5">
+            <span class="px-2 py-0.5 rounded-full text-xs font-medium ${st.role === '助理' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-800'}">
+              ${st.role}
+            </span>
+          </td>
+          <td class="px-3 py-2.5 text-right font-numeric font-bold text-slate-700">NT$ ${st.baseSalary.toLocaleString()}</td>
+          <td class="px-3 py-2.5 text-right font-numeric text-slate-600">NT$ ${st.attendanceBonus.toLocaleString()}</td>
+          <td class="px-3 py-2.5 text-center space-x-1 whitespace-nowrap">
+            <button onclick="editStaffMember('${st.id}')" class="text-xs text-amber-600 hover:text-amber-800 font-semibold p-1">編輯</button>
+            <button onclick="deleteStaffMember('${st.id}')" class="text-xs text-rose-500 hover:text-rose-700 p-1">刪除</button>
+          </td>
+        </tr>
+      `).join('');
+    }
   }
 }
 
@@ -1256,7 +1338,7 @@ function openStaffModal() {
   document.getElementById('modal-staff-role').value = '設計師';
   document.getElementById('modal-staff-base').value = '28000';
   document.getElementById('modal-staff-bonus').value = '2000';
-  document.getElementById('modal-staff-title').textContent = '新增工作人員';
+  document.getElementById('modal-staff-title').textContent = '新增工作人員 / 設計師';
   document.getElementById('modal-staff').classList.remove('hidden');
 }
 
@@ -1311,14 +1393,10 @@ async function saveStaffMember() {
   closeStaffModal();
   populateStaffDropdowns();
   renderSettingsTables();
-  showToast('人員資料已更新');
+  showToast(`已新增工作人員：${name}`);
 }
 
 async function deleteStaffMember(staffId) {
-  if (appState.staff.length <= 1) {
-    alert('系統至少需保留一位工作人員！');
-    return;
-  }
   if (!confirm('確定要刪除這位工作人員嗎？')) return;
   appState.staff = appState.staff.filter(s => s.id !== staffId);
   await syncDataToCloud();
@@ -1327,9 +1405,7 @@ async function deleteStaffMember(staffId) {
   showToast('人員已刪除');
 }
 
-// ==========================================
-// 備份與還原 (JSON Backup & Restore)
-// ==========================================
+// 備份與還原
 function backupDataToJson() {
   const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(appState, null, 2));
   const downloadAnchor = document.createElement('a');
@@ -1349,7 +1425,7 @@ function restoreDataFromJson(event) {
   reader.onload = async function(e) {
     try {
       const imported = JSON.parse(e.target.result);
-      if (imported.services && imported.staff && imported.orders) {
+      if (imported.services && Array.isArray(imported.staff) && Array.isArray(imported.orders)) {
         appState = imported;
         await syncDataToCloud();
         populateStaffDropdowns();
@@ -1368,27 +1444,11 @@ function restoreDataFromJson(event) {
   reader.readAsText(file);
 }
 
-async function loadDemoData() {
-  if (!confirm('重新載入示範資料將更新您的資料庫，是否繼續？')) return;
-  appState = {
-    services: [...DEFAULT_SERVICES],
-    staff: [...DEFAULT_STAFF],
-    orders: []
-  };
-  await syncDataToCloud();
-  populateStaffDropdowns();
-  renderSettingsTables();
-  initBillingForm();
-  filterHistoryOrders();
-  calculateMonthlyPayroll();
-  showToast('已重設為預設項目資料！');
-}
-
 async function confirmResetAll() {
   if (!confirm('警告：確定要清空雲端所有資料嗎？此操作不可復原！')) return;
   appState = {
     services: [...DEFAULT_SERVICES],
-    staff: [{ id: 'staff-1', name: '店長設計師', role: '設計師', baseSalary: 30000, attendanceBonus: 2000 }],
+    staff: [],
     orders: []
   };
   await syncDataToCloud();
@@ -1397,7 +1457,7 @@ async function confirmResetAll() {
   initBillingForm();
   filterHistoryOrders();
   calculateMonthlyPayroll();
-  showToast('已清空所有帳單');
+  showToast('已清空所有帳單與人員');
 }
 
 // Toast

@@ -18,9 +18,6 @@ const DEFAULT_SERVICES = [
   { id: 'srv-12', name: '強力定型霧 (300ml)', price: 650, rate: 20, category: '產品銷售' },
 ];
 
-// 預設人員已全部清空，由使用者自行建立專屬團隊
-const DEFAULT_STAFF = [];
-
 // 系統核心狀態
 let appState = {
   services: [...DEFAULT_SERVICES],
@@ -2170,8 +2167,6 @@ async function saveStaffMember() {
       id: 'staff-' + Date.now(),
       name: name,
       role: role,
-      baseSalary: 0,
-      attendanceBonus: 0,
       linkedUid: linkedUid,
       linkedEmail: linkedEmail
     });

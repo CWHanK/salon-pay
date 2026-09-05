@@ -1,0 +1,72 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 檢查使用者是否已通過 Firebase 認證登入
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // 取得當前使用者的個人身分資料
+    function getCurrentUserData() {
+      return get(/databases/$(database)/documents/salon_users/$(request.auth.uid)).data;
+    }
+
+    // 檢查當前登入者是否為店家管理員 (Admin)
+    function isAdmin() {
+      return isAuthenticated() &&
+        exists(/databases/$(database)/documents/salon_users/$(request.auth.uid)) &&
+        getCurrentUserData().role == 'admin';
+    }
+
+    // ==========================================
+    // 1. 全店共享沙龍資料 (salon_stores/main_store)
+    // ==========================================
+    match /salon_stores/{storeId} {
+      // 讀取：僅允許已通過 Firebase 登入之店內帳號讀取
+      allow read: if isAuthenticated();
+
+      // 寫入：
+      // - 管理員具備完整權限（服務項目定價、人員名單、抽成趴數、註冊授權密鑰）
+      // - 一般員工僅能在登入狀態下更新 orders 客單陣列（開立客單與刪除自己單據），嚴禁篡改其他設定
+      allow write: if isAdmin() || (
+        isAuthenticated() &&
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['orders'])
+      );
+    }
+
+    // ==========================================
+    // 2. 使用者身分與註冊名冊 (salon_users/{userId})
+    // ==========================================
+    match /salon_users/{userId} {
+      // 讀取：個人可讀取自己的身分資料；管理員可查閱全店已註冊清單以供綁定排班
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+
+      // 建立：登入使用者僅能建立屬於自己的身分文件
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+
+      // 更新：管理員可切換任何帳號角色；本人僅可將自己降級為員工
+      allow update: if isAdmin() || (
+        isAuthenticated() && 
+        request.auth.uid == userId && 
+        request.resource.data.role == 'staff'
+      );
+
+      // 刪除：僅管理員可刪除帳號紀錄
+      allow delete: if isAdmin();
+    }
+
+    // ==========================================
+    // 3. 個人獨立舊備份相容區 (users/{userId})
+    // ==========================================
+    match /users/{userId} {
+      allow read, write: if isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // 其他未開放的任何集合路徑預設全面封閉
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

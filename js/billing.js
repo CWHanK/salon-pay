@@ -187,16 +187,13 @@ function onRowInputChange(rowId, field, value) {
   updateRowCalculations();
 }
 
-// 重新繪製開單項目清單
+// 重新繪製開單項目清單（管理員與員工介面完全一致）
 function renderBillingRows() {
   const container = document.getElementById('service-rows-container');
   if (!container) return;
 
-  const isStaff = currentUserRole === 'staff';
-
   container.innerHTML = currentBillingRows.map((row, index) => {
     const itemTotal = row.price * row.qty;
-    const itemCommission = Math.round(itemTotal * (row.rate / 100));
 
     return `
       <div id="${row.rowId}" class="service-row-item p-3.5 sm:p-4 bg-slate-50/95 hover:bg-slate-50 border border-slate-200/90 rounded-2xl transition space-y-2.5 shadow-sm">
@@ -209,12 +206,11 @@ function renderBillingRows() {
             </span>
             <div class="flex-1 min-w-0">
               <label class="block text-[11px] font-bold text-slate-500 mb-0.5">
-                ${isStaff ? '選擇服務項目' : '選擇服務項目 (下拉即帶出金額與抽成)'}
+                選擇服務項目
               </label>
               <select onchange="onServiceSelectChange('${row.rowId}', this.value)" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500">
                 ${appState.services.map(s => {
-                  const sLabel = isStaff ? `${s.name} [定價$${s.price}]` : `${s.name} [定價$${s.price} | 抽${s.rate}%]`;
-                  return `<option value="${s.id}" ${s.id === row.serviceId ? 'selected' : ''}>${sLabel}</option>`;
+                  return `<option value="${s.id}" ${s.id === row.serviceId ? 'selected' : ''}>${s.name} [定價$${s.price}]</option>`;
                 }).join('')}
               </select>
             </div>
@@ -225,8 +221,8 @@ function renderBillingRows() {
           </button>
         </div>
 
-        <!-- 數值調整：單價、數量、抽成% -->
-        <div class="grid grid-cols-2 ${isStaff ? 'sm:grid-cols-2' : 'sm:grid-cols-3'} gap-2 pt-2 border-t border-slate-200/70">
+        <!-- 數值調整：單價、數量 -->
+        <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200/70">
           <div>
             <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">單價 ($)</label>
             <input type="number" value="${row.price}" oninput="onRowInputChange('${row.rowId}', 'price', this.value)" class="w-full rounded-xl border border-slate-300 px-3 py-1.5 text-sm font-numeric bg-white font-bold text-slate-900 focus:ring-1 focus:ring-amber-500">
@@ -236,25 +232,13 @@ function renderBillingRows() {
             <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">數量</label>
             <input type="number" min="1" value="${row.qty}" oninput="onRowInputChange('${row.rowId}', 'qty', this.value)" class="w-full rounded-xl border border-slate-300 px-3 py-1.5 text-sm font-numeric bg-white focus:ring-1 focus:ring-amber-500">
           </div>
-
-          <div class="admin-only-block">
-            <label class="block text-[11px] font-semibold text-amber-800 mb-0.5">抽成 (%)</label>
-            <div class="relative">
-              <input type="number" min="0" max="100" value="${row.rate}" oninput="onRowInputChange('${row.rowId}', 'rate', this.value)" class="w-full rounded-xl border border-amber-300 bg-amber-50/60 px-3 py-1.5 text-sm font-numeric font-extrabold text-amber-900 focus:ring-1 focus:ring-amber-500 pr-6">
-              <span class="absolute right-2 top-2 text-xs text-amber-700 font-bold">%</span>
-            </div>
-          </div>
         </div>
 
-        <!-- 金額與抽成即時小計 -->
+        <!-- 金額即時小計 -->
         <div class="pt-2 border-t border-slate-200/60 flex items-center justify-end gap-3 text-xs">
           <div>
             <span class="text-slate-500 text-[11px]">小計金額:</span>
             <strong class="text-slate-900 font-numeric text-sm font-bold">NT$ ${itemTotal.toLocaleString()}</strong>
-          </div>
-          <div class="admin-only-block bg-amber-100/80 px-2.5 py-1 rounded-xl border border-amber-200 text-right">
-            <span class="text-[10px] text-amber-800 font-medium">這項抽成:</span>
-            <strong class="text-amber-950 font-numeric font-black text-sm">NT$ ${itemCommission.toLocaleString()}</strong>
           </div>
         </div>
 
@@ -281,35 +265,11 @@ function updateRowCalculations() {
     totalItemsCount += row.qty;
   });
 
-  const assistantId = '';
-  let assistantComm = 0;
-  const assistantRow = document.getElementById('summary-assistant-row');
-  if (assistantRow) assistantRow.classList.add('hidden');
-
-  const salonNet = Math.max(0, totalAmount - totalCommission);
-  const avgRate = totalAmount > 0 ? ((totalCommission / totalAmount) * 100).toFixed(1) : 0;
-
-  // 更新介面金額
-  const commEls = document.querySelectorAll('.summary-commission-display');
-  commEls.forEach(el => el.textContent = totalCommission.toLocaleString());
-
-  const staffTotalEl = document.getElementById('summary-card-staff-total');
-  if (staffTotalEl) staffTotalEl.textContent = totalAmount.toLocaleString();
-
-  const rateEl = document.getElementById('summary-card-rate-text');
-  if (rateEl) rateEl.textContent = `平均抽成率：${avgRate}%`;
-
   const countEl = document.getElementById('summary-card-items-count');
   if (countEl) countEl.textContent = `${totalItemsCount} 項服務`;
 
   const totEl = document.getElementById('summary-card-total-amount');
   if (totEl) totEl.textContent = totalAmount.toLocaleString();
-
-  const asstEl = document.getElementById('summary-card-assistant-comm');
-  if (asstEl) asstEl.textContent = assistantComm.toLocaleString();
-
-  const netEl = document.getElementById('summary-card-salon-net');
-  if (netEl) netEl.textContent = salonNet.toLocaleString();
 }
 
 // 儲存當前單據並同步雲端
@@ -393,11 +353,7 @@ async function saveCurrentOrder() {
   appState.orders.unshift(newOrder);
   await syncDataToCloud();
 
-  if (currentUserRole === 'staff') {
-    showToast(`開單成功！顧客消費 NT$ ${totalAmount.toLocaleString()}`);
-  } else {
-    showToast(`開單成功！業績 NT$ ${totalAmount.toLocaleString()}，抽成 NT$ ${totalCommission.toLocaleString()}`);
-  }
+  showToast(`開單成功！顧客消費 NT$ ${totalAmount.toLocaleString()}`);
   resetBillingForm();
 }
 

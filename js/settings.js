@@ -401,26 +401,6 @@ function restoreDataFromJson(event) {
   reader.readAsText(file);
 }
 
-async function confirmResetAll() {
-  if (currentUserRole !== 'admin') {
-    alert('僅管理員有清空資料權限！');
-    return;
-  }
-  if (!confirm('警告：確定要清空雲端所有資料嗎？此操作不可復原！')) return;
-  appState = {
-    services: [...DEFAULT_SERVICES],
-    staff: [],
-    orders: []
-  };
-  await syncDataToCloud();
-  populateStaffDropdowns();
-  renderSettingsTables();
-  initBillingForm();
-  filterHistoryOrders();
-  calculateMonthlyPayroll();
-  showToast('已清空所有帳單與人員');
-}
-
 // ==================== 刪除已註冊帳號雙重安全確認機制 ====================
 let pendingDeleteUser = null;
 let deleteUserCountdownTimer = null;

@@ -243,41 +243,12 @@ function applyRolePermissions() {
     if (dockMonthlyText) dockMonthlyText.textContent = '當月工作';
     if (tabMonthlyBtn) tabMonthlyBtn.innerHTML = '<i data-lucide="calendar-check-2" class="w-4 h-4"></i> 個人當月工作明細';
 
-    // 現場開單頂部卡片：員工不顯示抽成大字，改為顯示顧客應付總金額
-    const titleEl = document.getElementById('summary-card-title');
-    if (titleEl) titleEl.textContent = '📝 顧客現場消費總金額';
-    const commWrap = document.getElementById('summary-card-commission-wrap');
-    if (commWrap) commWrap.classList.add('hidden');
-    const staffTotalWrap = document.getElementById('summary-card-staff-total-wrap');
-    if (staffTotalWrap) {
-      staffTotalWrap.classList.remove('hidden');
-      staffTotalWrap.classList.add('flex');
-    }
-    const rateText = document.getElementById('summary-card-rate-text');
-    if (rateText) rateText.classList.add('hidden');
-    const custPayWrap = document.getElementById('summary-card-customer-pay-wrap');
-    if (custPayWrap) custPayWrap.classList.add('hidden');
-
     // 月檢視：隱藏列印薪資單按鈕
     const printSlipBtn = document.getElementById('btn-print-salary-slip');
     if (printSlipBtn) printSlipBtn.classList.add('hidden');
   } else {
     if (dockMonthlyText) dockMonthlyText.textContent = '月薪結算';
     if (tabMonthlyBtn) tabMonthlyBtn.innerHTML = '<i data-lucide="calendar-check-2" class="w-4 h-4"></i> 月薪結算與月報表匯出';
-
-    const titleEl = document.getElementById('summary-card-title');
-    if (titleEl) titleEl.textContent = '🌟 這單設計師應得抽成';
-    const commWrap = document.getElementById('summary-card-commission-wrap');
-    if (commWrap) commWrap.classList.remove('hidden');
-    const staffTotalWrap = document.getElementById('summary-card-staff-total-wrap');
-    if (staffTotalWrap) {
-      staffTotalWrap.classList.add('hidden');
-      staffTotalWrap.classList.remove('flex');
-    }
-    const rateText = document.getElementById('summary-card-rate-text');
-    if (rateText) rateText.classList.remove('hidden');
-    const custPayWrap = document.getElementById('summary-card-customer-pay-wrap');
-    if (custPayWrap) custPayWrap.classList.remove('hidden');
 
     const printSlipBtn = document.getElementById('btn-print-salary-slip');
     if (printSlipBtn) printSlipBtn.classList.remove('hidden');

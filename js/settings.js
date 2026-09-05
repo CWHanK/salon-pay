@@ -468,7 +468,7 @@ function backupDataToJson() {
   const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(appState, null, 2));
   const downloadAnchor = document.createElement('a');
   downloadAnchor.setAttribute("href", dataStr);
-  downloadAnchor.setAttribute("download", `SalonPay_CloudBackup_${new Date().toISOString().split('T')[0]}.json`);
+  downloadAnchor.setAttribute("download", `SalonFlow_Backup_${new Date().toISOString().split('T')[0]}.json`);
   document.body.appendChild(downloadAnchor);
   downloadAnchor.click();
   downloadAnchor.remove();

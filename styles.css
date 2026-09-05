@@ -34,6 +34,30 @@ body {
   }
 }
 
+/* 📱 iOS Safari 日期/月份原生輸入框適配 (修復寬度超出邊界破版、box-sizing 失效與文字置中問題) */
+input[type="date"],
+input[type="month"] {
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  box-sizing: border-box !important;
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  appearance: none !important;
+  background-color: #ffffff;
+  min-height: 44px;
+}
+
+/* 讓 iOS Safari 上的日期文字靠左對齊，與其他文字輸入框視覺一致 */
+input[type="date"]::-webkit-date-and-time-value,
+input[type="month"]::-webkit-date-and-time-value {
+  text-align: left !important;
+  line-height: normal;
+  padding: 0;
+  margin: 0;
+  width: 100%;
+}
+
 /* 滾動條美化 */
 ::-webkit-scrollbar {
   width: 4px;

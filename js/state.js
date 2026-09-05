@@ -14,7 +14,17 @@ let currentUser = null;
 let currentUserRole = 'admin'; // 'admin' | 'staff'
 let currentLinkedStaff = null;
 let allRegisteredUsers = [];
-let salonAdminKey = DEFAULT_ADMIN_SECRET_KEY;
+let salonAdminKeyHash = DEFAULT_ADMIN_KEY_HASH;
+
+// 計算 SHA-256 雜湊 (確保密鑰絕不以明文傳輸或儲存)
+async function hashSecretKey(str) {
+  if (!str) return '';
+  const encoder = new TextEncoder();
+  const data = encoder.encode(str.trim());
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
 
 // Firebase 服務與監聽器實例
 let firebaseApp = null;

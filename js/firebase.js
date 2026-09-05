@@ -63,12 +63,6 @@ function subscribeToCloudData() {
       appState.services = data.services || [...DEFAULT_SERVICES];
       appState.staff = data.staff || [];
       appState.orders = data.orders || [];
-      salonAdminKey = (data.adminSecretKey && data.adminSecretKey !== 'SALON888') ? data.adminSecretKey : DEFAULT_ADMIN_SECRET_KEY;
-      if (data.adminSecretKey === 'SALON888' && currentUserRole === 'admin') {
-        storeDocRef.update({ adminSecretKey: DEFAULT_ADMIN_SECRET_KEY }).catch(() => {});
-      }
-      const keyDisplay = document.getElementById('settings-current-admin-key');
-      if (keyDisplay) keyDisplay.textContent = salonAdminKey;
 
       // 若 main_store 中的人員名單為空，但目前登入者舊資料庫(users/{uid})有人員，自動匯入至共享沙龍
       if ((!appState.staff || appState.staff.length === 0) && currentUser) {
@@ -84,8 +78,7 @@ function subscribeToCloudData() {
               await storeDocRef.set({
                 services: appState.services,
                 staff: appState.staff,
-                orders: appState.orders,
-                adminSecretKey: salonAdminKey
+                orders: appState.orders
               }, { merge: true });
             }
           }
@@ -120,8 +113,7 @@ function subscribeToCloudData() {
       await storeDocRef.set({
         services: appState.services,
         staff: appState.staff,
-        orders: appState.orders,
-        adminSecretKey: salonAdminKey
+        orders: appState.orders
       });
     }
 
@@ -173,8 +165,7 @@ async function syncDataToCloud() {
         await storeDocRef.set({
           services: appState.services,
           staff: appState.staff,
-          orders: appState.orders,
-          adminSecretKey: salonAdminKey
+          orders: appState.orders
         });
       } else {
         // 員工：僅同步客單明細（不可覆蓋服務設定與人員名單）

@@ -75,21 +75,24 @@ async function handleAuthSubmit(e) {
     if (isAuthSignUpMode) {
       const selectedRole = document.querySelector('input[name="auth-reg-role"]:checked')?.value || 'staff';
 
-      // 若註冊為管理員，嚴格比對授權密鑰
+      // 若註冊為管理員，取得授權密鑰之安全雜湊
+      let adminKeyHash = null;
       if (selectedRole === 'admin') {
         const inputKey = (document.getElementById('auth-admin-key')?.value || '').trim();
-        if (!inputKey || (inputKey !== salonAdminKey && inputKey !== DEFAULT_ADMIN_SECRET_KEY)) {
-          throw new Error('管理員授權密鑰不符！若您是一般員工，請切換身分為「一般員工」註冊。');
+        if (!inputKey) {
+          throw new Error('請輸入管理員授權密鑰！若您是一般員工，請切換身分為「員工」註冊。');
         }
+        adminKeyHash = await hashSecretKey(inputKey);
       }
 
       const cred = await firebase.auth().createUserWithEmailAndPassword(email, password);
 
-      // 將註冊資料寫入全店 salon_users 集合
+      // 將註冊資料寫入全店 salon_users 集合 (由 Firestore 安全規則比對 adminKeyHash)
       await db.collection('salon_users').doc(cred.user.uid).set({
         uid: cred.user.uid,
         email: email,
         role: selectedRole,
+        adminKeyHash: adminKeyHash,
         createdAt: new Date().toISOString()
       });
 
@@ -318,15 +321,12 @@ async function upgradeSelfToAdmin() {
     return;
   }
 
-  const validKey = salonAdminKey || DEFAULT_ADMIN_SECRET_KEY;
-  if (inputKey !== validKey && inputKey !== DEFAULT_ADMIN_SECRET_KEY) {
-    alert('管理員授權密鑰不符，請重新確認或洽詢沙龍負責人！');
-    return;
-  }
+  const inputHash = await hashSecretKey(inputKey);
 
   try {
     await db.collection('salon_users').doc(currentUser.uid).set({
       role: 'admin',
+      adminKeyHash: inputHash,
       email: currentUser.email || '',
       updatedAt: new Date().toISOString()
     }, { merge: true });
@@ -346,7 +346,7 @@ async function upgradeSelfToAdmin() {
     showToast('🎉 身分已成功升級為「店家管理員」！');
   } catch (err) {
     console.error('升級失敗:', err);
-    alert('升級管理員失敗：' + err.message);
+    alert('升級管理員失敗：授權密鑰不正確，請重新確認！');
   }
 }
 

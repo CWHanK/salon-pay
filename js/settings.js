@@ -67,16 +67,33 @@ function renderUsersTable() {
   if (window.lucide) lucide.createIcons();
 }
 
-// 修改沙龍管理員密鑰
+// 修改沙龍管理員密鑰 (以 SHA-256 雜湊儲存於獨立安全庫)
 async function changeAdminSecretKey() {
-  if (currentUserRole !== 'admin') return;
-  const newKey = prompt('請輸入新的沙龍管理員註冊密鑰（建議 6 碼以上）：', salonAdminKey);
-  if (newKey && newKey.trim().length >= 4) {
-    salonAdminKey = newKey.trim();
-    const keyDisplay = document.getElementById('settings-current-admin-key');
-    if (keyDisplay) keyDisplay.textContent = salonAdminKey;
-    await syncDataToCloud();
-    showToast('管理員註冊授權密鑰已更新！');
+  if (currentUserRole !== 'admin') {
+    alert('僅管理員有此操作權限！');
+    return;
+  }
+  const newKey = prompt('請輸入新的沙龍管理員授權密鑰（建議 6 碼以上）：');
+  if (!newKey || !newKey.trim()) return;
+
+  if (newKey.trim().length < 4) {
+    alert('密鑰長度建議至少 4 碼以上！');
+    return;
+  }
+
+  try {
+    const keyHash = await hashSecretKey(newKey.trim());
+    if (db) {
+      await db.collection('salon_secrets').doc('admin').set({
+        keyHash: keyHash,
+        updatedAt: new Date().toISOString()
+      });
+    }
+    salonAdminKeyHash = keyHash;
+    showToast('管理員授權密鑰已成功更新並加密儲存！');
+  } catch (err) {
+    console.error('更新密鑰失敗:', err);
+    alert('更新密鑰失敗：' + err.message);
   }
 }
 

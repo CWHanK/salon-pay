@@ -18,6 +18,6 @@ const DEFAULT_SERVICES = [
   { id: 'srv-12', name: '強力定型霧 (300ml)', price: 650, rate: 20, category: '產品銷售' }
 ];
 
-// 預設管理員註冊密鑰
-const DEFAULT_ADMIN_SECRET_KEY = "IMTHEBOSS";
+// 預設管理員密鑰 SHA-256 雜湊 (外部與原始碼中絕不儲存明文)
+const DEFAULT_ADMIN_KEY_HASH = "7c24a989f5192ed1e20715833ebd68517d8fd40d78a2209b795d582c4604a171";
 

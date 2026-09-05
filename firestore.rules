@@ -20,16 +20,21 @@ service cloud.firestore {
         getCurrentUserData().role == 'admin';
     }
 
+    // 驗證管理員授權密鑰 (SHA-256 雜湊比對，伺服器端驗證絕不外洩)
+    function isValidAdminSecret(inputHash) {
+      let hasCustom = exists(/databases/$(database)/documents/salon_secrets/admin);
+      return hasCustom 
+        ? inputHash == get(/databases/$(database)/documents/salon_secrets/admin).data.keyHash
+        : inputHash == '7c24a989f5192ed1e20715833ebd68517d8fd40d78a2209b795d582c4604a171';
+    }
+
     // ==========================================
     // 1. 全店共享沙龍資料 (salon_stores/main_store)
     // ==========================================
     match /salon_stores/{storeId} {
-      // 讀取：僅允許已通過 Firebase 登入之店內帳號讀取
       allow read: if isAuthenticated();
 
-      // 寫入：
-      // - 管理員具備完整權限（服務項目定價、人員名單、抽成趴數、註冊授權密鑰）
-      // - 一般員工僅能在登入狀態下更新 orders 客單陣列（開立客單與刪除自己單據），嚴禁篡改其他設定
+      // 管理員具完整權限；一般員工僅能更新 orders 客單陣列
       allow write: if isAdmin() || (
         isAuthenticated() &&
         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['orders'])
@@ -37,21 +42,45 @@ service cloud.firestore {
     }
 
     // ==========================================
-    // 2. 使用者身分與註冊名冊 (salon_users/{userId})
+    // 2. 獨立管理員機密庫 (salon_secrets/admin)
+    // 僅管理員可讀寫，一般員工絕無讀取權限！
+    // ==========================================
+    match /salon_secrets/{secretId} {
+      allow read, write: if isAdmin();
+    }
+
+    // ==========================================
+    // 3. 使用者身分與註冊名冊 (salon_users/{userId})
     // ==========================================
     match /salon_users/{userId} {
-      // 讀取：個人可讀取自己的身分資料；管理員可查閱全店已註冊清單以供綁定排班
       allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
 
-      // 建立與更新：本人可建立與更新自身身分資料（含憑密鑰升級或自主降級）；管理員具備完整權限
-      allow create, update: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      // 建立：員工可建立；註冊為管理員需通過密鑰雜湊比對
+      allow create: if isAuthenticated() && request.auth.uid == userId && (
+        request.resource.data.role == 'staff' ||
+        (
+          request.resource.data.role == 'admin' &&
+          isValidAdminSecret(request.resource.data.adminKeyHash)
+        )
+      );
+
+      // 更新：管理員可更新；本人可降級為員工；本人升級為管理員需通過密鑰雜湊比對
+      allow update: if isAdmin() || (
+        isAuthenticated() && request.auth.uid == userId && (
+          request.resource.data.role == 'staff' ||
+          (
+            request.resource.data.role == 'admin' &&
+            isValidAdminSecret(request.resource.data.adminKeyHash)
+          )
+        )
+      );
 
       // 刪除：僅管理員可刪除帳號紀錄
       allow delete: if isAdmin();
     }
 
     // ==========================================
-    // 3. 個人獨立舊備份相容區 (users/{userId})
+    // 4. 個人獨立舊備份相容區 (users/{userId})
     // ==========================================
     match /users/{userId} {
       allow read, write: if isAuthenticated() && request.auth.uid == userId;

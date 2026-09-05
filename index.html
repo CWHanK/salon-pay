@@ -641,11 +641,16 @@
       <div id="settings-admin-key-box" class="admin-only-block bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm p-4 space-y-2.5">
         <div class="flex items-center justify-between">
           <h3 class="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-            <i data-lucide="shield-check" class="w-4 h-4 text-amber-600"></i> 管理員註冊授權密鑰
+            <i data-lucide="shield-check" class="w-4 h-4 text-amber-600"></i> 管理員授權密鑰安全設定
           </h3>
-          <button onclick="changeAdminSecretKey()" class="text-xs text-amber-700 hover:text-amber-800 font-bold">修改密鑰</button>
+          <button type="button" onclick="changeAdminSecretKey()" class="px-2.5 py-1 text-xs font-bold text-amber-800 bg-amber-100/80 hover:bg-amber-200 rounded-xl transition">修改密鑰</button>
         </div>
-        <p class="text-[11px] text-slate-400">其他新管理員在註冊或由員工升級時需輸入此密鑰：<strong id="settings-current-admin-key" class="text-slate-700 font-mono bg-slate-100 px-2 py-0.5 rounded">IMTHEBOSS</strong></p>
+        <p class="text-[11px] text-slate-500 leading-relaxed">
+          密鑰狀態：<span id="settings-current-admin-key" class="font-mono bg-slate-100 text-slate-700 px-2 py-0.5 rounded font-bold">●●●●●●●● (已安全加密儲存)</span>
+        </p>
+        <p class="text-[10px] text-slate-400">
+          🔒 系統採用單向安全雜湊 (SHA-256)，密鑰絕不以明文儲存或於前台曝光。
+        </p>
       </div>
 
       <!-- 備份與清空 -->

@@ -238,6 +238,8 @@ function subscribeToCloudData(uid) {
 
     localStorage.setItem('SALON_PAY_LOCAL_CACHE', JSON.stringify(appState));
 
+    initHistoryFilters();
+    initMonthlyView();
     populateStaffDropdowns();
     initBillingForm();
     filterHistoryOrders();
@@ -324,14 +326,27 @@ function saveCloudConfig() {
   }
 }
 
-// ==========================================
+// 取得當前年份與月份字串 (例如: 2026-09)
+function getCurrentYearMonth() {
+  const now = new Date();
+  const yyyy = now.getFullYear();
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  return `${yyyy}-${mm}`;
+}
+
 // 日期與介面初始化
-// ==========================================
 function initCurrentDate() {
   const now = new Date();
   const dateStr = now.toISOString().split('T')[0];
   const dateInput = document.getElementById('billing-date');
   if (dateInput) dateInput.value = dateStr;
+
+  const currentYM = getCurrentYearMonth();
+  const historyMonth = document.getElementById('history-filter-month');
+  if (historyMonth) historyMonth.value = currentYM;
+
+  const monthlyMonth = document.getElementById('monthly-select-month');
+  if (monthlyMonth) monthlyMonth.value = currentYM;
 }
 
 // 檢查是否尚無人員，顯示提示引導
@@ -421,8 +436,12 @@ function switchTab(tabName) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 
   if (tabName === 'history') {
+    const monthInput = document.getElementById('history-filter-month');
+    if (monthInput && !monthInput.value) monthInput.value = getCurrentYearMonth();
     filterHistoryOrders();
   } else if (tabName === 'monthly') {
+    const monthInput = document.getElementById('monthly-select-month');
+    if (monthInput && !monthInput.value) monthInput.value = getCurrentYearMonth();
     calculateMonthlyPayroll();
   } else if (tabName === 'settings') {
     renderSettingsTables();
@@ -716,26 +735,25 @@ function resetBillingForm() {
 // ==========================================
 function initHistoryFilters() {
   const monthInput = document.getElementById('history-filter-month');
-  if (monthInput) {
-    const today = new Date();
-    const yyyy = today.getFullYear();
-    const mm = String(today.getMonth() + 1).padStart(2, '0');
-    monthInput.value = `${yyyy}-${mm}`;
+  if (monthInput && !monthInput.value) {
+    monthInput.value = getCurrentYearMonth();
   }
 }
 
 function clearHistoryFilters() {
-  const today = new Date();
-  const yyyy = today.getFullYear();
-  const mm = String(today.getMonth() + 1).padStart(2, '0');
-  document.getElementById('history-filter-month').value = `${yyyy}-${mm}`;
+  const monthInput = document.getElementById('history-filter-month');
+  if (monthInput) monthInput.value = getCurrentYearMonth();
   document.getElementById('history-filter-staff').value = 'ALL';
   document.getElementById('history-filter-search').value = '';
   filterHistoryOrders();
 }
 
 function filterHistoryOrders() {
-  const monthVal = document.getElementById('history-filter-month')?.value;
+  const monthInput = document.getElementById('history-filter-month');
+  if (monthInput && !monthInput.value) {
+    monthInput.value = getCurrentYearMonth();
+  }
+  const monthVal = monthInput?.value || getCurrentYearMonth();
   const staffVal = document.getElementById('history-filter-staff')?.value;
   const searchVal = document.getElementById('history-filter-search')?.value.trim().toLowerCase();
 
@@ -905,18 +923,19 @@ function exportHistoryToExcel() {
 // ==========================================
 function initMonthlyView() {
   const monthInput = document.getElementById('monthly-select-month');
-  if (monthInput) {
-    const today = new Date();
-    const yyyy = today.getFullYear();
-    const mm = String(today.getMonth() + 1).padStart(2, '0');
-    monthInput.value = `${yyyy}-${mm}`;
+  if (monthInput && !monthInput.value) {
+    monthInput.value = getCurrentYearMonth();
   }
 }
 
 function calculateMonthlyPayroll() {
-  const monthVal = document.getElementById('monthly-select-month')?.value;
+  const monthInput = document.getElementById('monthly-select-month');
+  if (monthInput && !monthInput.value) {
+    monthInput.value = getCurrentYearMonth();
+  }
+  const monthVal = monthInput?.value || getCurrentYearMonth();
   const staffId = document.getElementById('monthly-select-staff')?.value;
-  if (!monthVal || !staffId) return;
+  if (!staffId) return;
 
   const staff = appState.staff.find(s => s.id === staffId);
   if (!staff) return;

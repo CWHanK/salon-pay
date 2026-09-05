@@ -1,5 +1,5 @@
 /**
- * SalonPay - 系統設定：服務項目、工作人員與帳號管理 (js/settings.js)
+ * SalonFlow - 系統設定：服務項目、工作人員與帳號管理 (js/settings.js)
  */
 
 let currentStaffBindMode = 'select';
@@ -473,37 +473,6 @@ function backupDataToJson() {
   downloadAnchor.click();
   downloadAnchor.remove();
   showToast('已匯出系統備份檔案！');
-}
-
-function restoreDataFromJson(event) {
-  if (currentUserRole !== 'admin') {
-    alert('僅管理員有還原資料權限！');
-    return;
-  }
-  const file = event.target.files[0];
-  if (!file) return;
-
-  const reader = new FileReader();
-  reader.onload = async function(e) {
-    try {
-      const imported = JSON.parse(e.target.result);
-      if (imported.services && Array.isArray(imported.staff) && Array.isArray(imported.orders)) {
-        appState = imported;
-        await syncDataToCloud();
-        populateStaffDropdowns();
-        renderSettingsTables();
-        initBillingForm();
-        filterHistoryOrders();
-        calculateMonthlyPayroll();
-        showToast('資料還原並同步雲端成功！');
-      } else {
-        alert('檔案格式不正確！');
-      }
-    } catch (err) {
-      alert('解析 JSON 備份檔失敗：' + err.message);
-    }
-  };
-  reader.readAsText(file);
 }
 
 // ==================== 刪除已註冊帳號雙重安全確認機制 ====================

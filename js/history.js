@@ -1,5 +1,5 @@
 /**
- * SalonPay - 歷史帳單與每日流水 (js/history.js)
+ * SalonFlow - 歷史帳單與每日流水 (js/history.js)
  */
 
 function initHistoryFilters() {

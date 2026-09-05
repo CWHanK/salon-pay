@@ -1,5 +1,5 @@
 /**
- * SalonPay - 月薪結算與月報表 (js/monthly.js)
+ * SalonFlow - 月薪結算與月報表 (js/monthly.js)
  */
 
 function initMonthlyView() {

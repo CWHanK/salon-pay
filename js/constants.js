@@ -1,5 +1,5 @@
 /**
- * SalonPay - 系統靜態常數設定 (js/constants.js)
+ * SalonFlow - 系統靜態常數設定 (js/constants.js)
  */
 
 // 預設服務項目與預設抽成比例

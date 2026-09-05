@@ -1,5 +1,5 @@
 /**
- * SalonPay - 認證、登入與身分權限管理 (js/auth.js)
+ * SalonFlow - 認證、登入與身分權限管理 (js/auth.js)
  */
 
 // 切換登入 / 註冊 模式
@@ -38,10 +38,6 @@ function setAuthMode(isSignUp) {
     if (emailLabel) emailLabel.textContent = '自訂帳號';
   }
   if (window.lucide) lucide.createIcons();
-}
-
-function toggleAuthMode() {
-  setAuthMode(!isAuthSignUpMode);
 }
 
 // 註冊時切換身分單選按鈕

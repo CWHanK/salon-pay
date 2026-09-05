@@ -1,5 +1,5 @@
 /**
- * SalonPay - Firebase 雲端資料庫連線與同步管理 (js/firebase.js)
+ * SalonFlow - Firebase 雲端資料庫連線與同步管理 (js/firebase.js)
  */
 
 // 初始化 Firebase 雲端服務

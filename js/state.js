@@ -1,5 +1,5 @@
 /**
- * SalonPay - 系統狀態與輔助管理 (js/state.js)
+ * SalonFlow - 系統狀態與輔助管理 (js/state.js)
  */
 
 // 系統核心業務狀態

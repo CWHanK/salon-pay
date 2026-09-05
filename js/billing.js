@@ -1,5 +1,5 @@
 /**
- * SalonPay - 現場開單抽成試算 (js/billing.js)
+ * SalonFlow - 現場開單抽成試算 (js/billing.js)
  */
 
 // 渲染所有設計師下拉選單與開單設計師身分顯示
@@ -288,8 +288,6 @@ async function saveCurrentOrder() {
   const dateVal = document.getElementById('billing-date').value || new Date().toISOString().split('T')[0];
   const customer = document.getElementById('billing-customer').value.trim() || '現場顧客';
   const notes = document.getElementById('billing-notes').value.trim();
-  const assistantId = '';
-  const assistant = null;
 
   const itemsDetail = currentBillingRows.map(r => {
     const srv = appState.services.find(s => s.id === r.serviceId);
@@ -315,7 +313,6 @@ async function saveCurrentOrder() {
     totalCommission += item.commission;
   });
 
-  const assistantComm = 0;
   const salonNet = Math.max(0, totalAmount - totalCommission);
   const rawOrderNo = document.getElementById('billing-order-no').textContent.replace('單號：', '').trim();
 
@@ -350,8 +347,6 @@ function resetBillingForm() {
   if (custInput) custInput.value = '';
   const notesInput = document.getElementById('billing-notes');
   if (notesInput) notesInput.value = '';
-  const asstSelect = document.getElementById('billing-assistant-select');
-  if (asstSelect) asstSelect.value = '';
   const billingStaffInput = document.getElementById('billing-staff-select');
   if (billingStaffInput && currentLinkedStaff) {
     billingStaffInput.value = currentLinkedStaff.id;

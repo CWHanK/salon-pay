@@ -181,7 +181,7 @@
         <button onclick="switchTab('history')" id="tab-btn-history" class="tab-btn px-4 py-2 text-sm font-medium rounded-t-lg transition flex items-center gap-1.5 text-slate-600 hover:text-slate-900">
           <i data-lucide="receipt" class="w-4 h-4"></i> 歷史帳單與每日流水
         </button>
-        <button onclick="switchTab('monthly')" id="tab-btn-monthly" class="tab-btn px-4 py-2 text-sm font-medium rounded-t-lg transition flex items-center gap-1.5 text-slate-600 hover:text-slate-900">
+        <button onclick="switchTab('monthly')" id="tab-btn-monthly" class="admin-only-block tab-btn px-4 py-2 text-sm font-medium rounded-t-lg transition flex items-center gap-1.5 text-slate-600 hover:text-slate-900">
           <i data-lucide="calendar-check-2" class="w-4 h-4"></i> 月薪結算與月報表匯出
         </button>
         <button onclick="switchTab('settings')" id="tab-btn-settings" class="tab-btn px-4 py-2 text-sm font-medium rounded-t-lg transition flex items-center gap-1.5 text-slate-600 hover:text-slate-900">
@@ -359,8 +359,8 @@
 
     </section>
 
-    <!-- ==================== 分頁 3：月薪結算與月報表匯出 ==================== -->
-    <section id="tab-monthly" class="space-y-4 hidden">
+    <!-- ==================== 分頁 3：月薪結算與月報表匯出 (管理員專屬) ==================== -->
+    <section id="tab-monthly" class="admin-only-block space-y-4 hidden">
 
       <!-- 控制器 -->
       <div class="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm p-4 space-y-3">
@@ -670,7 +670,7 @@
       <i data-lucide="receipt" class="w-5 h-5 mb-0.5"></i>
       <span class="text-[11px]">歷史帳單</span>
     </button>
-    <button onclick="switchTab('monthly')" id="dock-btn-monthly" class="dock-item flex flex-col items-center justify-center p-1.5 text-slate-400 hover:text-amber-700 transition">
+    <button onclick="switchTab('monthly')" id="dock-btn-monthly" class="admin-only-block dock-item flex flex-col items-center justify-center p-1.5 text-slate-400 hover:text-amber-700 transition">
       <i data-lucide="calendar-check-2" class="w-5 h-5 mb-0.5"></i>
       <span class="text-[11px]">月薪結算</span>
     </button>

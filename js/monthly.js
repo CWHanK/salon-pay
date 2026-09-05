@@ -16,31 +16,7 @@ function calculateMonthlyPayroll() {
   }
   const monthVal = monthInput?.value || getCurrentYearMonth();
   
-  let staffId = document.getElementById('monthly-select-staff')?.value;
-  if (currentUserRole === 'staff') {
-    if (currentLinkedStaff) {
-      staffId = currentLinkedStaff.id;
-    } else {
-      document.getElementById('stat-month-clients').textContent = '0';
-      document.getElementById('stat-month-avg-ticket').textContent = '0';
-      document.getElementById('stat-month-revenue').textContent = '0';
-      document.getElementById('stat-month-commission').textContent = '0';
-      document.getElementById('stat-month-net-pay').textContent = '0';
-      const countBadge = document.getElementById('monthly-orders-count-badge');
-      if (countBadge) countBadge.textContent = '共 0 筆客單';
-      const tbody = document.getElementById('monthly-table-body');
-      if (tbody) {
-        tbody.innerHTML = `
-          <tr>
-            <td colspan="7" class="py-8 text-center text-amber-800 bg-amber-50 font-semibold">
-              ⚠️ 您的帳號尚未由管理員綁定店內人員身分，無法查閱個人工作明細。請聯繫管理員協助綁定。
-            </td>
-          </tr>
-        `;
-      }
-      return;
-    }
-  }
+  const staffId = document.getElementById('monthly-select-staff')?.value;
   if (!staffId) return;
 
   const staff = appState.staff.find(s => s.id === staffId);
@@ -112,13 +88,7 @@ function renderMonthlyOrdersTable(monthlyOrders, currentStaffId) {
     const isMain = order.staffId === currentStaffId;
     const earnedComm = isMain ? order.totalCommission : order.assistantCommission;
     const roleTag = isMain ? '' : '<span class="text-[10px] bg-blue-100 text-blue-700 px-1 rounded">助理獎勵</span>';
-    const itemsText = order.items.map(it => {
-      if (currentUserRole === 'staff') {
-        return `${it.name} (x${it.qty})`;
-      } else {
-        return `${it.name} ($${it.price}, 抽${it.rate}%)`;
-      }
-    }).join('、');
+    const itemsText = order.items.map(it => `${it.name} ($${it.price}, 抽${it.rate}%)`).join('、');
 
     return `
       <tr class="hover:bg-slate-50 transition text-xs">
@@ -129,8 +99,8 @@ function renderMonthlyOrdersTable(monthlyOrders, currentStaffId) {
           <div class="max-w-xs truncate text-slate-600" title="${itemsText}">${itemsText}</div>
         </td>
         <td class="px-3 py-2.5 text-right font-numeric font-bold text-slate-800 whitespace-nowrap">NT$ ${order.totalAmount.toLocaleString()}</td>
-        <td class="admin-only-cell px-3 py-2.5 text-right font-numeric font-extrabold text-amber-700 whitespace-nowrap">
-          ${currentUserRole === 'admin' ? `NT$ ${earnedComm.toLocaleString()} ${roleTag}` : ''}
+        <td class="px-3 py-2.5 text-right font-numeric font-extrabold text-amber-700 whitespace-nowrap">
+          NT$ ${earnedComm.toLocaleString()} ${roleTag}
         </td>
         <td class="px-3 py-2.5 text-slate-400 whitespace-nowrap">${order.notes || '-'}</td>
       </tr>
@@ -140,60 +110,18 @@ function renderMonthlyOrdersTable(monthlyOrders, currentStaffId) {
 
 function exportMonthlyReportExcel() {
   const monthVal = document.getElementById('monthly-select-month')?.value;
-  let staffId = document.getElementById('monthly-select-staff')?.value;
-  if (currentUserRole === 'staff') {
-    if (!currentLinkedStaff) {
-      alert('您的帳號尚未由管理員綁定店內人員身分，目前無工作明細可匯出！');
-      return;
-    }
-    staffId = currentLinkedStaff.id;
-  }
+  const staffId = document.getElementById('monthly-select-staff')?.value;
   const staff = appState.staff.find(s => s.id === staffId);
-  if (!staff || !monthVal) return;
+  if (!staff || !monthVal) {
+    alert('請先選擇欲結算匯出之員工！');
+    return;
+  }
 
   const monthlyOrders = appState.orders.filter(order => {
     return order.date.startsWith(monthVal) && (order.staffId === staffId || order.assistantId === staffId);
   });
 
   const wb = XLSX.utils.book_new();
-
-  // 若為員工，匯出個人專屬工作實績清單 (無敏感抽成與底薪)
-  if (currentUserRole === 'staff') {
-    let totalRev = 0;
-    const detailData = [];
-    monthlyOrders.forEach(o => {
-      const isMain = o.staffId === staffId;
-      totalRev += o.totalAmount;
-      o.items.forEach(it => {
-        detailData.push({
-          '服務日期': o.date,
-          '帳單編號': o.orderNo,
-          '顧客姓名': o.customer,
-          '消費服務項目': it.name,
-          '單價': it.price,
-          '數量': it.qty,
-          '小計金額': it.amount,
-          '備註': o.notes || ''
-        });
-      });
-    });
-
-    const summarySheetData = [
-      { '項目': '明細月份', '內容': monthVal },
-      { '項目': '人員姓名', '內容': staff.name },
-      { '項目': '本月完成服務客數', '內容': `${monthlyOrders.length} 人次` },
-      { '項目': '本月個人營業額總額', '內容': `NT$ ${totalRev.toLocaleString()}` }
-    ];
-    const wsSummary = XLSX.utils.json_to_sheet(summarySheetData);
-    XLSX.utils.book_append_sheet(wb, wsSummary, '工作成果摘要');
-
-    const wsDetail = XLSX.utils.json_to_sheet(detailData.length > 0 ? detailData : [{ '提示': '當月尚無客單資料' }]);
-    XLSX.utils.book_append_sheet(wb, wsDetail, '當月客單明細');
-
-    XLSX.writeFile(wb, `美髮沙龍個人當月工作明細_${staff.name}_${monthVal}.xlsx`);
-    showToast(`已匯出 ${staff.name} 的 ${monthVal} 工作明細 Excel！`);
-    return;
-  }
 
   // 管理員：完整月薪資結算總表與客單抽成明細
   const commission = parseFloat(document.getElementById('calc-commission')?.value) || 0;

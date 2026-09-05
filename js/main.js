@@ -27,6 +27,9 @@ function initCurrentDate() {
 
 // 分頁切換 (同步手機 Dock 與桌面 Tab)
 function switchTab(tabName) {
+  if (tabName === 'monthly' && currentUserRole === 'staff') {
+    tabName = 'history';
+  }
   const tabs = ['billing', 'history', 'monthly', 'settings'];
   tabs.forEach(t => {
     const el = document.getElementById(`tab-${t}`);

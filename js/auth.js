@@ -235,23 +235,12 @@ function applyRolePermissions() {
   if (adminName) adminName.textContent = currentLinkedStaff ? `${currentLinkedStaff.name} (店家管理員)` : `店家管理員 (${emailPrefix})`;
   if (adminEmail) adminEmail.textContent = `登入帳號: ${userEmail}`;
 
-  // 導覽列與 Dock 標籤文字
-  const dockMonthlyText = document.querySelector('#dock-btn-monthly span');
-  const tabMonthlyBtn = document.getElementById('tab-btn-monthly');
-
-  if (currentUserRole === 'staff') {
-    if (dockMonthlyText) dockMonthlyText.textContent = '當月工作';
-    if (tabMonthlyBtn) tabMonthlyBtn.innerHTML = '<i data-lucide="calendar-check-2" class="w-4 h-4"></i> 個人當月工作明細';
-
-    // 月檢視：隱藏列印薪資單按鈕
-    const printSlipBtn = document.getElementById('btn-print-salary-slip');
-    if (printSlipBtn) printSlipBtn.classList.add('hidden');
-  } else {
-    if (dockMonthlyText) dockMonthlyText.textContent = '月薪結算';
-    if (tabMonthlyBtn) tabMonthlyBtn.innerHTML = '<i data-lucide="calendar-check-2" class="w-4 h-4"></i> 月薪結算與月報表匯出';
-
-    const printSlipBtn = document.getElementById('btn-print-salary-slip');
-    if (printSlipBtn) printSlipBtn.classList.remove('hidden');
+  // 桌面導覽列設定標籤文字
+  const tabSettingsBtn = document.getElementById('tab-btn-settings');
+  if (tabSettingsBtn) {
+    tabSettingsBtn.innerHTML = currentUserRole === 'staff'
+      ? '<i data-lucide="sliders" class="w-4 h-4"></i> 帳號設定'
+      : '<i data-lucide="sliders" class="w-4 h-4"></i> 服務項目與人員管理';
   }
 
   if (window.lucide) lucide.createIcons();
@@ -330,7 +319,7 @@ async function demoteSelfToStaff() {
   if (!currentUser || !db) return;
 
   const otherAdmins = allRegisteredUsers.filter(u => u.uid !== currentUser.uid && u.role === 'admin');
-  let confirmMsg = '確定要將自己的帳號降級為「員工」身分嗎？\n\n降級後您將轉為員工模式，僅能查閱個人客單與當月工作明細，無法再進入管理員後台。';
+  let confirmMsg = '確定要將自己的帳號降級為「員工」身分嗎？\n\n降級後您將轉為員工模式，僅能現場開單與查閱個人歷史帳單，無法再進入月薪結算與後台管理。';
   if (otherAdmins.length === 0) {
     confirmMsg += '\n\n⚠️ 提醒：店內名單中目前無其他管理員帳號，降級後若需恢復管理權限，需由其他管理員在後台指定或於資料庫調整。';
   }

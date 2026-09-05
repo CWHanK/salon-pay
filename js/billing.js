@@ -75,26 +75,13 @@ function populateStaffDropdowns() {
   }
 
   if (monthlyStaff) {
-    if (currentUserRole === 'staff') {
-      if (currentLinkedStaff) {
-        monthlyStaff.innerHTML = `
-          <option value="${currentLinkedStaff.id}">${currentLinkedStaff.name} (本人)</option>
-        `;
-      } else {
-        monthlyStaff.innerHTML = `
-          <option value="">(尚未綁定人員)</option>
-        `;
-      }
-      monthlyStaff.disabled = true;
+    monthlyStaff.disabled = false;
+    if (appState.staff.length === 0) {
+      monthlyStaff.innerHTML = `<option value="">尚無人員資料</option>`;
     } else {
-      monthlyStaff.disabled = false;
-      if (appState.staff.length === 0) {
-        monthlyStaff.innerHTML = `<option value="">尚無人員資料</option>`;
-      } else {
-        monthlyStaff.innerHTML = appState.staff.map(s => `
-          <option value="${s.id}">${s.name}</option>
-        `).join('');
-      }
+      monthlyStaff.innerHTML = appState.staff.map(s => `
+        <option value="${s.id}">${s.name}</option>
+      `).join('');
     }
   }
 

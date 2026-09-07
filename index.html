@@ -558,21 +558,28 @@
 
       <!-- 服務項目設定（管理員專屬） -->
       <div id="settings-services-box" class="admin-only-block bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm p-4 sm:p-6 space-y-3">
-        <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-2 border-b border-slate-100 gap-2">
           <div>
             <h3 class="text-sm font-bold text-slate-900 flex items-center gap-1.5">
               <i data-lucide="scissors" class="w-4 h-4 text-amber-600"></i> 服務項目與抽成比例
             </h3>
             <p class="text-[11px] text-slate-400">可自訂各項美髮服務定價與抽成趴數</p>
           </div>
-          <button onclick="openServiceModal()" class="text-xs bg-amber-600 hover:bg-amber-700 text-white font-bold px-3 py-1.5 rounded-xl transition flex items-center gap-1">
-            <i data-lucide="plus" class="w-3.5 h-3.5"></i> 新增項目
-          </button>
+          <div class="flex items-center flex-wrap gap-2">
+            <span id="settings-services-count-badge" class="text-xs bg-amber-100 text-amber-800 font-bold px-2.5 py-1 rounded-xl">共 0 項服務</span>
+            <button type="button" id="btn-toggle-services-expand" onclick="toggleServicesExpand()" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-2.5 py-1.5 rounded-xl transition flex items-center gap-1" title="切換展開 / 收合視圖">
+              <i data-lucide="chevrons-down-up" class="w-3.5 h-3.5"></i>
+              <span id="text-toggle-services-expand">收合為捲動</span>
+            </button>
+            <button onclick="openServiceModal()" class="text-xs bg-amber-600 hover:bg-amber-700 text-white font-bold px-3 py-1.5 rounded-xl transition flex items-center gap-1">
+              <i data-lucide="plus" class="w-3.5 h-3.5"></i> 新增項目
+            </button>
+          </div>
         </div>
 
-        <div class="overflow-x-auto">
+        <div id="settings-services-scroll-container" class="overflow-x-auto transition-all duration-200">
           <table class="w-full text-left text-xs text-slate-600">
-            <thead class="bg-slate-50 sticky top-0 uppercase text-slate-500 font-semibold">
+            <thead class="bg-slate-50 sticky top-0 uppercase text-slate-500 font-semibold z-10">
               <tr>
                 <th class="px-3 py-2">項目名稱</th>
                 <th class="px-3 py-2 text-right">定價</th>
@@ -820,15 +827,21 @@
     </div>
   </div>
 
+  <!-- 全域浮動提示 (Toast) -->
+  <div id="toast" class="fixed bottom-20 sm:bottom-6 right-4 sm:right-6 bg-slate-900/95 text-white px-4 py-3 rounded-2xl shadow-xl z-50 flex items-center gap-2.5 text-sm transition-all duration-300 transform translate-y-12 opacity-0 pointer-events-none backdrop-blur-sm border border-slate-700/50">
+    <i data-lucide="check-circle-2" class="w-4.5 h-4.5 text-emerald-400 shrink-0"></i>
+    <span id="toast-message" class="font-medium">操作完成</span>
+  </div>
+
   <!-- 模組化業務邏輯 (Vanilla JS 架構) -->
-  <script src="js/constants.js?v=20260906_3"></script>
-  <script src="js/state.js?v=20260906_3"></script>
-  <script src="js/firebase.js?v=20260906_3"></script>
-  <script src="js/auth.js?v=20260906_3"></script>
-  <script src="js/billing.js?v=20260906_3"></script>
-  <script src="js/history.js?v=20260906_3"></script>
-  <script src="js/monthly.js?v=20260906_3"></script>
-  <script src="js/settings.js?v=20260906_3"></script>
-  <script src="js/main.js?v=20260906_3"></script>
+  <script src="js/constants.js?v=20260907_2"></script>
+  <script src="js/state.js?v=20260907_2"></script>
+  <script src="js/firebase.js?v=20260907_2"></script>
+  <script src="js/auth.js?v=20260907_2"></script>
+  <script src="js/billing.js?v=20260907_2"></script>
+  <script src="js/history.js?v=20260907_2"></script>
+  <script src="js/monthly.js?v=20260907_2"></script>
+  <script src="js/settings.js?v=20260907_2"></script>
+  <script src="js/main.js?v=20260907_2"></script>
 </body>
 </html>

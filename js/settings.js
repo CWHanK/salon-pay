@@ -182,6 +182,34 @@ async function changeAdminSecretKey() {
   }
 }
 
+// 服務項目列表是否完全展開 (預設 true: 完整展開一目了然；false: 收合為固定高度滾動)
+let isServicesListExpanded = localStorage.getItem('SALON_SERVICES_EXPANDED') !== 'false';
+
+function applyServicesExpandUI() {
+  const container = document.getElementById('settings-services-scroll-container');
+  const btn = document.getElementById('btn-toggle-services-expand');
+  if (!container || !btn) return;
+
+  if (isServicesListExpanded) {
+    container.classList.remove('max-h-[360px]', 'overflow-y-auto');
+    container.classList.add('overflow-y-visible');
+    btn.innerHTML = '<i data-lucide="chevrons-down-up" class="w-3.5 h-3.5"></i> <span id="text-toggle-services-expand">收合為捲動</span>';
+    btn.title = '點擊收合為固定高度捲動模式';
+  } else {
+    container.classList.add('max-h-[360px]', 'overflow-y-auto');
+    container.classList.remove('overflow-y-visible');
+    btn.innerHTML = '<i data-lucide="chevrons-up-down" class="w-3.5 h-3.5"></i> <span id="text-toggle-services-expand">展開全部</span>';
+    btn.title = '點擊展開全部項目一覽無遺';
+  }
+  if (window.lucide) lucide.createIcons();
+}
+
+function toggleServicesExpand() {
+  isServicesListExpanded = !isServicesListExpanded;
+  localStorage.setItem('SALON_SERVICES_EXPANDED', isServicesListExpanded ? 'true' : 'false');
+  applyServicesExpandUI();
+}
+
 // 渲染設定頁表格（服務項目與人員清單，僅管理員有權渲染）
 function renderSettingsTables() {
   if (currentUserRole !== 'admin') {
@@ -191,6 +219,12 @@ function renderSettingsTables() {
     if (staffTbody) staffTbody.innerHTML = '';
     return;
   }
+
+  const countBadge = document.getElementById('settings-services-count-badge');
+  if (countBadge) {
+    countBadge.textContent = `共 ${appState.services.length} 項服務`;
+  }
+  applyServicesExpandUI();
 
   const srvTbody = document.getElementById('settings-services-tbody');
   if (srvTbody) {

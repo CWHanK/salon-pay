@@ -128,18 +128,18 @@ function generateNewOrderNo() {
   }
 }
 
-// 新增一列服務項目
+// 新增一列服務項目 (預設為 ---請選擇項目---)
 function addServiceRow(presetServiceId = '') {
   const rowId = 'row-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
-  const defaultService = presetServiceId 
+  const matchedService = presetServiceId 
     ? appState.services.find(s => s.id === presetServiceId) 
-    : appState.services[0];
+    : null;
 
   const newRow = {
     rowId: rowId,
-    serviceId: defaultService ? defaultService.id : '',
-    price: defaultService ? defaultService.price : 0,
-    rate: defaultService ? defaultService.rate : 50,
+    serviceId: matchedService ? matchedService.id : '',
+    price: matchedService ? matchedService.price : 0,
+    rate: matchedService ? matchedService.rate : 0,
     qty: 1
   };
 
@@ -162,11 +162,17 @@ function onServiceSelectChange(rowId, selectedServiceId) {
   const row = currentBillingRows.find(r => r.rowId === rowId);
   if (!row) return;
 
-  const srv = appState.services.find(s => s.id === selectedServiceId);
-  if (srv) {
-    row.serviceId = srv.id;
-    row.price = srv.price;
-    row.rate = srv.rate;
+  if (!selectedServiceId) {
+    row.serviceId = '';
+    row.price = 0;
+    row.rate = 0;
+  } else {
+    const srv = appState.services.find(s => s.id === selectedServiceId);
+    if (srv) {
+      row.serviceId = srv.id;
+      row.price = srv.price;
+      row.rate = srv.rate;
+    }
   }
   renderBillingRows();
 }
@@ -206,6 +212,7 @@ function renderBillingRows() {
                 選擇服務項目
               </label>
               <select onchange="onServiceSelectChange('${row.rowId}', this.value)" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500">
+                <option value="" ${!row.serviceId ? 'selected' : ''}>---請選擇項目---</option>
                 ${appState.services.map(s => {
                   return `<option value="${s.id}" ${s.id === row.serviceId ? 'selected' : ''}>${s.name} [定價$${s.price}]</option>`;
                 }).join('')}
@@ -284,6 +291,13 @@ async function saveCurrentOrder() {
     return;
   }
 
+  // 檢查是否有尚未選擇項目的列
+  const unselectedRow = currentBillingRows.find(r => !r.serviceId);
+  if (unselectedRow) {
+    alert('請為所有項目選擇服務項目！');
+    return;
+  }
+
   // 管理員與員工開單同一套：直接綁定當前登入之人員身分
   if (!currentLinkedStaff) {
     if (currentUserRole === 'admin') {
@@ -292,6 +306,11 @@ async function saveCurrentOrder() {
     } else {
       alert('您的帳號尚未由管理員綁定店內人員身分，目前無法開單！請聯繫管理員協助綁定。');
     }
+    return;
+  }
+
+  // 二次確認開單
+  if (!confirm('確認開單？')) {
     return;
   }
 
@@ -347,7 +366,7 @@ async function saveCurrentOrder() {
   appState.orders.unshift(newOrder);
   await syncDataToCloud();
 
-  showToast(`開單成功！顧客消費 NT$ ${totalAmount.toLocaleString()}`);
+  showToast('開單成功！');
   resetBillingForm();
 }
 

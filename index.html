@@ -300,22 +300,22 @@
             <i data-lucide="calendar" class="w-3.5 h-3.5 text-amber-600"></i> 紀錄週期
           </span>
           <div class="inline-flex p-0.5 bg-slate-100 rounded-xl border border-slate-200 text-xs">
-            <button type="button" onclick="setHistoryPeriod('day')" id="period-btn-day" class="px-3.5 py-1 rounded-lg transition font-bold text-slate-600 hover:text-slate-900">日</button>
-            <button type="button" onclick="setHistoryPeriod('month')" id="period-btn-month" class="px-3.5 py-1 rounded-lg transition font-bold bg-amber-600 text-white shadow-sm">月</button>
+            <button type="button" onclick="setHistoryPeriod('day')" id="period-btn-day" class="px-3.5 py-1 rounded-lg transition font-bold bg-amber-600 text-white shadow-sm">日</button>
+            <button type="button" onclick="setHistoryPeriod('month')" id="period-btn-month" class="px-3.5 py-1 rounded-lg transition font-bold text-slate-600 hover:text-slate-900">月</button>
             <button type="button" onclick="setHistoryPeriod('year')" id="period-btn-year" class="px-3.5 py-1 rounded-lg transition font-bold text-slate-600 hover:text-slate-900">年</button>
           </div>
         </div>
 
         <!-- 篩選條件輸入欄位 -->
         <div class="grid grid-cols-2 gap-2.5">
-          <!-- 日 (預設隱藏) -->
-          <div id="history-filter-day-wrapper" class="min-w-0 hidden">
+          <!-- 日 (預設顯示) -->
+          <div id="history-filter-day-wrapper" class="min-w-0">
             <label class="block text-[11px] font-bold text-slate-600 mb-1">指定日期</label>
             <input type="date" id="history-filter-day" onchange="filterHistoryOrders()" class="w-full max-w-full appearance-none rounded-xl border border-slate-300 px-2.5 py-1.5 text-xs font-semibold bg-white">
           </div>
 
-          <!-- 月 (預設顯示) -->
-          <div id="history-filter-month-wrapper" class="min-w-0">
+          <!-- 月 (預設隱藏) -->
+          <div id="history-filter-month-wrapper" class="min-w-0 hidden">
             <label class="block text-[11px] font-bold text-slate-600 mb-1">指定月份</label>
             <input type="month" id="history-filter-month" onchange="filterHistoryOrders()" class="w-full max-w-full appearance-none rounded-xl border border-slate-300 px-2.5 py-1.5 text-xs font-semibold bg-white">
           </div>
@@ -570,7 +570,7 @@
           </button>
         </div>
 
-        <div class="overflow-x-auto max-h-[360px] overflow-y-auto">
+        <div class="overflow-x-auto">
           <table class="w-full text-left text-xs text-slate-600">
             <thead class="bg-slate-50 sticky top-0 uppercase text-slate-500 font-semibold">
               <tr>
@@ -592,7 +592,6 @@
             <h3 class="text-sm font-bold text-slate-900 flex items-center gap-1.5">
               <i data-lucide="users-round" class="w-4 h-4 text-amber-600"></i> 店家註冊帳號與管理員清單
             </h3>
-            <p class="text-[11px] text-slate-400">目前資料庫內所有註冊使用者與其身分（管理員 / 員工）</p>
           </div>
           <span id="settings-users-count-badge" class="text-xs bg-amber-100 text-amber-800 font-bold px-2.5 py-1 rounded-xl">共 0 個帳號</span>
         </div>

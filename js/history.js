@@ -2,8 +2,8 @@
  * SalonFlow - 歷史紀錄 (js/history.js)
  */
 
-// 當前歷史紀錄查詢週期：'day' | 'month' | 'year'（預設為 'month'）
-let currentHistoryPeriod = 'month';
+// 當前歷史紀錄查詢週期：'day' | 'month' | 'year'（預設為 'day'）
+let currentHistoryPeriod = 'day';
 
 function setHistoryPeriod(period) {
   if (currentHistoryPeriod === period) return;

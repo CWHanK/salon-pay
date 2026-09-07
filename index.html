@@ -233,8 +233,8 @@
       <!-- 開單表單核心區 -->
       <form id="billing-form" onsubmit="return false;" autocomplete="off" class="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm p-4 sm:p-6 space-y-4">
         
-        <!-- 人員、日期、顧客姓名 (手機一欄，電腦三欄) -->
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <!-- 人員、日期 (手機一欄，電腦兩欄) -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div class="min-w-0">
             <label class="block text-xs font-bold text-slate-700 mb-1">設計師 <span class="text-rose-500">*</span></label>
             <div id="billing-staff-display" class="w-full min-h-[42px] rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-800 flex items-center gap-2 transition select-none">
@@ -249,10 +249,6 @@
             <input type="date" id="billing-date" class="w-full max-w-full appearance-none rounded-xl border border-slate-300 px-3 py-2.5 text-sm focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 bg-white font-semibold">
           </div>
 
-          <div class="min-w-0">
-            <label class="block text-xs font-bold text-slate-700 mb-1">顧客姓名(選填)</label>
-            <input type="text" id="billing-customer" name="billing-customer-name" autocomplete="off" data-lpignore="true" data-1p-ignore="true" data-form-type="other" placeholder="例如：林小姐、王先生" class="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 bg-white">
-          </div>
         </div>
 
         <!-- 備註說明 -->
@@ -366,7 +362,7 @@
               <tr>
                 <th class="px-4 py-3">單號 / 日期</th>
                 <th class="px-4 py-3">設計師</th>
-                <th class="px-4 py-3">顧客</th>
+                <th class="px-4 py-3">備註</th>
                 <th class="px-4 py-3">服務項目</th>
                 <th class="px-4 py-3 text-right">實收金額</th>
                 <th class="px-4 py-3 text-right admin-only-cell">抽成金額</th>
@@ -483,7 +479,7 @@
             <h3 class="text-sm font-bold text-slate-900 flex items-center gap-1.5">
               <i data-lucide="calendar-days" class="w-4 h-4 text-amber-600"></i> 當月客單服務明細
             </h3>
-            <p class="text-[11px] text-slate-400">完整列出該月份承接之顧客、項目、實付金額與備註</p>
+            <p class="text-[11px] text-slate-400">完整列出該月份客單、項目、實付金額與備註</p>
           </div>
           <span id="monthly-orders-count-badge" class="text-xs bg-amber-100 text-amber-800 font-bold px-2.5 py-1 rounded-xl">共 0 筆客單</span>
         </div>
@@ -494,7 +490,6 @@
               <tr>
                 <th class="px-3 py-2.5 whitespace-nowrap">服務日期</th>
                 <th class="px-3 py-2.5 whitespace-nowrap">單號</th>
-                <th class="px-3 py-2.5 whitespace-nowrap">顧客</th>
                 <th class="px-3 py-2.5">服務項目</th>
                 <th class="px-3 py-2.5 text-right whitespace-nowrap">實收金額</th>
                 <th class="px-3 py-2.5 text-right whitespace-nowrap admin-only-cell">抽成金額</th>

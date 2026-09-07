@@ -77,7 +77,7 @@ function renderMonthlyOrdersTable(monthlyOrders, currentStaffId) {
   if (monthlyOrders.length === 0) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="7" class="py-8 text-center text-slate-400">
+        <td colspan="6" class="py-8 text-center text-slate-400">
           該月份尚無服務客單紀錄
         </td>
       </tr>
@@ -95,7 +95,6 @@ function renderMonthlyOrdersTable(monthlyOrders, currentStaffId) {
       <tr class="hover:bg-slate-50 transition text-xs">
         <td class="px-3 py-2.5 whitespace-nowrap font-medium text-slate-800">${order.date}</td>
         <td class="px-3 py-2.5 whitespace-nowrap font-mono text-slate-500">${order.orderNo}</td>
-        <td class="px-3 py-2.5 whitespace-nowrap font-semibold text-slate-900">${order.customer}</td>
         <td class="px-3 py-2.5">
           <div class="max-w-xs truncate text-slate-600" title="${itemsText}">${itemsText}</div>
         </td>
@@ -149,7 +148,6 @@ function exportMonthlyReportExcel() {
       detailData.push({
         '服務日期': o.date,
         '帳單號': o.orderNo,
-        '顧客姓名': o.customer,
         '消費服務項目': it.name,
         '單價': it.price,
         '數量': it.qty,
@@ -244,7 +242,6 @@ function printSalarySlip() {
           <tr style="background: #f1f5f9;">
             <th style="border: 1px solid #cbd5e1; padding: 5px;">日期</th>
             <th style="border: 1px solid #cbd5e1; padding: 5px;">單號</th>
-            <th style="border: 1px solid #cbd5e1; padding: 5px;">顧客</th>
             <th style="border: 1px solid #cbd5e1; padding: 5px;">服務項目</th>
             <th style="border: 1px solid #cbd5e1; padding: 5px; text-align: right;">客單總額</th>
             <th style="border: 1px solid #cbd5e1; padding: 5px; text-align: right;">抽成收入</th>
@@ -255,7 +252,6 @@ function printSalarySlip() {
             <tr>
               <td style="border: 1px solid #cbd5e1; padding: 4px 6px;">${o.date}</td>
               <td style="border: 1px solid #cbd5e1; padding: 4px 6px;">${o.orderNo}</td>
-              <td style="border: 1px solid #cbd5e1; padding: 4px 6px;">${o.customer}</td>
               <td style="border: 1px solid #cbd5e1; padding: 4px 6px;">${o.items.map(i => `${i.name}`).join('、')}</td>
               <td style="border: 1px solid #cbd5e1; padding: 4px 6px; text-align: right;">$${o.totalAmount.toLocaleString()}</td>
               <td style="border: 1px solid #cbd5e1; padding: 4px 6px; text-align: right; font-weight: bold;">$${(o.staffId === staffId ? o.totalCommission : o.assistantCommission).toLocaleString()}</td>

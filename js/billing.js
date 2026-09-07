@@ -298,7 +298,6 @@ async function saveCurrentOrder() {
   const staff = currentLinkedStaff;
 
   const dateVal = document.getElementById('billing-date').value || (typeof getLocalDateString === 'function' ? getLocalDateString() : new Date().toISOString().split('T')[0]);
-  const customer = document.getElementById('billing-customer').value.trim() || '現場顧客';
   const notes = document.getElementById('billing-notes').value.trim();
 
   const itemsDetail = currentBillingRows.map(r => {
@@ -336,7 +335,6 @@ async function saveCurrentOrder() {
     staffName: staff.name,
     assistantId: '',
     assistantName: '',
-    customer: customer,
     notes: notes,
     items: itemsDetail,
     totalAmount: totalAmount,
@@ -355,8 +353,6 @@ async function saveCurrentOrder() {
 
 // 重設開單表單
 function resetBillingForm() {
-  const custInput = document.getElementById('billing-customer');
-  if (custInput) custInput.value = '';
   const notesInput = document.getElementById('billing-notes');
   if (notesInput) notesInput.value = '';
   const billingStaffInput = document.getElementById('billing-staff-select');

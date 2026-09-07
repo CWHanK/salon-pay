@@ -184,6 +184,20 @@ function filterHistoryOrders() {
   renderHistoryView(filtered);
 }
 
+// 使用客單儲存的實際單價與小計，避免服務定價變更影響歷史金額。
+function renderHistoryItemPrices(items) {
+  return items.map(item => {
+    const amount = item.amount ?? item.price * item.qty;
+    const name = String(item.name).replace(/[&<>"']/g, char => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    })[char]);
+    return `<div class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+      <span>${name}<span class="block text-[11px] text-slate-500">單價 NT$ ${item.price.toLocaleString()} × ${item.qty}</span></span>
+      <strong class="font-numeric text-slate-800 whitespace-nowrap">實收 NT$ ${amount.toLocaleString()}</strong>
+    </div>`;
+  }).join('');
+}
+
 function renderHistoryView(ordersList) {
   if (!currentUser) return;
   const tbody = document.getElementById('history-table-body');
@@ -220,7 +234,7 @@ function renderHistoryView(ordersList) {
       <div class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-sm space-y-2.5">
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-2">
-            <span class="font-bold text-slate-900 text-sm">${order.customer}</span>
+            <span class="font-bold text-slate-900 text-sm">${order.orderNo}</span>
             <span class="text-xs bg-amber-50 text-amber-800 font-semibold px-2 py-0.5 rounded-full">${order.staffName}</span>
           </div>
           <button onclick="deleteOrder('${order.id}')" class="text-slate-400 hover:text-rose-600 p-1">
@@ -228,8 +242,8 @@ function renderHistoryView(ordersList) {
           </button>
         </div>
 
-        <div class="text-xs text-slate-600 flex flex-wrap gap-1">
-          ${order.items.map(it => `<span class="bg-slate-100 px-2 py-0.5 rounded">${it.name} (x${it.qty})</span>`).join('')}
+        <div class="text-xs text-slate-600 space-y-2">
+          ${renderHistoryItemPrices(order.items)}
         </div>
 
         <div class="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
@@ -256,11 +270,10 @@ function renderHistoryView(ordersList) {
           ${order.assistantName ? `<div class="text-[11px] text-blue-600">助：${order.assistantName}</div>` : ''}
         </td>
         <td class="px-4 py-3">
-          <div class="font-semibold text-slate-800">${order.customer}</div>
-          ${order.notes ? `<div class="text-[11px] text-slate-400 line-clamp-1">${order.notes}</div>` : ''}
+          <div class="text-[11px] text-slate-500">${order.notes || '—'}</div>
         </td>
         <td class="px-4 py-3">
-          <div>${order.items.map(i => `${i.name} (x${i.qty})`).join('、')}</div>
+          <div class="space-y-2">${renderHistoryItemPrices(order.items)}</div>
         </td>
         <td class="px-4 py-3 text-right font-numeric font-bold text-slate-800">NT$ ${order.totalAmount.toLocaleString()}</td>
         <td class="admin-only-cell px-4 py-3 text-right font-numeric font-extrabold text-amber-700">${currentUserRole === 'admin' ? `NT$ ${order.totalCommission.toLocaleString()}` : ''}</td>
@@ -348,7 +361,6 @@ function exportHistoryToExcel() {
         exportData.push({
           '服務日期': o.date,
           '帳單編號': o.orderNo,
-          '顧客姓名': o.customer,
           '消費服務項目': it.name,
           '單價': it.price,
           '數量': it.qty,
@@ -361,7 +373,6 @@ function exportHistoryToExcel() {
           '服務日期': o.date,
           '帳單編號': o.orderNo,
           '主作人員': o.staffName,
-          '顧客姓名': o.customer,
           '消費服務項目': it.name,
           '單價': it.price,
           '數量': it.qty,

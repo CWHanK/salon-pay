@@ -27,6 +27,44 @@ function select(value = '') {
   };
 }
 
+test('desktop and mobile history show saved item receipts without customer names', () => {
+  const { elements, run } = setup(['history']);
+  elements.set('history-table-body', {});
+  elements.set('history-cards-mobile', {});
+  run(`currentUser = {uid:'user'}; currentUserRole = 'staff';
+    appState.services = [{id:'cut', price:9999}];
+    renderHistoryView([{id:'o',orderNo:'T-001',date:'2026-09-07',staffName:'A',
+      customer:'OLD_CUSTOMER_NAME',notes:'',totalAmount:800,totalCommission:400,
+      items:[{name:'Cut <special>',price:450,qty:2,amount:800}]}]);`);
+  for (const id of ['history-table-body', 'history-cards-mobile']) {
+    const html = elements.get(id).innerHTML;
+    assert.match(html, /單價 NT\$ 450 × 2/);
+    assert.match(html, /實收 NT\$ 800/);
+    assert.match(html, /Cut &lt;special&gt;/);
+    assert.doesNotMatch(html, /OLD_CUSTOMER_NAME|9999|NT\$ 400/);
+  }
+  assert.match(run("renderHistoryItemPrices([{name:'Free',price:100,qty:2,amount:0}])"), /實收 NT\$ 0/);
+  assert.match(run("renderHistoryItemPrices([{name:'Legacy',price:100,qty:2}])"), /實收 NT\$ 200/);
+});
+
+test('saving and resetting an order works without a customer field', async () => {
+  let synced = 0;
+  const { elements, run } = setup(['billing'], {
+    syncDataToCloud: async () => { synced++; }, showToast() {}
+  });
+  elements.set('billing-date', { value:'2026-09-07' });
+  elements.set('billing-notes', { value:'note' });
+  elements.set('billing-order-no', { textContent:'單號：T-001' });
+  run(`appState.staff = [{id:'a',name:'A'}]; currentLinkedStaff = appState.staff[0];
+    appState.services = [{id:'cut',name:'Cut',price:500,rate:50}];
+    currentBillingRows = [{serviceId:'cut',price:450,rate:50,qty:2}];`);
+  await run('saveCurrentOrder()');
+  assert.equal(synced, 1);
+  assert.equal(run('appState.orders[0].totalAmount'), 900);
+  assert.equal(run("Object.hasOwn(appState.orders[0], 'customer')"), false);
+  assert.equal(elements.get('billing-notes').value, '');
+});
+
 test('editing price and quantity updates both the row subtotal and summary', () => {
   const { elements, run } = setup(['billing']);
   for (const id of ['r-subtotal', 'summary-card-total-amount', 'summary-card-items-count']) {

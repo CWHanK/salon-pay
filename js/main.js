@@ -71,6 +71,7 @@ function switchTab(tabName) {
     calculateMonthlyPayroll();
   } else if (tabName === 'settings') {
     renderSettingsTables();
+    if (typeof renderVersionInfo === 'function') renderVersionInfo();
   }
 
   if (window.lucide) lucide.createIcons();
@@ -96,5 +97,8 @@ function showToast(msg) {
 document.addEventListener('DOMContentLoaded', () => {
   initCurrentDate();
   initFirebase();
+  if (typeof initVersionChecker === 'function') {
+    initVersionChecker();
+  }
   if (window.lucide) lucide.createIcons();
 });

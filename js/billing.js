@@ -113,8 +113,11 @@ function checkStaffEmptyState() {
 // 初始化開單表單
 function initBillingForm() {
   generateNewOrderNo();
-  currentBillingRows = [];
-  addServiceRow();
+  const restored = restoreBillingDraftFromStorage();
+  if (!restored) {
+    currentBillingRows = [];
+    addServiceRow();
+  }
 }
 
 // 自動生成單號
@@ -310,7 +313,7 @@ async function saveCurrentOrder() {
   }
 
   // 二次確認開單
-  if (!confirm('確認開單？')) {
+  if (typeof confirm === 'function' && !confirm('確認開單？')) {
     return;
   }
 
@@ -372,6 +375,12 @@ async function saveCurrentOrder() {
 
 // 重設開單表單
 function resetBillingForm() {
+  try {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem('SALON_BILLING_DRAFT');
+    }
+  } catch (e) {}
+
   const notesInput = document.getElementById('billing-notes');
   if (notesInput) notesInput.value = '';
   const billingStaffInput = document.getElementById('billing-staff-select');
@@ -382,3 +391,54 @@ function resetBillingForm() {
   currentBillingRows = [];
   addServiceRow();
 }
+
+// 暫存開單草稿至 LocalStorage (在系統強制更新或意外重載前呼叫)
+function saveBillingDraftToStorage() {
+  try {
+    if (typeof localStorage === 'undefined') return;
+    const hasMeaningfulItems = currentBillingRows && currentBillingRows.some(r => r.serviceId || (r.price && r.price > 0));
+    const notes = document.getElementById('billing-notes')?.value || '';
+    const date = document.getElementById('billing-date')?.value || '';
+    if (hasMeaningfulItems || (notes && notes.trim())) {
+      const draft = {
+        rows: currentBillingRows,
+        notes: notes,
+        date: date,
+        savedAt: Date.now()
+      };
+      localStorage.setItem('SALON_BILLING_DRAFT', JSON.stringify(draft));
+    }
+  } catch (e) {
+    console.warn('暫存開單草稿失敗:', e);
+  }
+}
+
+// 從 LocalStorage 還原開單草稿 (僅保留 24 小時內之草稿)
+function restoreBillingDraftFromStorage() {
+  try {
+    if (typeof localStorage === 'undefined') return false;
+    const raw = localStorage.getItem('SALON_BILLING_DRAFT');
+    if (!raw) return false;
+    const draft = JSON.parse(raw);
+    if (draft && Array.isArray(draft.rows) && draft.rows.length > 0 && (Date.now() - (draft.savedAt || 0) < 24 * 3600 * 1000)) {
+      currentBillingRows = draft.rows;
+      if (typeof renderBillingRows === 'function') {
+        renderBillingRows();
+      }
+      if (draft.notes) {
+        const notesEl = document.getElementById('billing-notes');
+        if (notesEl) notesEl.value = draft.notes;
+      }
+      if (draft.date) {
+        const dateEl = document.getElementById('billing-date');
+        if (dateEl) dateEl.value = draft.date;
+      }
+      localStorage.removeItem('SALON_BILLING_DRAFT');
+      return true;
+    }
+  } catch (e) {
+    console.warn('還原開單草稿失敗:', e);
+  }
+  return false;
+}
+

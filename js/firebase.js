@@ -61,6 +61,14 @@ function subscribeToCloudData() {
   unsubscribeFirestore = storeDocRef.onSnapshot(async doc => {
     if (doc.exists) {
       const data = sanitizeOldMockData(doc.data());
+
+      // 若雲端文件指定了強制版本號且與本地不同，立刻觸發秒級更新
+      if (data && data.appVersion && typeof triggerAppUpdate === 'function' && typeof CURRENT_APP_VERSION !== 'undefined' && data.appVersion !== CURRENT_APP_VERSION) {
+        console.log(`[Firebase] 偵測到 Firestore 即時版本推播: ${data.appVersion}`);
+        triggerAppUpdate(data.appVersion);
+        return;
+      }
+
       appState.services = data.services || [...DEFAULT_SERVICES];
       appState.staff = data.staff || [];
       appState.orders = data.orders || [];

@@ -2,6 +2,9 @@
  * SalonFlow - 系統靜態常數設定 (js/constants.js)
  */
 
+// 系統當前版本 (部署新版本時與 version.json 保持一致)
+const APP_VERSION = '20260907_3';
+
 // 預設服務項目 (全新空白沙龍首創時使用，抽成率預設為 0，需由管理員於後台設定)
 const DEFAULT_SERVICES = [
   { id: 'srv-1', name: '造型剪髮 (含基礎洗)', price: 800, rate: 0, category: '技術服務' },

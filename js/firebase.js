@@ -56,6 +56,7 @@ function subscribeToCloudData() {
   if (!db) return;
 
   const storeDocRef = db.collection('salon_stores').doc('main_store');
+  let billingInitialized = false;
 
   unsubscribeFirestore = storeDocRef.onSnapshot(async doc => {
     if (doc.exists) {
@@ -124,7 +125,11 @@ function subscribeToCloudData() {
     initHistoryFilters();
     initMonthlyView();
     populateStaffDropdowns();
-    initBillingForm();
+    // 即時資料更新不可重設正在輸入的客單；僅在訂閱首次載入時初始化。
+    if (!billingInitialized) {
+      billingInitialized = true;
+      initBillingForm();
+    }
     filterHistoryOrders();
     calculateMonthlyPayroll();
     renderSettingsTables();

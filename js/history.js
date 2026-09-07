@@ -72,7 +72,7 @@ function populateHistoryYearOptions() {
   if (!yearSelect) return;
   const currentYear = new Date().getFullYear();
   const years = new Set([currentYear, currentYear - 1]);
-  if (window.appState && appState.orders) {
+  if (appState.orders) {
     appState.orders.forEach(o => {
       if (o.date) {
         const y = parseInt(o.date.split('-')[0], 10);

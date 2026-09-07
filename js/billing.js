@@ -9,6 +9,8 @@ function populateStaffDropdowns() {
   const billingStaffDisplay = document.getElementById('billing-staff-display');
   const historyStaff = document.getElementById('history-filter-staff');
   const monthlyStaff = document.getElementById('monthly-select-staff');
+  const previousHistoryStaff = historyStaff?.value;
+  const previousMonthlyStaff = monthlyStaff?.value;
 
   updateLinkedStaff();
 
@@ -83,6 +85,14 @@ function populateStaffDropdowns() {
         <option value="${s.id}">${s.name}</option>
       `).join('');
     }
+  }
+
+  if (historyStaff && currentUserRole === 'admin' &&
+      (previousHistoryStaff === 'ALL' || appState.staff.some(s => s.id === previousHistoryStaff))) {
+    historyStaff.value = previousHistoryStaff;
+  }
+  if (monthlyStaff && appState.staff.some(s => s.id === previousMonthlyStaff)) {
+    monthlyStaff.value = previousMonthlyStaff;
   }
 
   checkStaffEmptyState();
@@ -225,7 +235,7 @@ function renderBillingRows() {
         <div class="pt-2 border-t border-slate-200/60 flex items-center justify-end gap-3 text-xs">
           <div>
             <span class="text-slate-500 text-[11px]">小計金額:</span>
-            <strong class="text-slate-900 font-numeric text-sm font-bold">NT$ ${itemTotal.toLocaleString()}</strong>
+            <strong id="${row.rowId}-subtotal" class="text-slate-900 font-numeric text-sm font-bold">NT$ ${itemTotal.toLocaleString()}</strong>
           </div>
         </div>
 
@@ -246,6 +256,8 @@ function updateRowCalculations() {
   currentBillingRows.forEach(row => {
     const itemTotal = row.price * row.qty;
     const itemComm = Math.round(itemTotal * (row.rate / 100));
+    const subtotalEl = document.getElementById(`${row.rowId}-subtotal`);
+    if (subtotalEl) subtotalEl.textContent = `NT$ ${itemTotal.toLocaleString()}`;
 
     totalAmount += itemTotal;
     totalCommission += itemComm;

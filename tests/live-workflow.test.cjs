@@ -39,13 +39,16 @@ test('desktop and mobile history show saved item receipts without customer names
   for (const id of ['history-table-body', 'history-cards-mobile']) {
     const html = elements.get(id).innerHTML;
     assert.match(html, /單價 NT\$ 450 × 2/);
-    assert.match(html, /實收 NT\$ 800/);
+    assert.match(html, /NT\$ 800/);
     assert.match(html, /Cut &lt;special&gt;/);
     assert.match(html, /15:20/);
     assert.doesNotMatch(html, /OLD_CUSTOMER_NAME|9999|NT\$ 400/);
   }
-  assert.match(run("renderHistoryItemPrices([{name:'Free',price:100,qty:2,amount:0}])"), /實收 NT\$ 0/);
-  assert.match(run("renderHistoryItemPrices([{name:'Legacy',price:100,qty:2}])"), /實收 NT\$ 200/);
+  // 電腦端表格服務項目內不再多出重複的「實收 NT$」標註
+  assert.doesNotMatch(elements.get('history-table-body').innerHTML, /實收 NT\$/);
+  // 手機卡片底部顯示實收總額
+  assert.match(elements.get('history-cards-mobile').innerHTML, /實收: <strong.*?>NT\$ 800<\/strong>/);
+  assert.match(run("renderHistoryItemPrices([{name:'Hair',price:500,qty:2}])"), /單價 NT\$ 500 × 2/);
 });
 
 test('history empty hint displays correct message for bound vs unbound staff with 0 orders', () => {

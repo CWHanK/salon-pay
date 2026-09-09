@@ -186,16 +186,15 @@ function getOrderTimeDisplay(order) {
   return '';
 }
 
-// 使用客單儲存的實際單價與小計，避免服務定價變更影響歷史金額。
+// 渲染歷史客單之服務項目與單價數量（移除項目內多餘的實收標註，金額統一由「實收金額」欄位呈現）
 function renderHistoryItemPrices(items) {
   return items.map(item => {
-    const amount = item.amount ?? item.price * item.qty;
     const name = String(item.name).replace(/[&<>"']/g, char => ({
       '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
     })[char]);
-    return `<div class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-      <span>${name}<span class="block text-[11px] text-slate-500">單價 NT$ ${item.price.toLocaleString()} × ${item.qty}</span></span>
-      <strong class="font-numeric text-slate-800 whitespace-nowrap">實收 NT$ ${amount.toLocaleString()}</strong>
+    return `<div class="space-y-0.5">
+      <span class="font-medium text-slate-800">${name}</span>
+      <span class="block text-[11px] text-slate-500 font-mono">單價 NT$ ${item.price.toLocaleString()} × ${item.qty}</span>
     </div>`;
   }).join('');
 }

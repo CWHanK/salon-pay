@@ -10,11 +10,22 @@ test('DEFAULT_REGISTRATION_KEY_HASH is a valid 64-char hex hash in constants', (
   assert.match(constantsJs, /DEFAULT_REGISTRATION_KEY_HASH\s*=\s*['"]8f48ecba137b707f170ce4fa4970c16ed27cd22a3deb33f558840f830692ef25['"]/);
 });
 
+test('DEFAULT_ADMIN_KEY_HASH is a valid 64-char hex hash in constants', () => {
+  const constantsJs = readFileSync(join(__dirname, '../js/constants.js'), 'utf8');
+  assert.match(constantsJs, /DEFAULT_ADMIN_KEY_HASH\s*=\s*['"]f365f5a9b76e95c1bf942df99b79063005ccc85a9d96aadbf846aa0ab72cca09['"]/);
+});
+
 test('firestore.rules contains isValidRegistrationSecret with expected hash', () => {
   const rules = readFileSync(join(__dirname, '../firestore.rules'), 'utf8');
   assert.match(rules, /function isValidRegistrationSecret\(inputHash\)/);
   assert.match(rules, /8f48ecba137b707f170ce4fa4970c16ed27cd22a3deb33f558840f830692ef25/);
   assert.match(rules, /isValidRegistrationSecret\(request\.resource\.data\.regKeyHash\)/);
+});
+
+test('firestore.rules contains isValidAdminSecret with expected hash', () => {
+  const rules = readFileSync(join(__dirname, '../firestore.rules'), 'utf8');
+  assert.match(rules, /function isValidAdminSecret\(inputHash\)/);
+  assert.match(rules, /f365f5a9b76e95c1bf942df99b79063005ccc85a9d96aadbf846aa0ab72cca09/);
 });
 
 test('auth UI controls: registration key is required for both staff and admin in signup mode', () => {

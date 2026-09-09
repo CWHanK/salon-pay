@@ -21,7 +21,7 @@ const FIREBASE_API_KEY = "AIzaSyC5k5ySWZkH7l0Bo0KLG1qb6Rfy-rimY74";
 const PROJECT_ID = "salon-pay-9b2a0";
 const VIRTUAL_EMAIL_DOMAIN = "@salon.local";
 const DEFAULT_REG_HASH = "8f48ecba137b707f170ce4fa4970c16ed27cd22a3deb33f558840f830692ef25";
-const DEFAULT_ADMIN_HASH = "7c24a989f5192ed1e20715833ebd68517d8fd40d78a2209b795d582c4604a171";
+const DEFAULT_ADMIN_HASH = "f365f5a9b76e95c1bf942df99b79063005ccc85a9d96aadbf846aa0ab72cca09";
 
 const DEFAULT_SERVICES = [
   { id: 'srv-1', name: '造型剪髮 (含基礎洗)', price: 800, rate: 0, category: '技術服務' },

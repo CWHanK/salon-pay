@@ -22,7 +22,7 @@ const DEFAULT_SERVICES = [
 ];
 
 // 預設管理員密鑰 SHA-256 雜湊 (外部與原始碼中絕不儲存明文)
-const DEFAULT_ADMIN_KEY_HASH = "7c24a989f5192ed1e20715833ebd68517d8fd40d78a2209b795d582c4604a171";
+const DEFAULT_ADMIN_KEY_HASH = "f365f5a9b76e95c1bf942df99b79063005ccc85a9d96aadbf846aa0ab72cca09";
 
 // 預設店家註冊密鑰 SHA-256 雜湊 (外部與原始碼中絕不儲存明文)
 const DEFAULT_REGISTRATION_KEY_HASH = "8f48ecba137b707f170ce4fa4970c16ed27cd22a3deb33f558840f830692ef25";

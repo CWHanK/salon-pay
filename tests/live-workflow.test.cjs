@@ -47,6 +47,23 @@ test('desktop and mobile history show saved item receipts without customer names
   assert.match(run("renderHistoryItemPrices([{name:'Legacy',price:100,qty:2}])"), /實收 NT\$ 200/);
 });
 
+test('history empty hint displays correct message for bound vs unbound staff with 0 orders', () => {
+  const { elements, run } = setup(['history']);
+  const emptyHint = { className: '', classList: { add() {}, remove() {} }, innerHTML: '' };
+  elements.set('history-table-body', {});
+  elements.set('history-cards-mobile', {});
+  elements.set('history-empty-hint', emptyHint);
+
+  // 1. Bound staff with 0 orders: shows normal empty hint
+  run("currentUser = {uid:'user'}; currentUserRole = 'staff'; currentLinkedStaff = {id:'s1', name:'developer2'}; renderHistoryView([])");
+  assert.match(emptyHint.innerHTML, /尚無符合條件的客單紀錄/);
+  assert.doesNotMatch(emptyHint.innerHTML, /尚未由管理員綁定/);
+
+  // 2. Unbound staff: shows unbound warning
+  run("currentLinkedStaff = null; renderHistoryView([])");
+  assert.match(emptyHint.innerHTML, /您的帳號尚未由管理員綁定店內人員身分/);
+});
+
 test('saving and resetting an order works without a customer field', async () => {
   let synced = 0;
   const { elements, run } = setup(['billing'], {

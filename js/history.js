@@ -131,20 +131,8 @@ function filterHistoryOrders() {
     if (currentLinkedStaff) {
       effectiveStaffId = currentLinkedStaff.id;
     } else {
-      // 員工尚未綁定店內人員身分，絕不能看全店流水！顯示空列表與專屬提示
+      // 員工尚未綁定店內人員身分，絕不能看全店流水！顯示空列表與未綁定提示
       renderHistoryView([]);
-      const emptyHint = document.getElementById('history-empty-hint');
-      if (emptyHint) {
-        emptyHint.classList.remove('hidden');
-        emptyHint.innerHTML = `
-          <div class="p-6 text-center text-amber-800 bg-amber-50 rounded-2xl border border-amber-200">
-            <i data-lucide="shield-alert" class="w-8 h-8 mx-auto mb-2 text-amber-600"></i>
-            <p class="text-sm font-bold">您的帳號尚未由管理員綁定店內人員身分</p>
-            <p class="text-xs text-slate-500 mt-1">為保障店內隱私，請聯繫管理員完成帳號綁定，綁定後即可在此查閱個人歷史紀錄。</p>
-          </div>
-        `;
-        if (window.lucide) lucide.createIcons();
-      }
       return;
     }
   }
@@ -222,7 +210,26 @@ function renderHistoryView(ordersList) {
   if (ordersList.length === 0) {
     if (tbody) tbody.innerHTML = '';
     if (cardsContainer) cardsContainer.innerHTML = '';
-    if (emptyHint) emptyHint.classList.remove('hidden');
+    if (emptyHint) {
+      emptyHint.classList.remove('hidden');
+      if (currentUserRole === 'staff' && !currentLinkedStaff) {
+        emptyHint.className = 'py-6';
+        emptyHint.innerHTML = `
+          <div class="p-6 text-center text-amber-800 bg-amber-50 rounded-2xl border border-amber-200">
+            <i data-lucide="shield-alert" class="w-8 h-8 mx-auto mb-2 text-amber-600"></i>
+            <p class="text-sm font-bold">您的帳號尚未由管理員綁定店內人員身分</p>
+            <p class="text-xs text-slate-500 mt-1">為保障店內隱私，請聯繫管理員完成帳號綁定，綁定後即可在此查閱個人歷史紀錄。</p>
+          </div>
+        `;
+      } else {
+        emptyHint.className = 'py-12 text-center text-slate-400';
+        emptyHint.innerHTML = `
+          <i data-lucide="inbox" class="w-10 h-10 mx-auto mb-2 opacity-50"></i>
+          <p class="text-xs">尚無符合條件的客單紀錄</p>
+        `;
+      }
+      if (window.lucide) lucide.createIcons();
+    }
     return;
   }
 

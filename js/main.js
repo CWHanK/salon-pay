@@ -17,6 +17,10 @@ function initCurrentDate() {
   const dateInput = document.getElementById('billing-date');
   if (dateInput) dateInput.value = dateStr;
 
+  const timeStr = typeof getLocalTimeString === 'function' ? getLocalTimeString(now) : now.toTimeString().slice(0, 5);
+  const timeInput = document.getElementById('billing-time');
+  if (timeInput && !timeInput.value) timeInput.value = timeStr;
+
   const currentYM = getCurrentYearMonth();
   const historyMonth = document.getElementById('history-filter-month');
   if (historyMonth) historyMonth.value = currentYM;

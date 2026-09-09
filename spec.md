@@ -132,6 +132,7 @@ interface Order {
   id: string;          // 訂單編號 (如 ord-timestamp)
   orderNo: string;     // 顯示流水單號 (如 T-20260905-XXXX)
   date: string;        // 服務日期 (YYYY-MM-DD)
+  time?: string;       // 開單時間 (HH:mm)
   staffId: string;     // 主作人員 ID
   staffName: string;   // 主作人員姓名
   notes: string;       // 備註說明

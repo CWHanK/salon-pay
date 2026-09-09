@@ -3,7 +3,7 @@
  */
 
 // 系統當前版本 (部署新版本時與 version.json 保持一致)
-const APP_VERSION = '20260909_3';
+const APP_VERSION = '20260909_4';
 
 // 預設服務項目 (全新空白沙龍首創時使用，抽成率預設為 0，需由管理員於後台設定)
 const DEFAULT_SERVICES = [
@@ -56,6 +56,13 @@ function getLocalDateString(d = new Date()) {
   const mm = String(d.getMonth() + 1).padStart(2, '0');
   const dd = String(d.getDate()).padStart(2, '0');
   return `${yyyy}-${mm}-${dd}`;
+}
+
+// 取得本地時間字串 (HH:mm)，提供開單預設時間
+function getLocalTimeString(d = new Date()) {
+  const hh = String(d.getHours()).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  return `${hh}:${mm}`;
 }
 
 

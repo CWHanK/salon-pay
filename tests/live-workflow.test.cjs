@@ -27,13 +27,13 @@ function select(value = '') {
   };
 }
 
-test('desktop and mobile history show saved item receipts without customer names', () => {
+test('desktop and mobile history show saved item receipts without customer names and include time', () => {
   const { elements, run } = setup(['history']);
   elements.set('history-table-body', {});
   elements.set('history-cards-mobile', {});
   run(`currentUser = {uid:'user'}; currentUserRole = 'staff';
     appState.services = [{id:'cut', price:9999}];
-    renderHistoryView([{id:'o',orderNo:'T-001',date:'2026-09-07',staffName:'A',
+    renderHistoryView([{id:'o',orderNo:'T-001',date:'2026-09-07',time:'15:20',staffName:'A',
       customer:'OLD_CUSTOMER_NAME',notes:'',totalAmount:800,totalCommission:400,
       items:[{name:'Cut <special>',price:450,qty:2,amount:800}]}]);`);
   for (const id of ['history-table-body', 'history-cards-mobile']) {
@@ -41,6 +41,7 @@ test('desktop and mobile history show saved item receipts without customer names
     assert.match(html, /單價 NT\$ 450 × 2/);
     assert.match(html, /實收 NT\$ 800/);
     assert.match(html, /Cut &lt;special&gt;/);
+    assert.match(html, /15:20/);
     assert.doesNotMatch(html, /OLD_CUSTOMER_NAME|9999|NT\$ 400/);
   }
   assert.match(run("renderHistoryItemPrices([{name:'Free',price:100,qty:2,amount:0}])"), /實收 NT\$ 0/);
@@ -70,6 +71,7 @@ test('saving and resetting an order works without a customer field', async () =>
     syncDataToCloud: async () => { synced++; }, showToast() {}
   });
   elements.set('billing-date', { value:'2026-09-07' });
+  elements.set('billing-time', { value:'16:45' });
   elements.set('billing-notes', { value:'note' });
   elements.set('billing-order-no', { textContent:'單號：T-001' });
   run(`appState.staff = [{id:'a',name:'A'}]; currentLinkedStaff = appState.staff[0];
@@ -78,6 +80,7 @@ test('saving and resetting an order works without a customer field', async () =>
   await run('saveCurrentOrder()');
   assert.equal(synced, 1);
   assert.equal(run('appState.orders[0].totalAmount'), 900);
+  assert.equal(run('appState.orders[0].time'), '16:45');
   assert.equal(run("Object.hasOwn(appState.orders[0], 'customer')"), false);
   assert.equal(elements.get('billing-notes').value, '');
 });

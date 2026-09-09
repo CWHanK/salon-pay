@@ -172,6 +172,20 @@ function filterHistoryOrders() {
   renderHistoryView(filtered);
 }
 
+// 取得客單開單時間（優先取用 time 欄位，若舊客單無 time 則自 createdAt 解析本地時間）
+function getOrderTimeDisplay(order) {
+  if (order.time) return order.time;
+  if (order.createdAt) {
+    try {
+      const d = new Date(order.createdAt);
+      if (!isNaN(d.getTime())) {
+        return typeof getLocalTimeString === 'function' ? getLocalTimeString(d) : `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+      }
+    } catch (_) {}
+  }
+  return '';
+}
+
 // 使用客單儲存的實際單價與小計，避免服務定價變更影響歷史金額。
 function renderHistoryItemPrices(items) {
   return items.map(item => {
@@ -237,7 +251,9 @@ function renderHistoryView(ordersList) {
 
   // 手機專屬卡片流
   if (cardsContainer) {
-    cardsContainer.innerHTML = ordersList.map(order => `
+    cardsContainer.innerHTML = ordersList.map(order => {
+      const timeDisplay = getOrderTimeDisplay(order);
+      return `
       <div class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-sm space-y-2.5">
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-2">
@@ -254,23 +270,26 @@ function renderHistoryView(ordersList) {
         </div>
 
         <div class="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
-          <span class="text-slate-400 font-mono">${order.date}</span>
+          <span class="text-slate-400 font-mono">${order.date}${timeDisplay ? ` <span class="text-slate-600 font-semibold ml-1">${timeDisplay}</span>` : ''}</span>
           <div class="flex items-center gap-3">
             <span class="text-slate-600">實收: <strong>NT$ ${order.totalAmount.toLocaleString()}</strong></span>
             ${currentUserRole === 'admin' ? `<span class="admin-only-inline text-amber-700 font-bold text-sm font-numeric">抽: NT$ ${order.totalCommission.toLocaleString()}</span>` : ''}
           </div>
         </div>
       </div>
-    `).join('');
+    `;
+    }).join('');
   }
 
   // 電腦端表格
   if (tbody) {
-    tbody.innerHTML = ordersList.map(order => `
+    tbody.innerHTML = ordersList.map(order => {
+      const timeDisplay = getOrderTimeDisplay(order);
+      return `
       <tr class="hover:bg-slate-50/80 transition text-xs">
         <td class="px-4 py-3 whitespace-nowrap">
           <div class="font-mono font-semibold text-slate-800">${order.orderNo}</div>
-          <div class="text-slate-400">${order.date}</div>
+          <div class="text-slate-400 font-mono">${order.date}${timeDisplay ? ` <span class="text-slate-600 font-semibold text-[11px] ml-0.5">${timeDisplay}</span>` : ''}</div>
         </td>
         <td class="px-4 py-3 whitespace-nowrap">
           <div class="font-medium text-slate-900">${order.staffName}</div>
@@ -290,7 +309,8 @@ function renderHistoryView(ordersList) {
           </button>
         </td>
       </tr>
-    `).join('');
+    `;
+    }).join('');
   }
 
   if (window.lucide) lucide.createIcons();
@@ -367,6 +387,7 @@ function exportHistoryToExcel() {
       if (currentUserRole === 'staff') {
         exportData.push({
           '服務日期': o.date,
+          '開單時間': getOrderTimeDisplay(o),
           '帳單編號': o.orderNo,
           '消費服務項目': it.name,
           '單價': it.price,
@@ -378,6 +399,7 @@ function exportHistoryToExcel() {
       } else {
         exportData.push({
           '服務日期': o.date,
+          '開單時間': getOrderTimeDisplay(o),
           '帳單編號': o.orderNo,
           '主作人員': o.staffName,
           '消費服務項目': it.name,

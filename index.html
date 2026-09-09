@@ -248,9 +248,9 @@
       <!-- 開單表單核心區 -->
       <form id="billing-form" onsubmit="return false;" autocomplete="off" class="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm p-4 sm:p-6 space-y-4">
         
-        <!-- 人員、日期 (手機一欄，電腦兩欄) -->
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div class="min-w-0">
+        <!-- 人員、日期、開單時間 (手機一欄，電腦彈性三欄) -->
+        <div class="grid grid-cols-1 sm:grid-cols-12 gap-3">
+          <div class="min-w-0 sm:col-span-6">
             <label class="block text-xs font-bold text-slate-700 mb-1">設計師 <span class="text-rose-500">*</span></label>
             <div id="billing-staff-display" class="w-full min-h-[42px] rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-800 flex items-center gap-2 transition select-none">
               <i data-lucide="user-check" class="w-4 h-4 text-amber-600 shrink-0"></i>
@@ -259,11 +259,15 @@
             </div>
           </div>
 
-          <div class="min-w-0">
+          <div class="min-w-0 sm:col-span-3">
             <label class="block text-xs font-bold text-slate-700 mb-1">服務日期 <span class="text-rose-500">*</span></label>
             <input type="date" id="billing-date" class="w-full max-w-full appearance-none rounded-xl border border-slate-300 px-3 py-2.5 text-sm focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 bg-white font-semibold">
           </div>
 
+          <div class="min-w-0 sm:col-span-3">
+            <label class="block text-xs font-bold text-slate-700 mb-1">開單時間 <span class="text-rose-500">*</span></label>
+            <input type="time" id="billing-time" class="w-full max-w-full appearance-none rounded-xl border border-slate-300 px-3 py-2.5 text-sm focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 bg-white font-semibold font-mono">
+          </div>
         </div>
 
         <!-- 備註說明 -->
@@ -375,7 +379,7 @@
           <table class="w-full text-left text-sm text-slate-600">
             <thead class="bg-slate-50 border-b border-slate-200 text-xs uppercase text-slate-500 font-semibold">
               <tr>
-                <th class="px-4 py-3">單號 / 日期</th>
+                <th class="px-4 py-3">單號 / 日期時間</th>
                 <th class="px-4 py-3">設計師</th>
                 <th class="px-4 py-3">備註</th>
                 <th class="px-4 py-3">服務項目</th>
@@ -901,15 +905,15 @@
   </div>
 
   <!-- 模組化業務邏輯 (Vanilla JS 架構) -->
-  <script src="js/constants.js?v=20260909_3"></script>
-  <script src="js/state.js?v=20260909_3"></script>
-  <script src="js/version.js?v=20260909_3"></script>
-  <script src="js/firebase.js?v=20260909_3"></script>
-  <script src="js/auth.js?v=20260909_3"></script>
-  <script src="js/billing.js?v=20260909_3"></script>
-  <script src="js/history.js?v=20260909_3"></script>
-  <script src="js/monthly.js?v=20260909_3"></script>
-  <script src="js/settings.js?v=20260909_3"></script>
-  <script src="js/main.js?v=20260909_3"></script>
+  <script src="js/constants.js?v=20260909_4"></script>
+  <script src="js/state.js?v=20260909_4"></script>
+  <script src="js/version.js?v=20260909_4"></script>
+  <script src="js/firebase.js?v=20260909_4"></script>
+  <script src="js/auth.js?v=20260909_4"></script>
+  <script src="js/billing.js?v=20260909_4"></script>
+  <script src="js/history.js?v=20260909_4"></script>
+  <script src="js/monthly.js?v=20260909_4"></script>
+  <script src="js/settings.js?v=20260909_4"></script>
+  <script src="js/main.js?v=20260909_4"></script>
 </body>
 </html>

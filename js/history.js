@@ -211,13 +211,26 @@ function renderHistoryView(ordersList) {
 
   let sumRev = 0;
   let sumComm = 0;
+  let activeCount = 0;
+  let deletedCount = 0;
 
   ordersList.forEach(o => {
-    sumRev += o.totalAmount;
-    sumComm += o.totalCommission;
+    if (o.isDeleted) {
+      deletedCount++;
+    } else {
+      activeCount++;
+      sumRev += o.totalAmount;
+      sumComm += o.totalCommission;
+    }
   });
 
-  if (countEl) countEl.textContent = ordersList.length;
+  if (countEl) {
+    if (deletedCount > 0) {
+      countEl.innerHTML = `${activeCount} <span class="text-xs font-normal text-slate-400">(作廢 ${deletedCount} 筆)</span>`;
+    } else {
+      countEl.textContent = activeCount;
+    }
+  }
   if (totalRevEl) totalRevEl.textContent = `NT$ ${sumRev.toLocaleString()}`;
   if (totalCommEl) totalCommEl.textContent = `NT$ ${sumComm.toLocaleString()}`;
 
@@ -253,27 +266,42 @@ function renderHistoryView(ordersList) {
   if (cardsContainer) {
     cardsContainer.innerHTML = ordersList.map(order => {
       const timeDisplay = getOrderTimeDisplay(order);
+      const isDel = !!order.isDeleted;
+      const delTimeStr = isDel ? (typeof formatDateTime === 'function' ? formatDateTime(order.deletedAt) : (order.deletedAt || '')) : '';
+
       return `
-      <div class="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-sm space-y-2.5">
+      <div class="rounded-2xl p-4 border shadow-sm space-y-2.5 transition ${isDel ? 'bg-slate-50/90 border-rose-200/80 text-slate-400' : 'bg-white border-slate-200/80'}">
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-2">
-            <span class="font-bold text-slate-900 text-sm">${order.orderNo}</span>
-            <span class="text-xs bg-amber-50 text-amber-800 font-semibold px-2 py-0.5 rounded-full">${order.staffName}</span>
+            <span class="font-bold text-sm ${isDel ? 'line-through text-slate-500' : 'text-slate-900'}">${order.orderNo}</span>
+            <span class="text-xs ${isDel ? 'bg-slate-200 text-slate-600' : 'bg-amber-50 text-amber-800'} font-semibold px-2 py-0.5 rounded-full">${order.staffName}</span>
+            ${isDel ? `<span class="text-[10px] font-bold bg-rose-100 text-rose-700 border border-rose-200 px-1.5 py-0.5 rounded-md">已作廢</span>` : ''}
           </div>
-          <button onclick="deleteOrder('${order.id}')" class="text-slate-400 hover:text-rose-600 p-1">
-            <i data-lucide="trash-2" class="w-4 h-4"></i>
-          </button>
+          ${isDel ? `
+            <span class="text-[11px] text-rose-500 font-semibold px-1 py-0.5 select-none">已作廢</span>
+          ` : `
+            <button onclick="deleteOrder('${order.id}')" class="text-slate-400 hover:text-rose-600 p-1" title="作廢客單">
+              <i data-lucide="trash-2" class="w-4 h-4"></i>
+            </button>
+          `}
         </div>
 
-        <div class="text-xs text-slate-600 space-y-2">
+        ${isDel ? `
+          <div class="text-[11px] text-rose-700 bg-rose-50/90 p-2 rounded-xl border border-rose-100 flex items-center gap-1.5">
+            <i data-lucide="alert-circle" class="w-3.5 h-3.5 shrink-0 text-rose-600"></i>
+            <span>由 <strong>${order.deletedByName || '未知'}</strong> 於 ${delTimeStr} 刪除作廢</span>
+          </div>
+        ` : ''}
+
+        <div class="text-xs ${isDel ? 'text-slate-400 line-through opacity-70' : 'text-slate-600'} space-y-2">
           ${renderHistoryItemPrices(order.items)}
         </div>
 
         <div class="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
-          <span class="text-slate-400 font-mono">${order.date}${timeDisplay ? ` <span class="text-slate-600 font-semibold ml-1">${timeDisplay}</span>` : ''}</span>
+          <span class="text-slate-400 font-mono">${order.date}${timeDisplay ? ` <span class="${isDel ? 'text-slate-400' : 'text-slate-600 font-semibold'} ml-1">${timeDisplay}</span>` : ''}</span>
           <div class="flex items-center gap-3">
-            <span class="text-slate-600">實收: <strong>NT$ ${order.totalAmount.toLocaleString()}</strong></span>
-            ${currentUserRole === 'admin' ? `<span class="admin-only-inline text-amber-700 font-bold text-sm font-numeric">抽: NT$ ${order.totalCommission.toLocaleString()}</span>` : ''}
+            <span class="${isDel ? 'text-slate-400' : 'text-slate-600'}">實收: <strong class="${isDel ? 'line-through text-slate-400' : ''}">NT$ ${order.totalAmount.toLocaleString()}</strong>${isDel ? ' <span class="text-[10px] text-rose-500 font-normal">(不計)</span>' : ''}</span>
+            ${currentUserRole === 'admin' ? `<span class="admin-only-inline ${isDel ? 'text-slate-400' : 'text-amber-700'} font-bold text-sm font-numeric">抽: <span class="${isDel ? 'line-through' : ''}">NT$ ${order.totalCommission.toLocaleString()}</span></span>` : ''}
           </div>
         </div>
       </div>
@@ -285,28 +313,44 @@ function renderHistoryView(ordersList) {
   if (tbody) {
     tbody.innerHTML = ordersList.map(order => {
       const timeDisplay = getOrderTimeDisplay(order);
+      const isDel = !!order.isDeleted;
+      const delTimeStr = isDel ? (typeof formatDateTime === 'function' ? formatDateTime(order.deletedAt) : (order.deletedAt || '')) : '';
+
       return `
-      <tr class="hover:bg-slate-50/80 transition text-xs">
+      <tr class="hover:bg-slate-50/80 transition text-xs ${isDel ? 'bg-rose-50/30 text-slate-400' : ''}">
         <td class="px-4 py-3 whitespace-nowrap">
-          <div class="font-mono font-semibold text-slate-800">${order.orderNo}</div>
-          <div class="text-slate-400 font-mono">${order.date}${timeDisplay ? ` <span class="text-slate-600 font-semibold text-[11px] ml-0.5">${timeDisplay}</span>` : ''}</div>
+          <div class="flex items-center gap-1.5">
+            <div class="font-mono font-semibold ${isDel ? 'line-through text-slate-500' : 'text-slate-800'}">${order.orderNo}</div>
+            ${isDel ? `<span class="text-[10px] font-bold bg-rose-100 text-rose-700 border border-rose-200 px-1 py-0.2 rounded">已作廢</span>` : ''}
+          </div>
+          <div class="text-slate-400 font-mono">${order.date}${timeDisplay ? ` <span class="${isDel ? 'text-slate-400' : 'text-slate-600 font-semibold'} text-[11px] ml-0.5">${timeDisplay}</span>` : ''}</div>
+          ${isDel ? `<div class="text-[10px] text-rose-600 mt-0.5">⚠️ 由 ${order.deletedByName || '未知'} 於 ${delTimeStr} 刪除</div>` : ''}
         </td>
         <td class="px-4 py-3 whitespace-nowrap">
-          <div class="font-medium text-slate-900">${order.staffName}</div>
+          <div class="font-medium ${isDel ? 'text-slate-500' : 'text-slate-900'}">${order.staffName}</div>
           ${order.assistantName ? `<div class="text-[11px] text-blue-600">助：${order.assistantName}</div>` : ''}
         </td>
         <td class="px-4 py-3">
           <div class="text-[11px] text-slate-500">${order.notes || '—'}</div>
         </td>
         <td class="px-4 py-3">
-          <div class="space-y-2">${renderHistoryItemPrices(order.items)}</div>
+          <div class="space-y-2 ${isDel ? 'line-through opacity-70' : ''}">${renderHistoryItemPrices(order.items)}</div>
         </td>
-        <td class="px-4 py-3 text-right font-numeric font-bold text-slate-800">NT$ ${order.totalAmount.toLocaleString()}</td>
-        <td class="admin-only-cell px-4 py-3 text-right font-numeric font-extrabold text-amber-700">${currentUserRole === 'admin' ? `NT$ ${order.totalCommission.toLocaleString()}` : ''}</td>
+        <td class="px-4 py-3 text-right font-numeric font-bold ${isDel ? 'text-slate-400' : 'text-slate-800'}">
+          <span class="${isDel ? 'line-through' : ''}">NT$ ${order.totalAmount.toLocaleString()}</span>
+          ${isDel ? `<div class="text-[10px] text-rose-500 font-normal">(作廢不計)</div>` : ''}
+        </td>
+        <td class="admin-only-cell px-4 py-3 text-right font-numeric font-extrabold ${isDel ? 'text-slate-400' : 'text-amber-700'}">
+          ${currentUserRole === 'admin' ? `<span class="${isDel ? 'line-through' : ''}">NT$ ${order.totalCommission.toLocaleString()}</span>` : ''}
+        </td>
         <td class="px-4 py-3 text-center">
-          <button onclick="deleteOrder('${order.id}')" class="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg hover:bg-rose-50 transition">
-            <i data-lucide="trash-2" class="w-4 h-4"></i>
-          </button>
+          ${isDel ? `
+            <span class="text-[11px] text-rose-400 font-medium select-none">已作廢</span>
+          ` : `
+            <button onclick="deleteOrder('${order.id}')" class="text-slate-400 hover:text-rose-600 p-1.5 rounded-lg hover:bg-rose-50 transition" title="作廢客單">
+              <i data-lucide="trash-2" class="w-4 h-4"></i>
+            </button>
+          `}
         </td>
       </tr>
     `;
@@ -319,17 +363,31 @@ function renderHistoryView(ordersList) {
 async function deleteOrder(orderId) {
   const order = appState.orders.find(o => o.id === orderId);
   if (!order) return;
+  if (order.isDeleted) {
+    alert('此客單已處於作廢狀態！');
+    return;
+  }
   if (currentUserRole === 'staff') {
     if (!currentLinkedStaff || order.staffId !== currentLinkedStaff.id) {
       alert('您僅能管理自己開立的客單！');
       return;
     }
   }
-  if (!confirm('確定要刪除這筆客單嗎？（將同步從雲端刪除）')) return;
-  appState.orders = appState.orders.filter(o => o.id !== orderId);
+  if (!confirm('確定要作廢此筆客單嗎？（系統將保留作廢稽核紀錄並同步至雲端）')) return;
+
+  // 軟刪除：保留資料並標記刪除者身分與時間
+  order.isDeleted = true;
+  order.deletedAt = new Date().toISOString();
+  order.deletedBy = currentUser ? (currentUser.uid || '') : '';
+  const deleterName = currentLinkedStaff
+    ? `${currentLinkedStaff.name}${currentUserRole === 'admin' ? ' (管理員)' : ''}`
+    : (currentUserRole === 'admin' ? '管理員' : (currentUser?.displayName || currentUser?.email || '店內人員'));
+  order.deletedByName = deleterName;
+  order.deletedByRole = currentUserRole;
+
   await syncDataToCloud();
   filterHistoryOrders();
-  showToast('客單已從雲端刪除');
+  showToast('客單已標記作廢，並記錄刪除人員與時間');
 }
 
 function exportHistoryToExcel() {
@@ -383,24 +441,30 @@ function exportHistoryToExcel() {
 
   const exportData = [];
   filtered.forEach(o => {
+    const isDel = !!o.isDeleted;
+    const delAudit = isDel ? `由 ${o.deletedByName || '未知'} 於 ${typeof formatDateTime === 'function' ? formatDateTime(o.deletedAt) : (o.deletedAt || '')} 刪除` : '';
+
     o.items.forEach(it => {
       if (currentUserRole === 'staff') {
         exportData.push({
           '服務日期': o.date,
           '開單時間': getOrderTimeDisplay(o),
           '帳單編號': o.orderNo,
+          '單況': isDel ? '已作廢(不計入)' : '有效',
           '消費服務項目': it.name,
           '單價': it.price,
           '數量': it.qty,
           '小計金額': it.amount,
           '整單實收總額': o.totalAmount,
-          '備註': o.notes || ''
+          '備註': o.notes || '',
+          '作廢稽核紀錄': delAudit
         });
       } else {
         exportData.push({
           '服務日期': o.date,
           '開單時間': getOrderTimeDisplay(o),
           '帳單編號': o.orderNo,
+          '單況': isDel ? '已作廢(不計入)' : '有效',
           '主作人員': o.staffName,
           '消費服務項目': it.name,
           '單價': it.price,
@@ -410,7 +474,8 @@ function exportHistoryToExcel() {
           '該項抽成金額': it.commission,
           '整單總收費': o.totalAmount,
           '整單總抽成': o.totalCommission,
-          '備註': o.notes || ''
+          '備註': o.notes || '',
+          '作廢稽核紀錄': delAudit
         });
       }
     });

@@ -3,7 +3,7 @@
  */
 
 // 系統當前版本 (部署新版本時與 version.json 保持一致)
-const APP_VERSION = '20260909_4';
+const APP_VERSION = '20260909_5';
 
 // 預設服務項目 (全新空白沙龍首創時使用，抽成率預設為 0，需由管理員於後台設定)
 const DEFAULT_SERVICES = [
@@ -63,6 +63,23 @@ function getLocalTimeString(d = new Date()) {
   const hh = String(d.getHours()).padStart(2, '0');
   const mm = String(d.getMinutes()).padStart(2, '0');
   return `${hh}:${mm}`;
+}
+
+// 格式化日期時間 (YYYY-MM-DD HH:mm)，供稽核與紀錄顯示
+function formatDateTime(input) {
+  if (!input) return '';
+  try {
+    const d = new Date(input);
+    if (isNaN(d.getTime())) return String(input);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    const hh = String(d.getHours()).padStart(2, '0');
+    const min = String(d.getMinutes()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd} ${hh}:${min}`;
+  } catch (_) {
+    return String(input);
+  }
 }
 
 

@@ -141,5 +141,10 @@ interface Order {
   totalCommission: number; // 設計師抽成總額
   salonNet: number;    // 店家淨額
   createdAt: string;   // 建立時間 (ISO String)
+  isDeleted?: boolean; // 是否已作廢/軟刪除
+  deletedAt?: string;  // 刪除時間 (ISO String)
+  deletedBy?: string;  // 刪除者 UID
+  deletedByName?: string; // 刪除者顯示姓名
+  deletedByRole?: string; // 刪除者角色 ('admin' | 'staff')
 }
 ```

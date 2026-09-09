@@ -120,14 +120,48 @@ function initBillingForm() {
   }
 }
 
-// 自動生成單號
+// 計算指定日期的下一號流水單號 (格式：T-YYYYMMDD-001)
+// 包含已刪除之客單，確保流水號依序累加且不撞號、不因刪除而重疊
+function getNextOrderNo(dateStr) {
+  const d = dateStr || (typeof getLocalDateString === 'function' ? getLocalDateString() : new Date().toISOString().split('T')[0]);
+  const compactDate = d.replace(/-/g, '');
+  const prefix = `T-${compactDate}-`;
+
+  // 查詢當日所有客單（包含已刪除之客單，確保號碼永遠順延不重複）
+  const dayOrders = (appState.orders || []).filter(o => o && o.date === d);
+  let maxSeq = 0;
+
+  dayOrders.forEach(o => {
+    if (o.orderNo) {
+      if (o.orderNo.startsWith(prefix)) {
+        const seqPart = o.orderNo.slice(prefix.length);
+        const parsed = parseInt(seqPart, 10);
+        if (!isNaN(parsed) && parsed > maxSeq) {
+          maxSeq = parsed;
+        }
+      } else {
+        const match = o.orderNo.match(/-(\d+)$/);
+        if (match) {
+          const parsed = parseInt(match[1], 10);
+          if (!isNaN(parsed) && parsed > maxSeq) {
+            maxSeq = parsed;
+          }
+        }
+      }
+    }
+  });
+
+  const nextSeq = maxSeq + 1;
+  return `${prefix}${String(nextSeq).padStart(3, '0')}`;
+}
+
+// 自動生成當日流水單號顯示
 function generateNewOrderNo() {
   const dateVal = document.getElementById('billing-date')?.value || (typeof getLocalDateString === 'function' ? getLocalDateString() : new Date().toISOString().split('T')[0]);
-  const compactDate = dateVal.replace(/-/g, '');
-  const randomSuffix = Math.floor(100 + Math.random() * 900);
+  const nextNo = getNextOrderNo(dateVal);
   const orderNoEl = document.getElementById('billing-order-no');
   if (orderNoEl) {
-    orderNoEl.textContent = `單號：T-${compactDate}-${randomSuffix}`;
+    orderNoEl.textContent = `單號：${nextNo}`;
   }
 }
 
@@ -348,11 +382,13 @@ async function saveCurrentOrder() {
   });
 
   const salonNet = Math.max(0, totalAmount - totalCommission);
-  const rawOrderNo = document.getElementById('billing-order-no').textContent.replace('單號：', '').trim();
+  const finalOrderNo = typeof getNextOrderNo === 'function' 
+    ? getNextOrderNo(dateVal) 
+    : (document.getElementById('billing-order-no')?.textContent?.replace('單號：', '')?.trim() || `T-${dateVal.replace(/-/g, '')}-001`);
 
   const newOrder = {
     id: 'ord-' + Date.now(),
-    orderNo: rawOrderNo,
+    orderNo: finalOrderNo,
     date: dateVal,
     time: timeVal,
     staffId: staff.id,

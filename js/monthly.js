@@ -5,7 +5,7 @@
 function initMonthlyView() {
   const monthInput = document.getElementById('monthly-select-month');
   if (monthInput && !monthInput.value) {
-    monthInput.value = getCurrentYearMonth();
+    monthInput.value = typeof getCurrentYearMonth === 'function' ? getCurrentYearMonth() : new Date().toISOString().slice(0, 7);
   }
 }
 
@@ -13,9 +13,9 @@ function calculateMonthlyPayroll() {
   if (currentUserRole !== 'admin') return;
   const monthInput = document.getElementById('monthly-select-month');
   if (monthInput && !monthInput.value) {
-    monthInput.value = getCurrentYearMonth();
+    monthInput.value = typeof getCurrentYearMonth === 'function' ? getCurrentYearMonth() : new Date().toISOString().slice(0, 7);
   }
-  const monthVal = monthInput?.value || getCurrentYearMonth();
+  const monthVal = monthInput?.value || (typeof getCurrentYearMonth === 'function' ? getCurrentYearMonth() : new Date().toISOString().slice(0, 7));
   
   const staffId = document.getElementById('monthly-select-staff')?.value;
   if (!staffId) return;
@@ -24,7 +24,7 @@ function calculateMonthlyPayroll() {
   if (!staff) return;
 
   const monthlyOrders = appState.orders.filter(order => {
-    return order.date.startsWith(monthVal) && (order.staffId === staffId || order.assistantId === staffId);
+    return !order.isDeleted && order.date.startsWith(monthVal) && (order.staffId === staffId || order.assistantId === staffId);
   });
 
   let totalClients = monthlyOrders.length;
@@ -118,7 +118,7 @@ function exportMonthlyReportExcel() {
   }
 
   const monthlyOrders = appState.orders.filter(order => {
-    return order.date.startsWith(monthVal) && (order.staffId === staffId || order.assistantId === staffId);
+    return !order.isDeleted && order.date.startsWith(monthVal) && (order.staffId === staffId || order.assistantId === staffId);
   });
 
   const wb = XLSX.utils.book_new();
@@ -181,7 +181,7 @@ function printSalarySlip() {
   const netPay = Math.round(commission + otherBonus);
 
   const monthlyOrders = appState.orders.filter(order => {
-    return order.date.startsWith(monthVal) && (order.staffId === staffId || order.assistantId === staffId);
+    return !order.isDeleted && order.date.startsWith(monthVal) && (order.staffId === staffId || order.assistantId === staffId);
   });
 
   let totalRev = 0;

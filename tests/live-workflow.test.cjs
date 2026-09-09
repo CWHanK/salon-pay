@@ -147,3 +147,114 @@ test('cloud updates retain a billing draft and a new subscription initializes on
   await snapshot(doc);
   assert.equal(initialized, 2);
 });
+
+test('order numbering follows daily sequential order and flows continuously even with deleted orders', async () => {
+  let synced = 0;
+  const { elements, run } = setup(['billing'], {
+    syncDataToCloud: async () => { synced++; }, showToast() {}
+  });
+  elements.set('billing-date', { value:'2026-09-09' });
+  elements.set('billing-time', { value:'10:00' });
+  elements.set('billing-notes', { value:'' });
+  elements.set('billing-order-no', { textContent:'' });
+  run(`appState.staff = [{id:'s1',name:'Alice'}]; currentLinkedStaff = appState.staff[0];
+    appState.services = [{id:'cut',name:'Cut',price:500,rate:50}];
+    currentBillingRows = [{serviceId:'cut',price:500,rate:50,qty:1}];`);
+
+  // 開第一單
+  await run('saveCurrentOrder()');
+  assert.equal(run('appState.orders[0].orderNo'), 'T-20260909-001');
+
+  // 開第二單
+  run("currentBillingRows = [{serviceId:'cut',price:500,rate:50,qty:1}];");
+  await run('saveCurrentOrder()');
+  assert.equal(run('appState.orders[0].orderNo'), 'T-20260909-002');
+
+  // 將第一單標記為軟刪除
+  run("appState.orders[1].isDeleted = true;");
+
+  // 開第三單，流水號順著流下去成為 003（不撞號且不重複發號）
+  run("currentBillingRows = [{serviceId:'cut',price:500,rate:50,qty:1}];");
+  await run('saveCurrentOrder()');
+  assert.equal(run('appState.orders[0].orderNo'), 'T-20260909-003');
+  assert.equal(run('appState.orders.length'), 3);
+});
+
+test('soft deleting an order retains data, logs deleter name and time, and excludes from revenue stats', async () => {
+  let synced = 0;
+  const { elements, run } = setup(['history'], {
+    syncDataToCloud: async () => { synced++; },
+    showToast() {},
+    confirm: () => true
+  });
+  elements.set('history-table-body', {});
+  elements.set('history-cards-mobile', {});
+  elements.set('history-count', {});
+  elements.set('history-total-revenue', {});
+  elements.set('history-total-commission', {});
+
+  run(`currentUser = {uid:'uid_hank', displayName:'Hank'}; currentUserRole = 'admin';
+    currentLinkedStaff = {id:'s_hank', name:'Hank'};
+    appState.orders = [
+      { id:'ord_1', orderNo:'T-20260909-001', date:'2026-09-09', time:'11:00', staffId:'s_hank', staffName:'Hank',
+        totalAmount:1000, totalCommission:500, items:[{name:'剪髮', price:1000, qty:1, amount:1000}], createdAt:'2026-09-09T11:00:00Z' },
+      { id:'ord_2', orderNo:'T-20260909-002', date:'2026-09-09', time:'12:00', staffId:'s_hank', staffName:'Hank',
+        totalAmount:2000, totalCommission:1000, items:[{name:'染髮', price:2000, qty:1, amount:2000}], createdAt:'2026-09-09T12:00:00Z' }
+    ];
+  `);
+
+  // 刪除第 1 單
+  await run("deleteOrder('ord_1')");
+  assert.equal(synced, 1);
+
+  // 驗證未抹除資料，且記錄刪除資訊
+  assert.equal(run('appState.orders.length'), 2);
+  const ord1 = run("appState.orders.find(o => o.id === 'ord_1')");
+  assert.equal(ord1.isDeleted, true);
+  assert.equal(ord1.deletedByName, 'Hank (管理員)');
+  assert.ok(ord1.deletedAt);
+
+  // 驗證歷史統計僅加總未刪除者 (第 2 單: 2000 實收 / 1000 抽成)
+  run('renderHistoryView(appState.orders)');
+  assert.equal(elements.get('history-total-revenue').textContent, 'NT$ 2,000');
+  assert.equal(elements.get('history-total-commission').textContent, 'NT$ 1,000');
+  assert.match(elements.get('history-count').innerHTML, /1 <span.*作廢 1 筆/);
+
+  // 驗證畫面包含作廢與刪除資訊
+  const tableHtml = elements.get('history-table-body').innerHTML;
+  assert.match(tableHtml, /已作廢/);
+  assert.match(tableHtml, /Hank \(管理員\)/);
+  assert.match(tableHtml, /作廢不計/);
+});
+
+test('monthly payroll calculation excludes soft-deleted orders', () => {
+  const { elements, run } = setup(['monthly']);
+  elements.set('monthly-select-month', { value: '2026-09' });
+  elements.set('monthly-select-staff', select('staff_1'));
+  elements.set('stat-month-clients', {});
+  elements.set('stat-month-avg-ticket', {});
+  elements.set('stat-month-revenue', {});
+  elements.set('stat-month-commission', {});
+  elements.set('calc-commission', { value: '0' });
+  elements.set('calc-other-bonus', { value: '0' });
+  elements.set('monthly-net-salary', {});
+  elements.set('monthly-orders-tbody', {});
+
+  run(`currentUserRole = 'admin';
+    appState.staff = [{id:'staff_1', name:'Bob'}];
+    appState.orders = [
+      { id:'o1', orderNo:'T-20260901-001', date:'2026-09-01', staffId:'staff_1', staffName:'Bob',
+        totalAmount:1500, totalCommission:750, items:[] },
+      { id:'o2', orderNo:'T-20260902-001', date:'2026-09-02', staffId:'staff_1', staffName:'Bob',
+        totalAmount:3000, totalCommission:1500, isDeleted:true, deletedAt:'2026-09-02T10:00:00Z', items:[] }
+    ];
+    calculateMonthlyPayroll();
+  `);
+
+  // 僅計算未作廢的 o1 (客數 1, 營收 1500, 抽成 750)
+  assert.equal(elements.get('stat-month-clients').textContent, 1);
+  assert.equal(elements.get('stat-month-revenue').textContent, '1,500');
+  assert.equal(elements.get('stat-month-commission').textContent, '750');
+});
+
+

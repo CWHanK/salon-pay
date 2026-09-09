@@ -114,6 +114,20 @@
           </div>
         </div>
 
+        <!-- 註冊專用：店家註冊密鑰驗證框 (員工與管理員皆必填) -->
+        <div id="auth-reg-key-container" class="hidden space-y-1.5 bg-amber-50/60 p-3 rounded-2xl border border-amber-200">
+          <label class="block text-xs font-bold text-amber-900 flex items-center justify-between">
+            <span>店家註冊密鑰 <span class="text-rose-500">*</span></span>
+            <span class="text-[10px] text-amber-700 font-normal">全店防護碼</span>
+          </label>
+          <div class="relative">
+            <span class="absolute inset-y-0 left-0 flex items-center pl-2.5 text-amber-600">
+              <i data-lucide="shield-check" class="w-4 h-4"></i>
+            </span>
+            <input type="password" id="auth-reg-key" name="store-reg-key" autocomplete="off" data-lpignore="true" data-1p-ignore="true" placeholder="請輸入店家註冊密鑰" class="w-full pl-8 pr-3 py-2 rounded-xl border border-amber-300 bg-white text-xs font-bold text-slate-900 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 font-mono">
+          </div>
+        </div>
+
         <!-- 註冊專用：管理員密鑰驗證框 -->
         <div id="auth-secret-key-container" class="hidden space-y-1.5 bg-amber-50 p-3 rounded-2xl border border-amber-200">
           <label class="block text-xs font-bold text-amber-900">
@@ -632,12 +646,44 @@
         </p>
       </div>
 
+      <!-- 管理員專屬：店家註冊密鑰設定 -->
+      <div id="settings-reg-key-box" class="admin-only-block bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm p-4 space-y-2.5">
+        <div class="flex items-center justify-between">
+          <h3 class="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+            <i data-lucide="key-round" class="w-4 h-4 text-amber-600"></i> 店家註冊密鑰安全設定
+          </h3>
+          <button type="button" onclick="changeRegistrationSecretKey()" class="px-2.5 py-1 text-xs font-bold text-amber-800 bg-amber-100/80 hover:bg-amber-200 rounded-xl transition">修改密鑰</button>
+        </div>
+        <p class="text-[11px] text-slate-500 leading-relaxed">
+          密鑰狀態：<span id="settings-current-reg-key" class="font-mono bg-slate-100 text-slate-700 px-2 py-0.5 rounded font-bold">●●●●●●●● (已安全加密儲存)</span>
+          <span class="block text-slate-400 mt-0.5">（員工與管理員註冊時皆需輸入此店家密鑰防護）</span>
+        </p>
+      </div>
+
       <!-- 備份資料 -->
       <div id="settings-backup-box" class="admin-only-block bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm p-4 space-y-2.5">
         <h3 class="text-xs font-bold text-slate-900">雲端資料備份</h3>
         <div class="flex flex-wrap gap-2 text-xs">
           <button onclick="backupDataToJson()" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-semibold flex items-center gap-1">
             <i data-lucide="download" class="w-3.5 h-3.5"></i> 備份 JSON
+          </button>
+        </div>
+      </div>
+
+      <!-- 管理員專屬：正式上線資料庫肅清維護 -->
+      <div id="settings-purge-box" class="admin-only-block bg-rose-50/50 rounded-2xl sm:rounded-3xl border border-rose-200 shadow-xs p-4 space-y-3">
+        <div class="flex items-center justify-between">
+          <h3 class="text-xs font-bold text-rose-900 flex items-center gap-1.5">
+            <i data-lucide="trash-2" class="w-4 h-4 text-rose-600"></i> 正式上線準備：資料庫初始化與肅清
+          </h3>
+          <span class="text-[10px] bg-rose-100 text-rose-700 font-bold px-2 py-0.5 rounded-full">管理員專用</span>
+        </div>
+        <p class="text-[11px] text-slate-600 leading-relaxed">
+          一鍵清空所有測試客單紀錄、移除測試帳號與人員名冊，並重設系統為全新上線狀態（執行前系統會自動為您下載 JSON 備份檔，並保留管理員 Hank 帳號）。
+        </p>
+        <div class="flex flex-wrap gap-2 pt-1">
+          <button type="button" onclick="purgeDatabaseForProduction()" class="px-3 py-2 bg-rose-600 hover:bg-rose-700 active:bg-rose-800 text-white rounded-xl text-xs font-bold shadow-sm shadow-rose-600/30 transition flex items-center gap-1.5 cursor-pointer">
+            <i data-lucide="bomb" class="w-3.5 h-3.5"></i> 一鍵徹底肅清資料庫（準備正式上線）
           </button>
         </div>
       </div>

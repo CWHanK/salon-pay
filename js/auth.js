@@ -7,7 +7,10 @@ function setAuthMode(isSignUp) {
   isAuthSignUpMode = isSignUp;
   const submitText = document.getElementById('auth-submit-text');
   const roleContainer = document.getElementById('auth-role-container');
+  const regKeyContainer = document.getElementById('auth-reg-key-container');
+  const regKeyInput = document.getElementById('auth-reg-key');
   const keyContainer = document.getElementById('auth-secret-key-container');
+  const adminKeyInput = document.getElementById('auth-admin-key');
   const emailLabel = document.getElementById('auth-email-label');
   const tabLogin = document.getElementById('auth-tab-login');
   const tabSignup = document.getElementById('auth-tab-signup');
@@ -21,6 +24,8 @@ function setAuthMode(isSignUp) {
     }
     if (submitText) submitText.textContent = '註冊';
     if (roleContainer) roleContainer.classList.remove('hidden');
+    if (regKeyContainer) regKeyContainer.classList.remove('hidden');
+    if (regKeyInput) regKeyInput.required = true;
     if (emailLabel) emailLabel.textContent = '自訂帳號';
 
     const selectedRole = document.querySelector('input[name="auth-reg-role"]:checked')?.value || 'staff';
@@ -34,7 +39,16 @@ function setAuthMode(isSignUp) {
     }
     if (submitText) submitText.textContent = '登入';
     if (roleContainer) roleContainer.classList.add('hidden');
+    if (regKeyContainer) regKeyContainer.classList.add('hidden');
+    if (regKeyInput) {
+      regKeyInput.required = false;
+      regKeyInput.value = '';
+    }
     if (keyContainer) keyContainer.classList.add('hidden');
+    if (adminKeyInput) {
+      adminKeyInput.required = false;
+      adminKeyInput.value = '';
+    }
     if (emailLabel) emailLabel.textContent = '自訂帳號';
   }
   if (window.lucide) lucide.createIcons();
@@ -72,7 +86,14 @@ async function handleAuthSubmit(e) {
     if (isAuthSignUpMode) {
       const selectedRole = document.querySelector('input[name="auth-reg-role"]:checked')?.value || 'staff';
 
-      // 若註冊為管理員，取得授權密鑰之安全雜湊
+      // 1. 取得店家註冊密鑰之安全雜湊 (員工與管理員註冊皆必填)
+      const inputRegKey = (document.getElementById('auth-reg-key')?.value || '').trim();
+      if (!inputRegKey) {
+        throw new Error('請輸入店家註冊密鑰！若不知密鑰請向店家負責人詢問。');
+      }
+      const regKeyHash = await hashSecretKey(inputRegKey);
+
+      // 2. 若註冊為管理員，額外取得管理員授權密鑰之安全雜湊
       let adminKeyHash = null;
       if (selectedRole === 'admin') {
         const inputKey = (document.getElementById('auth-admin-key')?.value || '').trim();
@@ -84,15 +105,30 @@ async function handleAuthSubmit(e) {
 
       const cred = await firebase.auth().createUserWithEmailAndPassword(email, password);
 
-      // 將註冊資料寫入全店 salon_users 集合 (由 Firestore 安全規則比對 adminKeyHash)
-      await db.collection('salon_users').doc(cred.user.uid).set({
-        uid: cred.user.uid,
-        email: email,
-        username: formatEmailToUsername(email),
-        role: selectedRole,
-        adminKeyHash: adminKeyHash,
-        createdAt: new Date().toISOString()
-      });
+      // 3. 將註冊資料寫入全店 salon_users 集合 (由 Firestore 安全規則嚴格比對 regKeyHash 與 adminKeyHash)
+      try {
+        await db.collection('salon_users').doc(cred.user.uid).set({
+          uid: cred.user.uid,
+          email: email,
+          username: formatEmailToUsername(email),
+          role: selectedRole,
+          regKeyHash: regKeyHash,
+          adminKeyHash: adminKeyHash,
+          createdAt: new Date().toISOString()
+        });
+      } catch (writeErr) {
+        // 若遭資料庫安全規則拒絕 (密鑰不正確)，立即清理剛建立之 Auth 帳號，防止產生孤兒帳號妨礙下次重新註冊
+        try {
+          if (cred && cred.user) {
+            await cred.user.delete();
+          }
+        } catch (_) {}
+        if (selectedRole === 'admin') {
+          throw new Error('註冊失敗：店家註冊密鑰或管理員授權密鑰不正確，請重新確認！');
+        } else {
+          throw new Error('註冊失敗：店家註冊密鑰不正確，請重新確認！');
+        }
+      }
 
       showToast(`註冊成功！身分：${selectedRole === 'admin' ? '管理員' : '員工'}`);
     } else {
@@ -191,6 +227,9 @@ async function onUserLoggedIn(user) {
 
   if (currentUserRole === 'admin') {
     subscribeToUsersList();
+    if (typeof initRegistrationSecretInCloud === 'function') {
+      initRegistrationSecretInCloud();
+    }
   }
 }
 

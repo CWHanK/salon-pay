@@ -14,7 +14,8 @@ let currentUser = null;
 let currentUserRole = null; // 'admin' | 'staff'，未通過驗證前為 null 絕無任何權限
 let currentLinkedStaff = null;
 let allRegisteredUsers = [];
-let salonAdminKeyHash = DEFAULT_ADMIN_KEY_HASH;
+let salonAdminKeyHash = typeof DEFAULT_ADMIN_KEY_HASH !== 'undefined' ? DEFAULT_ADMIN_KEY_HASH : "7c24a989f5192ed1e20715833ebd68517d8fd40d78a2209b795d582c4604a171";
+let salonRegKeyHash = typeof DEFAULT_REGISTRATION_KEY_HASH !== 'undefined' ? DEFAULT_REGISTRATION_KEY_HASH : "8f48ecba137b707f170ce4fa4970c16ed27cd22a3deb33f558840f830692ef25";
 
 // 計算 SHA-256 雜湊 (確保密鑰絕不以明文傳輸或儲存)
 async function hashSecretKey(str) {

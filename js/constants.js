@@ -3,7 +3,7 @@
  */
 
 // 系統當前版本 (部署新版本時與 version.json 保持一致)
-const APP_VERSION = '20260907_3';
+const APP_VERSION = '20260909_1';
 
 // 預設服務項目 (全新空白沙龍首創時使用，抽成率預設為 0，需由管理員於後台設定)
 const DEFAULT_SERVICES = [
@@ -23,6 +23,9 @@ const DEFAULT_SERVICES = [
 
 // 預設管理員密鑰 SHA-256 雜湊 (外部與原始碼中絕不儲存明文)
 const DEFAULT_ADMIN_KEY_HASH = "7c24a989f5192ed1e20715833ebd68517d8fd40d78a2209b795d582c4604a171";
+
+// 預設店家註冊密鑰 SHA-256 雜湊 (外部與原始碼中絕不儲存明文)
+const DEFAULT_REGISTRATION_KEY_HASH = "8f48ecba137b707f170ce4fa4970c16ed27cd22a3deb33f558840f830692ef25";
 
 // 虛擬信箱網域後綴（支援自訂帳號無感轉換為 Firebase Auth Email）
 const VIRTUAL_EMAIL_DOMAIN = '@salon.local';

@@ -28,6 +28,14 @@ service cloud.firestore {
         : inputHash == '7c24a989f5192ed1e20715833ebd68517d8fd40d78a2209b795d582c4604a171';
     }
 
+    // 驗證店家註冊密鑰 (SHA-256 雜湊比對，伺服器端驗證絕不外洩)
+    function isValidRegistrationSecret(inputHash) {
+      let hasCustom = exists(/databases/$(database)/documents/salon_secrets/registration);
+      return hasCustom 
+        ? inputHash == get(/databases/$(database)/documents/salon_secrets/registration).data.keyHash
+        : inputHash == '8f48ecba137b707f170ce4fa4970c16ed27cd22a3deb33f558840f830692ef25';
+    }
+
     // ==========================================
     // 1. 全店共享沙龍資料 (salon_stores/main_store)
     // ==========================================
@@ -42,7 +50,7 @@ service cloud.firestore {
     }
 
     // ==========================================
-    // 2. 獨立管理員機密庫 (salon_secrets/admin)
+    // 2. 獨立管理員機密庫 (salon_secrets/admin, registration)
     // 僅管理員可讀寫，一般員工絕無讀取權限！
     // ==========================================
     match /salon_secrets/{secretId} {
@@ -55,14 +63,15 @@ service cloud.firestore {
     match /salon_users/{userId} {
       allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
 
-      // 建立：員工可建立；註冊為管理員需通過密鑰雜湊比對
-      allow create: if isAuthenticated() && request.auth.uid == userId && (
-        request.resource.data.role == 'staff' ||
-        (
-          request.resource.data.role == 'admin' &&
-          isValidAdminSecret(request.resource.data.adminKeyHash)
-        )
-      );
+      // 建立：員工與管理員皆必須通過店家註冊密鑰比對；註冊為管理員需額外通過管理員密鑰雜湊比對
+      allow create: if isAuthenticated() && request.auth.uid == userId &&
+        isValidRegistrationSecret(request.resource.data.regKeyHash) && (
+          request.resource.data.role == 'staff' ||
+          (
+            request.resource.data.role == 'admin' &&
+            isValidAdminSecret(request.resource.data.adminKeyHash)
+          )
+        );
 
       // 更新：管理員可更新；本人可降級為員工；本人升級為管理員需通過密鑰雜湊比對
       allow update: if isAdmin() || (

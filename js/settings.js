@@ -182,6 +182,61 @@ async function changeAdminSecretKey() {
   }
 }
 
+// 修改店家註冊密鑰 (以 SHA-256 雜湊儲存於獨立機密庫)
+async function changeRegistrationSecretKey() {
+  if (currentUserRole !== 'admin') {
+    alert('僅管理員有此操作權限！');
+    return;
+  }
+  const newKey = prompt('請輸入新的店家註冊密鑰（全店員工與管理員註冊帳號時皆需輸入）：');
+  if (!newKey || !newKey.trim()) return;
+
+  if (newKey.trim().length < 4) {
+    alert('密鑰長度建議至少 4 碼以上！');
+    return;
+  }
+
+  try {
+    const keyHash = await hashSecretKey(newKey.trim());
+    if (db) {
+      await db.collection('salon_secrets').doc('registration').set({
+        keyHash: keyHash,
+        updatedAt: new Date().toISOString(),
+        description: '店家註冊密鑰 (員工與管理員註冊時皆需驗證)'
+      });
+    }
+    salonRegKeyHash = keyHash;
+    showToast('店家註冊密鑰已成功更新並加密儲存！');
+  } catch (err) {
+    console.error('更新店家註冊密鑰失敗:', err);
+    alert('更新店家註冊密鑰失敗：' + err.message);
+  }
+}
+
+// 自動檢查並將預設店家註冊密鑰加密寫入雲端資料庫 (salon_secrets/registration)
+async function initRegistrationSecretInCloud() {
+  if (!db || currentUserRole !== 'admin') return;
+  try {
+    const regSecretRef = db.collection('salon_secrets').doc('registration');
+    const doc = await regSecretRef.get();
+    if (!doc.exists) {
+      const defaultHash = typeof DEFAULT_REGISTRATION_KEY_HASH !== 'undefined'
+        ? DEFAULT_REGISTRATION_KEY_HASH 
+        : '8f48ecba137b707f170ce4fa4970c16ed27cd22a3deb33f558840f830692ef25';
+      await regSecretRef.set({
+        keyHash: defaultHash,
+        updatedAt: new Date().toISOString(),
+        description: '店家註冊密鑰 (員工與管理員註冊時皆需驗證)'
+      });
+      console.log('已自動將預設店家註冊密鑰加密寫入資料庫 (salon_secrets/registration)');
+    } else if (doc.data() && doc.data().keyHash) {
+      salonRegKeyHash = doc.data().keyHash;
+    }
+  } catch (err) {
+    console.warn('檢查/初始化店家註冊密鑰庫失敗:', err);
+  }
+}
+
 // 服務項目列表是否完全展開 (預設 true: 完整展開一目了然；false: 收合為固定高度滾動)
 let isServicesListExpanded = localStorage.getItem('SALON_SERVICES_EXPANDED') !== 'false';
 
@@ -637,5 +692,108 @@ async function executeDeleteUser() {
     console.error('刪除帳號失敗:', err);
     alert('刪除帳號失敗：' + err.message);
     closeDeleteUserModal();
+  }
+}
+
+// 正式上線前資料庫初始化與一鍵徹底肅清
+async function purgeDatabaseForProduction() {
+  if (currentUserRole !== 'admin') {
+    alert('僅店家管理員有權限執行資料庫肅清作業！');
+    return;
+  }
+
+  const msg = '⚠️【警告：正式上線前資料庫肅清作業】\n\n' +
+    '即將執行以下清理作業：\n' +
+    '1. 清空所有測試客單流水紀錄 (orders 歸零)\n' +
+    '2. 清空測試人員名單 (僅保留管理員 Hank)\n' +
+    '3. 刪除所有測試註冊帳號 (保留管理員自身帳號)\n' +
+    '4. 確保店家註冊密鑰安全雜湊就緒\n\n' +
+    '※ 系統在執行前會「自動為您下載一份 JSON 備份檔」以防萬一。\n\n' +
+    '確定要進行徹底肅清嗎？請點擊確定並在下一步輸入「肅清」確認。';
+
+  if (!confirm(msg)) return;
+
+  const confirmText = prompt('請輸入「肅清」以確認執行正式上線清理作業：');
+  if (confirmText !== '肅清') {
+    alert('輸入不符，已取消肅清作業。資料未作任何變更。');
+    return;
+  }
+
+  try {
+    // 1. 自動備份當前資料
+    backupDataToJson();
+
+    // 2. 清空客單與人員
+    appState.orders = [];
+    const myUid = currentUser ? currentUser.uid : '';
+    const myEmail = currentUser ? currentUser.email : '';
+    
+    // 人員名單保留 Hank
+    const adminStaff = {
+      id: 'staff-admin',
+      name: 'Hank',
+      role: '店家管理員',
+      linkedEmail: myEmail,
+      linkedUid: myUid
+    };
+    appState.staff = [adminStaff];
+
+    // 3. 上傳雲端 main_store
+    if (db) {
+      await db.collection('salon_stores').doc('main_store').set({
+        orders: [],
+        staff: appState.staff,
+        services: appState.services && appState.services.length > 0 ? appState.services : DEFAULT_SERVICES,
+        updatedAt: new Date().toISOString()
+      });
+
+      // 4. 清理 salon_users 中的測試帳號
+      if (Array.isArray(allRegisteredUsers)) {
+        for (const u of allRegisteredUsers) {
+          const isMe = u.uid === myUid;
+          const isHank = u.username && u.username.toLowerCase().includes('hank');
+          if (!isMe && !isHank && u.uid) {
+            try {
+              await db.collection('salon_users').doc(u.uid).delete();
+            } catch (e) {
+              console.warn('刪除測試使用者失敗:', u.uid, e);
+            }
+          }
+        }
+      }
+
+      // 5. 確保 salon_secrets/registration 設定預設安全雜湊
+      await db.collection('salon_secrets').doc('registration').set({
+        keyHash: typeof DEFAULT_REGISTRATION_KEY_HASH !== 'undefined'
+          ? DEFAULT_REGISTRATION_KEY_HASH
+          : '8f48ecba137b707f170ce4fa4970c16ed27cd22a3deb33f558840f830692ef25',
+        updatedAt: new Date().toISOString(),
+        description: '店家註冊密鑰 (員工與管理員註冊皆需驗證)'
+      });
+
+      // 確保 salon_secrets/admin
+      await db.collection('salon_secrets').doc('admin').set({
+        keyHash: salonAdminKeyHash || DEFAULT_ADMIN_KEY_HASH,
+        updatedAt: new Date().toISOString()
+      });
+    }
+
+    // 6. 清理本地暫存
+    localStorage.removeItem('SALON_BILLING_DRAFT');
+    localStorage.setItem('SALON_PAY_LOCAL_CACHE', JSON.stringify(appState));
+
+    // 7. 刷新介面
+    updateLinkedStaff();
+    applyRolePermissions();
+    populateStaffDropdowns();
+    filterHistoryOrders();
+    calculateMonthlyPayroll();
+    renderSettingsTables();
+
+    alert('🎉 資料庫已徹底肅清完成！\n\n系統已處於全新、乾淨的「正式上線」狀態。\n客單已歸零，測試帳號已清除，備份檔案已下載至您的電腦。');
+    showToast('🎉 資料庫已徹底肅清，準備正式上線！');
+  } catch (err) {
+    console.error('肅清失敗:', err);
+    alert('肅清作業失敗：' + err.message);
   }
 }

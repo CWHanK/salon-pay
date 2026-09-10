@@ -280,20 +280,20 @@ test('POS wizard correctly switches gender, identity, and updates condition badg
 
   // 1. 預設女性 + 在職員工
   run("setPosGender('female'); setPosIdentity('employee');");
-  assert.equal(badge.textContent, '👩 女性 · 🏢 在職員工');
+  assert.equal(badge.textContent, '女性 · 在職員工');
   assert.match(note.textContent, /女性剪髮 \$150/);
   assert.equal(badgeCut.textContent, '$150');
   assert.equal(badgeShampoo.textContent, '$80~$110');
-  assert.equal(badgeProd.textContent, '9折特惠');
+  assert.equal(badgeProd.textContent, '9折');
 
   // 2. 切換男性 + 在職員工
   run("setPosGender('male');");
-  assert.equal(badge.textContent, '👨 男性 · 🏢 在職員工');
+  assert.equal(badge.textContent, '男性 · 在職員工');
   assert.equal(badgeCut.textContent, '$200');
 
   // 3. 切換一般外客
   run("setPosIdentity('external');");
-  assert.equal(badge.textContent, '👨 男性 · 👤 一般外客');
+  assert.equal(badge.textContent, '男性 · 非員工');
   assert.equal(badgeCut.textContent, '$250~$300');
   assert.equal(badgeShampoo.textContent, '$110~$140');
   assert.equal(badgeProd.textContent, '門市定價');

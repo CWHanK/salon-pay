@@ -225,13 +225,13 @@
         </button>
       </div>
 
-      <!-- 📱 消費實收總額與單號 (POS 頂部看板) -->
+      <!-- 📱 消費實收總額與單號 -->
       <div class="bg-gradient-to-br from-amber-500 via-amber-600 to-orange-600 rounded-2xl sm:rounded-3xl p-4 sm:p-5 text-white shadow-lg shadow-amber-600/20 relative overflow-hidden">
         <div class="absolute -right-3 -bottom-3 opacity-15">
           <i data-lucide="coins" class="w-24 h-24"></i>
         </div>
         <div class="flex items-center justify-between">
-          <span class="text-xs font-semibold text-amber-100 tracking-wider">📝 本單實收總額</span>
+          <span class="text-xs font-semibold text-amber-100 tracking-wider">實收總額</span>
           <span id="billing-order-no" class="text-[10px] font-mono bg-black/20 px-2 py-0.5 rounded-full text-amber-100">單號：自動產生</span>
         </div>
         
@@ -240,19 +240,18 @@
           <span id="summary-card-total-amount" class="text-4xl sm:text-5xl font-black font-numeric tracking-tight">0</span>
         </div>
 
-        <div class="mt-2.5 pt-2.5 border-t border-white/15 flex items-center justify-between text-xs text-amber-100/90 font-medium">
+        <div class="mt-2 pt-2 border-t border-white/15 flex items-center justify-between text-xs text-amber-100/90 font-medium">
           <span id="summary-card-items-count">0 項服務</span>
-          <span class="text-[11px] text-amber-200/90 font-semibold">店內專屬 POS 導引</span>
         </div>
       </div>
 
       <!-- 開單表單核心區 -->
-      <form id="billing-form" onsubmit="return false;" autocomplete="off" class="space-y-4">
+      <form id="billing-form" onsubmit="return false;" autocomplete="off" class="space-y-3.5">
         
-        <!-- 人員、日期、開單時間 (精簡橫列) -->
+        <!-- 人員、日期、開單時間 -->
         <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-3 sm:p-4 grid grid-cols-1 sm:grid-cols-12 gap-3">
           <div class="min-w-0 sm:col-span-6">
-            <label class="block text-xs font-bold text-slate-700 mb-1">開單設計師 <span class="text-rose-500">*</span></label>
+            <label class="block text-xs font-bold text-slate-700 mb-1">設計師 <span class="text-rose-500">*</span></label>
             <div id="billing-staff-display" class="w-full min-h-[42px] rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-800 flex items-center gap-2 transition select-none">
               <i data-lucide="user-check" class="w-4 h-4 text-amber-600 shrink-0"></i>
               <span id="billing-staff-name" class="truncate text-slate-700">載入中...</span>
@@ -261,75 +260,55 @@
           </div>
 
           <div class="min-w-0 sm:col-span-3">
-            <label class="block text-xs font-bold text-slate-700 mb-1">服務日期 <span class="text-rose-500">*</span></label>
+            <label class="block text-xs font-bold text-slate-700 mb-1">日期 <span class="text-rose-500">*</span></label>
             <input type="date" id="billing-date" onchange="generateNewOrderNo()" class="w-full max-w-full appearance-none rounded-xl border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 bg-white font-semibold">
           </div>
 
           <div class="min-w-0 sm:col-span-3">
-            <label class="block text-xs font-bold text-slate-700 mb-1">開單時間 <span class="text-rose-500">*</span></label>
+            <label class="block text-xs font-bold text-slate-700 mb-1">時間 <span class="text-rose-500">*</span></label>
             <input type="time" id="billing-time" class="w-full max-w-full appearance-none rounded-xl border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 bg-white font-semibold font-mono">
           </div>
         </div>
 
-        <!-- 步驟 1：顧客身分與性別答題 (POS 觸控按鈕) -->
+        <!-- 性別與身分 -->
         <div class="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-xs p-4 sm:p-5 space-y-3.5">
-          <div class="flex items-center justify-between">
-            <span class="text-xs sm:text-sm font-black text-slate-900 flex items-center gap-1.5">
-              <span class="w-5 h-5 rounded-full bg-amber-600 text-white text-xs font-bold flex items-center justify-center">1</span>
-              步驟 1：顧客性別與身分答題
-            </span>
-            <span id="pos-condition-badge" class="text-[11px] font-bold text-amber-800 bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-lg">
-              👩 女性 · 🏢 在職員工
-            </span>
-          </div>
-
-          <!-- 性別選項 (大按鈕 2 選 1) -->
-          <div class="space-y-1.5">
-            <label class="block text-xs font-bold text-slate-600">顧客性別</label>
+          <!-- 性別 -->
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1.5">性別</label>
             <div class="grid grid-cols-2 gap-2.5">
-              <button type="button" id="pos-btn-gender-female" onclick="setPosGender('female')" class="pos-gender-btn py-3 px-4 rounded-xl font-bold text-sm transition flex items-center justify-center gap-2 border bg-amber-600 text-white border-amber-600 shadow-sm shadow-amber-600/20 ring-2 ring-amber-400">
-                <span class="text-base">👩</span> 女性
+              <button type="button" id="pos-btn-gender-female" onclick="setPosGender('female')" class="pos-gender-btn py-2.5 px-4 rounded-xl font-bold text-sm transition flex items-center justify-center gap-1.5 border bg-amber-600 text-white border-amber-600 shadow-sm shadow-amber-600/20 ring-2 ring-amber-400">
+                女性
               </button>
-              <button type="button" id="pos-btn-gender-male" onclick="setPosGender('male')" class="pos-gender-btn py-3 px-4 rounded-xl font-bold text-sm transition flex items-center justify-center gap-2 border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100">
-                <span class="text-base">👨</span> 男性
+              <button type="button" id="pos-btn-gender-male" onclick="setPosGender('male')" class="pos-gender-btn py-2.5 px-4 rounded-xl font-bold text-sm transition flex items-center justify-center gap-1.5 border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100">
+                男性
               </button>
             </div>
           </div>
 
-          <!-- 身分選項 (大按鈕 4 選 1) -->
-          <div class="space-y-1.5">
-            <label class="block text-xs font-bold text-slate-600">顧客身分類別</label>
+          <!-- 身分 -->
+          <div>
+            <label class="block text-xs font-bold text-slate-700 mb-1.5">身分</label>
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              <button type="button" id="pos-btn-id-employee" onclick="setPosIdentity('employee')" class="pos-id-btn py-2.5 px-3 rounded-xl font-bold text-xs sm:text-sm transition flex items-center justify-center gap-1.5 border bg-amber-600 text-white border-amber-600 shadow-sm shadow-amber-600/20 ring-2 ring-amber-400">
-                🏢 在職員工
+              <button type="button" id="pos-btn-id-employee" onclick="setPosIdentity('employee')" class="pos-id-btn py-2.5 px-3 rounded-xl font-bold text-xs sm:text-sm transition flex items-center justify-center border bg-amber-600 text-white border-amber-600 shadow-sm shadow-amber-600/20 ring-2 ring-amber-400">
+                在職員工
               </button>
-              <button type="button" id="pos-btn-id-retiree" onclick="setPosIdentity('retiree')" class="pos-id-btn py-2.5 px-3 rounded-xl font-bold text-xs sm:text-sm transition flex items-center justify-center gap-1.5 border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100">
-                🎖️ 退休員工
+              <button type="button" id="pos-btn-id-retiree" onclick="setPosIdentity('retiree')" class="pos-id-btn py-2.5 px-3 rounded-xl font-bold text-xs sm:text-sm transition flex items-center justify-center border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100">
+                退休員工
               </button>
-              <button type="button" id="pos-btn-id-family" onclick="setPosIdentity('family')" class="pos-id-btn py-2.5 px-3 rounded-xl font-bold text-xs sm:text-sm transition flex items-center justify-center gap-1.5 border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100">
-                👨‍👩‍👧 員工眷屬
+              <button type="button" id="pos-btn-id-family" onclick="setPosIdentity('family')" class="pos-id-btn py-2.5 px-3 rounded-xl font-bold text-xs sm:text-sm transition flex items-center justify-center border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100">
+                員工眷屬
               </button>
-              <button type="button" id="pos-btn-id-external" onclick="setPosIdentity('external')" class="pos-id-btn py-2.5 px-3 rounded-xl font-bold text-xs sm:text-sm transition flex items-center justify-center gap-1.5 border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100">
-                👤 一般外客
+              <button type="button" id="pos-btn-id-external" onclick="setPosIdentity('external')" class="pos-id-btn py-2.5 px-3 rounded-xl font-bold text-xs sm:text-sm transition flex items-center justify-center border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100">
+                非員工
               </button>
             </div>
-          </div>
-
-          <!-- 說明提示條 -->
-          <div id="pos-discount-note" class="text-[11px] text-amber-900 bg-amber-50/80 p-2.5 rounded-xl border border-amber-200/60 leading-relaxed flex items-center gap-1.5">
-            <i data-lucide="sparkles" class="w-3.5 h-3.5 text-amber-600 shrink-0"></i>
-            <span id="pos-discount-note-text">在職員工優惠：女性剪髮 $150 / 洗頭長髮 $110 短髮 $80 / 產品全系列 9 折特惠！</span>
           </div>
         </div>
 
-        <!-- 步驟 2：點選服務大類 (POS 觸控按鈕卡片) -->
+        <!-- 服務項目 -->
         <div class="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-xs p-4 sm:p-5 space-y-3">
           <div class="flex items-center justify-between">
-            <span class="text-xs sm:text-sm font-black text-slate-900 flex items-center gap-1.5">
-              <span class="w-5 h-5 rounded-full bg-amber-600 text-white text-xs font-bold flex items-center justify-center">2</span>
-              步驟 2：點選服務大類 (直接加單或選擇規格)
-            </span>
-            <span class="text-[11px] text-slate-400">觸控大卡片</span>
+            <span class="text-xs sm:text-sm font-black text-slate-900">服務項目</span>
           </div>
 
           <!-- 7 類服務卡片網格 -->
@@ -338,99 +317,75 @@
             <!-- 1. 剪髮 -->
             <button type="button" onclick="openPosCategoryModal('cut')" class="pos-cat-tile p-3 rounded-2xl border border-slate-200 hover:border-amber-400 bg-white hover:bg-amber-50/50 transition text-left flex flex-col justify-between shadow-2xs hover:shadow-sm active:scale-98">
               <div class="flex items-center justify-between">
-                <span class="text-2xl">✂️</span>
+                <span class="text-xl">✂️</span>
                 <span id="pos-badge-cut" class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-800">$150</span>
               </div>
-              <div class="mt-2">
-                <div class="font-black text-sm text-slate-900">剪髮</div>
-                <div id="pos-desc-cut" class="text-[10px] text-slate-500 mt-0.5 truncate">女 $150 (員工)</div>
-              </div>
+              <div class="mt-2 font-black text-sm text-slate-900">剪髮</div>
             </button>
 
             <!-- 2. 洗頭 -->
             <button type="button" onclick="openPosCategoryModal('shampoo')" class="pos-cat-tile p-3 rounded-2xl border border-slate-200 hover:border-amber-400 bg-white hover:bg-amber-50/50 transition text-left flex flex-col justify-between shadow-2xs hover:shadow-sm active:scale-98">
               <div class="flex items-center justify-between">
-                <span class="text-2xl">💆</span>
+                <span class="text-xl">💆</span>
                 <span id="pos-badge-shampoo" class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-800">$80~$110</span>
               </div>
-              <div class="mt-2">
-                <div class="font-black text-sm text-slate-900">洗頭</div>
-                <div id="pos-desc-shampoo" class="text-[10px] text-slate-500 mt-0.5 truncate">長髮 $110 / 短髮 $80</div>
-              </div>
+              <div class="mt-2 font-black text-sm text-slate-900">洗頭</div>
             </button>
 
             <!-- 3. 去角質 -->
             <button type="button" onclick="openPosCategoryModal('scalp')" class="pos-cat-tile p-3 rounded-2xl border border-slate-200 hover:border-amber-400 bg-white hover:bg-amber-50/50 transition text-left flex flex-col justify-between shadow-2xs hover:shadow-sm active:scale-98">
               <div class="flex items-center justify-between">
-                <span class="text-2xl">🌿</span>
+                <span class="text-xl">🌿</span>
                 <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-800">$350</span>
               </div>
-              <div class="mt-2">
-                <div class="font-black text-sm text-slate-900">去角質</div>
-                <div class="text-[10px] text-slate-500 mt-0.5 truncate">頭皮深層淨化</div>
-              </div>
+              <div class="mt-2 font-black text-sm text-slate-900">去角質</div>
             </button>
 
             <!-- 4. 護髮 -->
             <button type="button" onclick="openPosCategoryModal('treatment')" class="pos-cat-tile p-3 rounded-2xl border border-slate-200 hover:border-amber-400 bg-white hover:bg-amber-50/50 transition text-left flex flex-col justify-between shadow-2xs hover:shadow-sm active:scale-98">
               <div class="flex items-center justify-between">
-                <span class="text-2xl">🧖</span>
+                <span class="text-xl">🧖</span>
                 <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-purple-100 text-purple-800">$120~$600</span>
               </div>
-              <div class="mt-2">
-                <div class="font-black text-sm text-slate-900">護髮</div>
-                <div class="text-[10px] text-slate-500 mt-0.5 truncate">蒸器/超音波/自帶</div>
-              </div>
+              <div class="mt-2 font-black text-sm text-slate-900">護髮</div>
             </button>
 
             <!-- 5. 染髮 -->
             <button type="button" onclick="openPosCategoryModal('color')" class="pos-cat-tile p-3 rounded-2xl border border-slate-200 hover:border-amber-400 bg-white hover:bg-amber-50/50 transition text-left flex flex-col justify-between shadow-2xs hover:shadow-sm active:scale-98">
               <div class="flex items-center justify-between">
-                <span class="text-2xl">🎨</span>
+                <span class="text-xl">🎨</span>
                 <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-rose-100 text-rose-800">$350~$800</span>
               </div>
-              <div class="mt-2">
-                <div class="font-black text-sm text-slate-900">染髮</div>
-                <div class="text-[10px] text-slate-500 mt-0.5 truncate">公司料/自帶/隔離霜</div>
-              </div>
+              <div class="mt-2 font-black text-sm text-slate-900">染髮</div>
             </button>
 
             <!-- 6. 燙髮 -->
             <button type="button" onclick="openPosCategoryModal('perm')" class="pos-cat-tile p-3 rounded-2xl border border-slate-200 hover:border-amber-400 bg-white hover:bg-amber-50/50 transition text-left flex flex-col justify-between shadow-2xs hover:shadow-sm active:scale-98">
               <div class="flex items-center justify-between">
-                <span class="text-2xl">🦱</span>
+                <span class="text-xl">🦱</span>
                 <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-sky-100 text-sky-800">冷燙/溫朔</span>
               </div>
-              <div class="mt-2">
-                <div class="font-black text-sm text-slate-900">燙髮</div>
-                <div class="text-[10px] text-slate-500 mt-0.5 truncate">整頭/補燙/溫朔</div>
-              </div>
+              <div class="mt-2 font-black text-sm text-slate-900">燙髮</div>
             </button>
 
             <!-- 7. 產品銷售 -->
             <button type="button" onclick="openPosCategoryModal('products')" class="pos-cat-tile p-3 rounded-2xl border border-slate-200 hover:border-amber-400 bg-white hover:bg-amber-50/50 transition text-left flex flex-col justify-between shadow-2xs hover:shadow-sm active:scale-98">
               <div class="flex items-center justify-between">
-                <span class="text-2xl">🧴</span>
-                <span id="pos-badge-prod" class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-800">9折特惠</span>
+                <span class="text-xl">🧴</span>
+                <span id="pos-badge-prod" class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-800">9折</span>
               </div>
-              <div class="mt-2">
-                <div class="font-black text-sm text-slate-900">產品銷售</div>
-                <div class="text-[10px] text-slate-500 mt-0.5 truncate">16款洗護與去角質</div>
-              </div>
+              <div class="mt-2 font-black text-sm text-slate-900">產品</div>
             </button>
 
           </div>
         </div>
 
-        <!-- 步驟 3：消費項目清單 (購物車票據) -->
+        <!-- 消費明細 -->
         <div class="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-xs p-4 sm:p-5 space-y-3">
           <div class="flex items-center justify-between">
-            <span class="text-xs sm:text-sm font-black text-slate-900 flex items-center gap-1.5">
-              <span class="w-5 h-5 rounded-full bg-amber-600 text-white text-xs font-bold flex items-center justify-center">3</span>
-              本單消費明細清單
-            </span>
+            <span class="text-xs sm:text-sm font-black text-slate-900">消費明細</span>
             <button type="button" onclick="openPosCategoryModal('cut')" class="inline-flex items-center gap-1 text-xs font-bold text-amber-800 bg-amber-100/80 hover:bg-amber-200 px-3 py-1.5 rounded-xl transition">
-              <i data-lucide="plus" class="w-3.5 h-3.5"></i> 點選加入項目
+              <i data-lucide="plus" class="w-3.5 h-3.5"></i> 新增項目
             </button>
           </div>
 
@@ -441,19 +396,19 @@
 
           <!-- 備註說明 -->
           <div class="pt-2">
-            <label class="block text-xs font-bold text-slate-700 mb-1">備註說明 (選填)</label>
-            <input type="text" id="billing-notes" name="billing-order-notes" autocomplete="off" data-lpignore="true" data-1p-ignore="true" data-form-type="other" placeholder="如顧客特殊指定、髮質說明等" class="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 bg-white">
+            <label class="block text-xs font-bold text-slate-700 mb-1">備註</label>
+            <input type="text" id="billing-notes" name="billing-order-notes" autocomplete="off" data-lpignore="true" data-1p-ignore="true" data-form-type="other" placeholder="備註 (選填)" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 bg-white">
           </div>
         </div>
 
         <!-- 底部大動作按鈕 -->
         <div class="space-y-2 pt-1">
           <button type="button" onclick="saveCurrentOrder()" class="w-full bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-black py-3.5 px-4 rounded-2xl shadow-lg shadow-emerald-600/25 transition flex items-center justify-center gap-2 text-base">
-            <i data-lucide="check-circle-2" class="w-5 h-5"></i> 確認開單 (依序產生當日流水號)
+            <i data-lucide="check-circle-2" class="w-5 h-5"></i> 確認開單
           </button>
           
           <button type="button" onclick="resetBillingForm()" class="w-full bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold py-2.5 px-4 rounded-xl transition flex items-center justify-center gap-1 text-xs">
-            <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> 清空重新選取
+            <i data-lucide="rotate-ccw" class="w-3.5 h-3.5"></i> 清空重選
           </button>
         </div>
 
@@ -919,12 +874,9 @@
     <div class="bg-white rounded-3xl max-w-lg w-full p-4 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] flex flex-col">
       <!-- 頂部標題列 -->
       <div class="flex justify-between items-center pb-2 border-b border-slate-100 shrink-0">
-        <div class="flex items-center gap-2.5">
+        <div class="flex items-center gap-2">
           <span id="pos-picker-emoji" class="text-2xl">✂️</span>
-          <div>
-            <h4 id="pos-picker-title" class="text-base font-black text-slate-900">服務選項</h4>
-            <p id="pos-picker-subtitle" class="text-xs text-slate-500">依顧客條件選擇工法與規格</p>
-          </div>
+          <h4 id="pos-picker-title" class="text-base font-black text-slate-900">服務選項</h4>
         </div>
         <button type="button" onclick="closePosPickerModal()" class="p-2 text-slate-400 hover:text-slate-600 rounded-xl hover:bg-slate-100 transition">
           <i data-lucide="x" class="w-5 h-5"></i>
@@ -933,14 +885,13 @@
 
       <!-- 選項內容區 (滾動) -->
       <div id="pos-picker-content" class="overflow-y-auto flex-1 space-y-3 py-1 pr-1">
-        <!-- 動態答題選項或產品清單 -->
+        <!-- 動態選項或產品清單 -->
       </div>
 
       <!-- 底部控制列 -->
-      <div class="pt-2 border-t border-slate-100 flex items-center justify-between shrink-0">
-        <span id="pos-picker-footer-info" class="text-xs text-slate-500">點選項目即可直接加入客單</span>
+      <div class="pt-2 border-t border-slate-100 flex items-center justify-end shrink-0">
         <button type="button" onclick="closePosPickerModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition">
-          完成 / 關閉
+          關閉
         </button>
       </div>
     </div>
@@ -1072,15 +1023,15 @@
   </div>
 
   <!-- 模組化業務邏輯 (Vanilla JS 架構) -->
-  <script src="js/constants.js?v=20260910_1"></script>
-  <script src="js/state.js?v=20260910_1"></script>
-  <script src="js/version.js?v=20260910_1"></script>
-  <script src="js/firebase.js?v=20260910_1"></script>
-  <script src="js/auth.js?v=20260910_1"></script>
-  <script src="js/billing.js?v=20260910_1"></script>
-  <script src="js/history.js?v=20260910_1"></script>
-  <script src="js/monthly.js?v=20260910_1"></script>
-  <script src="js/settings.js?v=20260910_1"></script>
-  <script src="js/main.js?v=20260910_1"></script>
+  <script src="js/constants.js?v=20260911_1"></script>
+  <script src="js/state.js?v=20260911_1"></script>
+  <script src="js/version.js?v=20260911_1"></script>
+  <script src="js/firebase.js?v=20260911_1"></script>
+  <script src="js/auth.js?v=20260911_1"></script>
+  <script src="js/billing.js?v=20260911_1"></script>
+  <script src="js/history.js?v=20260911_1"></script>
+  <script src="js/monthly.js?v=20260911_1"></script>
+  <script src="js/settings.js?v=20260911_1"></script>
+  <script src="js/main.js?v=20260911_1"></script>
 </body>
 </html>

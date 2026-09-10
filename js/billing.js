@@ -187,7 +187,7 @@ function setPosIdentity(identity) {
   renderPosWizard();
 }
 
-// 刷新步驟 1 按鈕樣式與步驟 2 分類徽章預覽
+// 刷新按鈕樣式與分類徽章預覽
 function renderPosWizard() {
   // 1. 性別按鈕樣式
   const btnFemale = document.getElementById('pos-btn-gender-female');
@@ -195,11 +195,11 @@ function renderPosWizard() {
   
   if (btnFemale && btnMale) {
     if (posGender === 'female') {
-      btnFemale.className = 'pos-gender-btn py-3 px-4 rounded-xl font-bold text-sm transition flex items-center justify-center gap-2 border bg-amber-600 text-white border-amber-600 shadow-sm shadow-amber-600/20 ring-2 ring-amber-400';
-      btnMale.className = 'pos-gender-btn py-3 px-4 rounded-xl font-bold text-sm transition flex items-center justify-center gap-2 border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100';
+      btnFemale.className = 'pos-gender-btn py-2.5 px-4 rounded-xl font-bold text-sm transition flex items-center justify-center gap-1.5 border bg-amber-600 text-white border-amber-600 shadow-sm shadow-amber-600/20 ring-2 ring-amber-400';
+      btnMale.className = 'pos-gender-btn py-2.5 px-4 rounded-xl font-bold text-sm transition flex items-center justify-center gap-1.5 border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100';
     } else {
-      btnMale.className = 'pos-gender-btn py-3 px-4 rounded-xl font-bold text-sm transition flex items-center justify-center gap-2 border bg-amber-600 text-white border-amber-600 shadow-sm shadow-amber-600/20 ring-2 ring-amber-400';
-      btnFemale.className = 'pos-gender-btn py-3 px-4 rounded-xl font-bold text-sm transition flex items-center justify-center gap-2 border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100';
+      btnMale.className = 'pos-gender-btn py-2.5 px-4 rounded-xl font-bold text-sm transition flex items-center justify-center gap-1.5 border bg-amber-600 text-white border-amber-600 shadow-sm shadow-amber-600/20 ring-2 ring-amber-400';
+      btnFemale.className = 'pos-gender-btn py-2.5 px-4 rounded-xl font-bold text-sm transition flex items-center justify-center gap-1.5 border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100';
     }
   }
 
@@ -216,22 +216,22 @@ function renderPosWizard() {
     const el = document.getElementById(idMap[id]);
     if (el) {
       if (posIdentity === id) {
-        el.className = 'pos-id-btn py-2.5 px-3 rounded-xl font-bold text-xs sm:text-sm transition flex items-center justify-center gap-1.5 border bg-amber-600 text-white border-amber-600 shadow-sm shadow-amber-600/20 ring-2 ring-amber-400';
+        el.className = 'pos-id-btn py-2.5 px-3 rounded-xl font-bold text-xs sm:text-sm transition flex items-center justify-center border bg-amber-600 text-white border-amber-600 shadow-sm shadow-amber-600/20 ring-2 ring-amber-400';
       } else {
-        el.className = 'pos-id-btn py-2.5 px-3 rounded-xl font-bold text-xs sm:text-sm transition flex items-center justify-center gap-1.5 border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100';
+        el.className = 'pos-id-btn py-2.5 px-3 rounded-xl font-bold text-xs sm:text-sm transition flex items-center justify-center border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100';
       }
     }
   });
 
-  // 3. 條件徽章與說明文字
+  // 3. 條件徽章與說明文字 (相容保留更新)
   const badgeEl = document.getElementById('pos-condition-badge');
   const noteEl = document.getElementById('pos-discount-note-text');
-  const genderLabel = posGender === 'female' ? '👩 女性' : '👨 男性';
+  const genderLabel = posGender === 'female' ? '女性' : '男性';
   const identityLabels = {
-    employee: '🏢 在職員工',
-    retiree: '🎖️ 退休員工',
-    family: '👨‍👩‍👧 員工眷屬',
-    external: '👤 一般外客'
+    employee: '在職員工',
+    retiree: '退休員工',
+    family: '員工眷屬',
+    external: '非員工'
   };
 
   if (badgeEl) {
@@ -240,37 +240,47 @@ function renderPosWizard() {
 
   if (noteEl) {
     if (posIdentity === 'employee') {
-      noteEl.textContent = `在職員工優惠：女性剪髮 $150 / 洗頭長髮 $110 短髮 $80 / 產品全系列享 9 折特惠！`;
+      noteEl.textContent = `在職員工：女性剪髮 $150 / 洗頭 $80~$110 / 產品 9 折`;
     } else if (posIdentity === 'retiree') {
-      noteEl.textContent = `退休同仁專屬：女性剪髮 $150 / 洗頭長髮 $140 短髮 $110 / 自帶染髮代工 $350。`;
+      noteEl.textContent = `退休員工：女性剪髮 $150 / 洗頭 $110~$140`;
     } else if (posIdentity === 'family') {
-      noteEl.textContent = `員工眷屬優惠：純剪 $250 / 剪吹 $300；洗頭長髮 $140 / 短髮 $110；冷燙整頭 $2,300。`;
+      noteEl.textContent = `員工眷屬：純剪 $250 / 洗頭 $110~$140`;
     } else {
-      noteEl.textContent = `一般外客定價：純剪 $250 / 剪吹 $300；洗頭長髮 $140 / 短髮 $110；染燙依現場規格計費。`;
+      noteEl.textContent = `非員工：純剪 $250 / 洗頭 $110~$140`;
     }
   }
 
   // 4. 更新大類卡片價格提示
   const badgeCut = document.getElementById('pos-badge-cut');
   const descCut = document.getElementById('pos-desc-cut');
-  if (badgeCut && descCut) {
+  if (badgeCut) {
     if (posIdentity === 'employee' || posIdentity === 'retiree') {
       badgeCut.textContent = posGender === 'female' ? '$150' : '$200';
-      descCut.textContent = posGender === 'female' ? '女 $150 (員工)' : '男 $200 (員工)';
     } else {
       badgeCut.textContent = '$250~$300';
+    }
+  }
+  if (descCut) {
+    if (posIdentity === 'employee' || posIdentity === 'retiree') {
+      descCut.textContent = posGender === 'female' ? '女 $150 (員工)' : '男 $200 (員工)';
+    } else {
       descCut.textContent = '純剪 $250 / 剪吹 $300';
     }
   }
 
   const badgeShampoo = document.getElementById('pos-badge-shampoo');
   const descShampoo = document.getElementById('pos-desc-shampoo');
-  if (badgeShampoo && descShampoo) {
+  if (badgeShampoo) {
     if (posIdentity === 'employee') {
       badgeShampoo.textContent = '$80~$110';
-      descShampoo.textContent = '長髮 $110 / 短髮 $80';
     } else {
       badgeShampoo.textContent = '$110~$140';
+    }
+  }
+  if (descShampoo) {
+    if (posIdentity === 'employee') {
+      descShampoo.textContent = '長髮 $110 / 短髮 $80';
+    } else {
       descShampoo.textContent = '長髮 $140 / 短髮 $110';
     }
   }
@@ -278,7 +288,7 @@ function renderPosWizard() {
   const badgeProd = document.getElementById('pos-badge-prod');
   if (badgeProd) {
     if (posIdentity === 'employee') {
-      badgeProd.textContent = '9折特惠';
+      badgeProd.textContent = '9折';
       badgeProd.className = 'text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-800';
     } else {
       badgeProd.textContent = '門市定價';
@@ -298,19 +308,19 @@ function openPosCategoryModal(catId) {
   if (!modal || !contentEl) return;
 
   const catMeta = {
-    cut: { emoji: '✂️', title: '剪髮服務選項', sub: '依身分與性別規格選擇' },
-    shampoo: { emoji: '💆', title: '洗頭服務選項', sub: '依長短髮與身分規格選擇' },
-    scalp: { emoji: '🌿', title: '頭皮去角質選項', sub: '深層淨化毛孔與頭皮' },
-    treatment: { emoji: '🧖', title: '護髮工法規格', sub: '選擇設備與產品來源' },
-    color: { emoji: '🎨', title: '染髮服務選項', sub: '選擇染劑料件或頭皮隔離霜' },
-    perm: { emoji: '🦱', title: '燙髮類型與長度', sub: '冷燙整頭補燙或溫朔燙' },
-    products: { emoji: '🧴', title: '產品銷售清單', sub: '店內16款專業洗護與去角質髮品' }
+    cut: { emoji: '✂️', title: '剪髮' },
+    shampoo: { emoji: '💆', title: '洗頭' },
+    scalp: { emoji: '🌿', title: '去角質' },
+    treatment: { emoji: '🧖', title: '護髮' },
+    color: { emoji: '🎨', title: '染髮' },
+    perm: { emoji: '🦱', title: '燙髮' },
+    products: { emoji: '🧴', title: '產品' }
   };
 
-  const meta = catMeta[catId] || { emoji: '📋', title: '服務選項', sub: '' };
+  const meta = catMeta[catId] || { emoji: '📋', title: '選項' };
   if (emojiEl) emojiEl.textContent = meta.emoji;
   if (titleEl) titleEl.textContent = meta.title;
-  if (subtitleEl) subtitleEl.textContent = meta.sub;
+  if (subtitleEl) subtitleEl.textContent = '';
 
   if (catId === 'cut') {
     renderCutOptions(contentEl);
@@ -337,38 +347,23 @@ function closePosPickerModal() {
   if (modal) modal.classList.add('hidden');
 }
 
-// 1. 剪髮答題
+// 1. 剪髮
 function renderCutOptions(el) {
   const isEmployee = posIdentity === 'employee' || posIdentity === 'retiree';
   if (isEmployee) {
     el.innerHTML = `
-      <div class="space-y-2.5">
-        <div class="text-xs font-semibold text-amber-900 bg-amber-50 p-2.5 rounded-xl border border-amber-200/60 leading-relaxed">
-          🏢 員工/退休剪髮：系統已根據當前性別【${posGender === 'female' ? '女性' : '男性'}】標註推薦，點擊直接加入
-        </div>
+      <div class="space-y-2">
         <button type="button" onclick="addPosItem('cut-emp-f'); closePosPickerModal();" class="w-full p-4 rounded-2xl border ${posGender === 'female' ? 'border-amber-500 bg-amber-50/70 ring-2 ring-amber-400' : 'border-slate-200 bg-white hover:bg-slate-50'} transition flex items-center justify-between text-left">
           <div class="flex items-center gap-3">
             <span class="text-2xl">👩</span>
-            <div>
-              <div class="font-black text-slate-900 text-sm flex items-center gap-1.5">
-                <span>女剪髮 (員工/退休)</span>
-                ${posGender === 'female' ? '<span class="text-[10px] font-bold bg-amber-600 text-white px-1.5 py-0.2 rounded">推薦</span>' : ''}
-              </div>
-              <div class="text-xs text-slate-500">女性同仁福利剪髮</div>
-            </div>
+            <div class="font-bold text-slate-900 text-sm">女剪髮</div>
           </div>
           <span class="text-base font-black text-amber-700 font-numeric">NT$ 150</span>
         </button>
         <button type="button" onclick="addPosItem('cut-emp-m'); closePosPickerModal();" class="w-full p-4 rounded-2xl border ${posGender === 'male' ? 'border-amber-500 bg-amber-50/70 ring-2 ring-amber-400' : 'border-slate-200 bg-white hover:bg-slate-50'} transition flex items-center justify-between text-left">
           <div class="flex items-center gap-3">
             <span class="text-2xl">👨</span>
-            <div>
-              <div class="font-black text-slate-900 text-sm flex items-center gap-1.5">
-                <span>男剪髮 (員工/退休)</span>
-                ${posGender === 'male' ? '<span class="text-[10px] font-bold bg-amber-600 text-white px-1.5 py-0.2 rounded">推薦</span>' : ''}
-              </div>
-              <div class="text-xs text-slate-500">男性同仁福利剪髮</div>
-            </div>
+            <div class="font-bold text-slate-900 text-sm">男剪髮</div>
           </div>
           <span class="text-base font-black text-amber-700 font-numeric">NT$ 200</span>
         </button>
@@ -376,27 +371,18 @@ function renderCutOptions(el) {
     `;
   } else {
     el.innerHTML = `
-      <div class="space-y-2.5">
-        <div class="text-xs font-semibold text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-200 leading-relaxed">
-          👤 眷屬 / 外客剪髮規格：請選擇「純剪」或「剪吹造型」
-        </div>
+      <div class="space-y-2">
         <button type="button" onclick="addPosItem('cut-ext-pure'); closePosPickerModal();" class="w-full p-4 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
           <div class="flex items-center gap-3">
             <span class="text-2xl">✂️</span>
-            <div>
-              <div class="font-black text-slate-900 text-sm">純剪髮 (眷屬/非員工)</div>
-              <div class="text-xs text-slate-500">單純修剪，不含吹風造型</div>
-            </div>
+            <div class="font-bold text-slate-900 text-sm">純剪</div>
           </div>
           <span class="text-base font-black text-amber-700 font-numeric">NT$ 250</span>
         </button>
         <button type="button" onclick="addPosItem('cut-ext-blow'); closePosPickerModal();" class="w-full p-4 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
           <div class="flex items-center gap-3">
             <span class="text-2xl">💨</span>
-            <div>
-              <div class="font-black text-slate-900 text-sm">剪吹 (眷屬/非員工)</div>
-              <div class="text-xs text-slate-500">包含修剪與吹風造型</div>
-            </div>
+            <div class="font-bold text-slate-900 text-sm">剪吹</div>
           </div>
           <span class="text-base font-black text-amber-700 font-numeric">NT$ 300</span>
         </button>
@@ -405,32 +391,23 @@ function renderCutOptions(el) {
   }
 }
 
-// 2. 洗頭答題
+// 2. 洗頭
 function renderShampooOptions(el) {
   const isEmployee = posIdentity === 'employee';
   if (isEmployee) {
     el.innerHTML = `
-      <div class="space-y-2.5">
-        <div class="text-xs font-semibold text-emerald-800 bg-emerald-50 p-2.5 rounded-xl border border-emerald-200/60 leading-relaxed">
-          🏢 在職員工洗頭特惠：請選擇頭髮長度
-        </div>
+      <div class="space-y-2">
         <button type="button" onclick="addPosItem('shampoo-act-long'); closePosPickerModal();" class="w-full p-4 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
           <div class="flex items-center gap-3">
             <span class="text-2xl">💇‍♀️</span>
-            <div>
-              <div class="font-black text-slate-900 text-sm">在職員工洗頭 (長髮)</div>
-              <div class="text-xs text-slate-500">肩下長髮深層洗髮與吹整</div>
-            </div>
+            <div class="font-bold text-slate-900 text-sm">長髮</div>
           </div>
           <span class="text-base font-black text-amber-700 font-numeric">NT$ 110</span>
         </button>
         <button type="button" onclick="addPosItem('shampoo-act-short'); closePosPickerModal();" class="w-full p-4 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
           <div class="flex items-center gap-3">
             <span class="text-2xl">💇‍♂️</span>
-            <div>
-              <div class="font-black text-slate-900 text-sm">在職員工洗頭 (短髮)</div>
-              <div class="text-xs text-slate-500">短髮深層洗髮與吹整</div>
-            </div>
+            <div class="font-bold text-slate-900 text-sm">短髮</div>
           </div>
           <span class="text-base font-black text-amber-700 font-numeric">NT$ 80</span>
         </button>
@@ -438,27 +415,18 @@ function renderShampooOptions(el) {
     `;
   } else {
     el.innerHTML = `
-      <div class="space-y-2.5">
-        <div class="text-xs font-semibold text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-200 leading-relaxed">
-          🎖️ 退休同仁 / 眷屬 / 外客洗頭：請選擇頭髮長度
-        </div>
+      <div class="space-y-2">
         <button type="button" onclick="addPosItem('shampoo-ret-long'); closePosPickerModal();" class="w-full p-4 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
           <div class="flex items-center gap-3">
             <span class="text-2xl">💇‍♀️</span>
-            <div>
-              <div class="font-black text-slate-900 text-sm">退休/非員工洗頭 (長髮)</div>
-              <div class="text-xs text-slate-500">肩下長髮深層洗髮與吹整</div>
-            </div>
+            <div class="font-bold text-slate-900 text-sm">長髮</div>
           </div>
           <span class="text-base font-black text-amber-700 font-numeric">NT$ 140</span>
         </button>
         <button type="button" onclick="addPosItem('shampoo-ret-short'); closePosPickerModal();" class="w-full p-4 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
           <div class="flex items-center gap-3">
             <span class="text-2xl">💇‍♂️</span>
-            <div>
-              <div class="font-black text-slate-900 text-sm">退休/非員工洗頭 (短髮)</div>
-              <div class="text-xs text-slate-500">短髮深層洗髮與吹整</div>
-            </div>
+            <div class="font-bold text-slate-900 text-sm">短髮</div>
           </div>
           <span class="text-base font-black text-amber-700 font-numeric">NT$ 110</span>
         </button>
@@ -467,17 +435,14 @@ function renderShampooOptions(el) {
   }
 }
 
-// 3. 去角質答題
+// 3. 去角質
 function renderScalpOptions(el) {
   el.innerHTML = `
-    <div class="space-y-2.5">
+    <div class="space-y-2">
       <button type="button" onclick="addPosItem('scalp-standard'); closePosPickerModal();" class="w-full p-4 rounded-2xl border border-emerald-300 bg-emerald-50/50 hover:bg-emerald-50 transition flex items-center justify-between text-left">
         <div class="flex items-center gap-3">
           <span class="text-2xl">🌿</span>
-          <div>
-            <div class="font-black text-slate-900 text-sm">頭皮深層去角質</div>
-            <div class="text-xs text-slate-500">專業深層淨化頭皮角質與毛孔油脂</div>
-          </div>
+          <div class="font-bold text-slate-900 text-sm">頭皮去角質</div>
         </div>
         <span class="text-base font-black text-emerald-800 font-numeric">NT$ 350</span>
       </button>
@@ -485,14 +450,14 @@ function renderScalpOptions(el) {
   `;
 }
 
-// 4. 護髮答題
+// 4. 護髮
 function renderTreatmentOptions(el) {
   const items = [
-    { id: 'treat-steamer', name: '護髮 (蒸器)', desc: '蒸氣加壓深層導入', price: 120, icon: '💨' },
-    { id: 'treat-sonic', name: '護髮 (超音波)', desc: '超音波紅外線震盪護理', price: 250, icon: '🔊' },
-    { id: 'treat-ext-comp', name: '護髮 (非員工/用公司)', desc: '非員工使用公司沙龍專業髮品', price: 450, icon: '🏢' },
-    { id: 'treat-emp-steamer', name: '護髮 (員工產品蒸器)', desc: '員工自備產品 + 蒸器深層護理', price: 450, icon: '🧴' },
-    { id: 'treat-emp-sonic', name: '護髮 (員工產品超音波)', desc: '員工自備產品 + 超音波導入', price: 600, icon: '✨' }
+    { id: 'treat-steamer', name: '護髮 (蒸器)', price: 120, icon: '💨' },
+    { id: 'treat-sonic', name: '護髮 (超音波)', price: 250, icon: '🔊' },
+    { id: 'treat-ext-comp', name: '非員工 (用公司)', price: 450, icon: '🏢' },
+    { id: 'treat-emp-steamer', name: '員工產品 (蒸器)', price: 450, icon: '🧴' },
+    { id: 'treat-emp-sonic', name: '員工產品 (超音波)', price: 600, icon: '✨' }
   ];
 
   el.innerHTML = `
@@ -501,10 +466,7 @@ function renderTreatmentOptions(el) {
         <button type="button" onclick="addPosItem('${it.id}'); closePosPickerModal();" class="w-full p-3.5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
           <div class="flex items-center gap-3">
             <span class="text-2xl">${it.icon}</span>
-            <div>
-              <div class="font-black text-slate-900 text-sm">${it.name}</div>
-              <div class="text-xs text-slate-500">${it.desc}</div>
-            </div>
+            <div class="font-bold text-slate-900 text-sm">${it.name}</div>
           </div>
           <span class="text-sm font-black text-amber-700 font-numeric">NT$ ${it.price.toLocaleString()}</span>
         </button>
@@ -513,13 +475,13 @@ function renderTreatmentOptions(el) {
   `;
 }
 
-// 5. 染髮答題
+// 5. 染髮
 function renderColorOptions(el) {
   const items = [
-    { id: 'color-company', name: '染髮 (用公司染劑)', desc: '專業沙龍品牌染膏與調配服務', price: 800, icon: '🏢' },
-    { id: 'color-bring', name: '染髮 (員工/退休/自帶代工)', desc: '員工或退休同仁自備染劑代工費', price: 350, icon: '🧴' },
-    { id: 'color-barrier', name: '染髮 (頭皮隔離霜)', desc: '染前防護精華油，隔絕染劑刺激', price: 350, icon: '🛡️' },
-    { id: 'color-bring-next', name: '染髮 (自帶-明年啟動)', desc: '自備染劑明年新規劃費率', price: 450, icon: '🗓️' }
+    { id: 'color-company', name: '用公司染劑', price: 800, icon: '🏢' },
+    { id: 'color-bring', name: '自帶代工', price: 350, icon: '🧴' },
+    { id: 'color-barrier', name: '頭皮隔離霜', price: 350, icon: '🛡️' },
+    { id: 'color-bring-next', name: '自帶代工 (明年)', price: 450, icon: '🗓️' }
   ];
 
   el.innerHTML = `
@@ -528,10 +490,7 @@ function renderColorOptions(el) {
         <button type="button" onclick="addPosItem('${it.id}'); closePosPickerModal();" class="w-full p-3.5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
           <div class="flex items-center gap-3">
             <span class="text-2xl">${it.icon}</span>
-            <div>
-              <div class="font-black text-slate-900 text-sm">${it.name}</div>
-              <div class="text-xs text-slate-500">${it.desc}</div>
-            </div>
+            <div class="font-bold text-slate-900 text-sm">${it.name}</div>
           </div>
           <span class="text-sm font-black text-amber-700 font-numeric">NT$ ${it.price.toLocaleString()}</span>
         </button>
@@ -540,26 +499,21 @@ function renderColorOptions(el) {
   `;
 }
 
-// 6. 燙髮答題
+// 6. 燙髮
 function renderPermOptions(el) {
   const isEmployee = posIdentity === 'employee';
   posPermRolls = 1;
 
   el.innerHTML = `
-    <div class="space-y-3.5">
-      <!-- 區塊 1：冷燙髮 -->
+    <div class="space-y-3">
+      <!-- 冷燙 -->
       <div class="space-y-2">
-        <div class="text-xs font-black text-slate-700 flex items-center gap-1">
-          <span>❄️ 冷燙髮系列</span>
-        </div>
+        <div class="text-xs font-bold text-slate-500">冷燙</div>
         ${isEmployee ? `
           <button type="button" onclick="addPosItem('perm-cold-emp'); closePosPickerModal();" class="w-full p-3.5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
             <div class="flex items-center gap-3">
               <span class="text-2xl">❄️</span>
-              <div>
-                <div class="font-black text-slate-900 text-sm">冷燙髮 (整頭-在職員工)</div>
-                <div class="text-xs text-slate-500">全頭冷燙員工福利價</div>
-              </div>
+              <div class="font-bold text-slate-900 text-sm">冷燙整頭</div>
             </div>
             <span class="text-sm font-black text-amber-700 font-numeric">NT$ 2,000</span>
           </button>
@@ -567,61 +521,41 @@ function renderPermOptions(el) {
           <button type="button" onclick="addPosItem('perm-cold-fam'); closePosPickerModal();" class="w-full p-3.5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
             <div class="flex items-center gap-3">
               <span class="text-2xl">❄️</span>
-              <div>
-                <div class="font-black text-slate-900 text-sm">冷燙髮 (整頭-家屬/外客)</div>
-                <div class="text-xs text-slate-500">眷屬與外客整頭冷燙</div>
-              </div>
+              <div class="font-bold text-slate-900 text-sm">冷燙整頭</div>
             </div>
             <span class="text-sm font-black text-amber-700 font-numeric">NT$ 2,300</span>
           </button>
         `}
 
         <!-- 局部補燙 -->
-        <div class="p-3.5 rounded-2xl border border-sky-200 bg-sky-50/50 space-y-2">
+        <div class="p-3 rounded-2xl border border-slate-200 bg-slate-50 space-y-2">
           <div class="flex items-center justify-between">
-            <div class="flex items-center gap-2">
-              <span class="text-xl">🌀</span>
-              <div>
-                <div class="font-bold text-slate-900 text-sm">局部補燙 ($50/卷)</div>
-                <div class="text-xs text-slate-500">依燙卷數量彈性計費</div>
-              </div>
-            </div>
+            <div class="font-bold text-slate-900 text-sm">局部補燙 ($50/卷)</div>
             <div class="flex items-center border border-slate-300 rounded-xl overflow-hidden bg-white shadow-2xs">
               <button type="button" onclick="updatePermRolls(-1)" class="w-8 h-8 flex items-center justify-center text-slate-700 hover:bg-slate-100 font-bold select-none">−</button>
               <span id="pos-perm-rolls-val" class="w-8 text-center text-xs font-bold font-numeric">1</span>
               <button type="button" onclick="updatePermRolls(1)" class="w-8 h-8 flex items-center justify-center text-slate-700 hover:bg-slate-100 font-bold select-none">＋</button>
             </div>
           </div>
-          <button type="button" id="pos-perm-rolls-add-btn" onclick="addPermRollsItem()" class="w-full py-2 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-xl text-xs transition flex items-center justify-center gap-1 shadow-xs">
+          <button type="button" id="pos-perm-rolls-add-btn" onclick="addPermRollsItem()" class="w-full py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl text-xs transition flex items-center justify-center gap-1 shadow-xs">
             ＋ 加入局部補燙 (NT$ 50)
           </button>
         </div>
       </div>
 
-      <!-- 區塊 2：溫朔燙 (溫塑燙) -->
-      <div class="space-y-2 pt-1 border-t border-slate-100">
-        <div class="text-xs font-black text-slate-700 flex items-center gap-1">
-          <span>♨️ 溫朔燙 (溫塑燙) 系列</span>
-        </div>
+      <!-- 溫朔燙 -->
+      <div class="space-y-2 pt-2 border-t border-slate-100">
+        <div class="text-xs font-bold text-slate-500">溫朔燙</div>
         <button type="button" onclick="addPosItem('perm-dig-short'); closePosPickerModal();" class="w-full p-3.5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
-          <div>
-            <div class="font-black text-slate-900 text-sm">溫朔燙 (短髮)</div>
-            <div class="text-xs text-slate-500">短髮立體溫塑燙捲造型</div>
-          </div>
+          <div class="font-bold text-slate-900 text-sm">短髮</div>
           <span class="text-sm font-black text-amber-700 font-numeric">NT$ 2,300</span>
         </button>
         <button type="button" onclick="addPosItem('perm-dig-long'); closePosPickerModal();" class="w-full p-3.5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
-          <div>
-            <div class="font-black text-slate-900 text-sm">溫朔燙 (長髮)</div>
-            <div class="text-xs text-slate-500">中長髮深層溫塑波浪造型</div>
-          </div>
+          <div class="font-bold text-slate-900 text-sm">長髮</div>
           <span class="text-sm font-black text-amber-700 font-numeric">NT$ 2,500</span>
         </button>
         <button type="button" onclick="addPosItem('perm-dig-xlong'); closePosPickerModal();" class="w-full p-3.5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
-          <div>
-            <div class="font-black text-slate-900 text-sm">溫朔燙 (過長)</div>
-            <div class="text-xs text-slate-500">及腰特長髮專用溫塑燙</div>
-          </div>
+          <div class="font-bold text-slate-900 text-sm">過長</div>
           <span class="text-sm font-black text-amber-700 font-numeric">NT$ 2,800</span>
         </button>
       </div>
@@ -643,7 +577,7 @@ function addPermRollsItem() {
   closePosPickerModal();
 }
 
-// 7. 產品銷售答題 (含搜尋與 9 折優惠)
+// 7. 產品銷售
 function renderProductsOptions(el, query = '') {
   const isEmployee = posIdentity === 'employee';
   const products = (typeof DEFAULT_SERVICES !== 'undefined' ? DEFAULT_SERVICES : []).filter(s => s.category === '產品銷售');
@@ -653,24 +587,12 @@ function renderProductsOptions(el, query = '') {
 
   el.innerHTML = `
     <div class="space-y-3">
-      <!-- 頂部身分優惠提示與搜尋 -->
-      <div class="space-y-2">
-        ${isEmployee ? `
-          <div class="text-xs font-bold text-emerald-800 bg-emerald-50 p-2.5 rounded-xl border border-emerald-200 flex items-center gap-1.5">
-            <i data-lucide="sparkles" class="w-4 h-4 text-emerald-600 shrink-0"></i>
-            <span>在職員工身分：全系列產品自動套用 9 折特惠價！</span>
-          </div>
-        ` : `
-          <div class="text-xs font-bold text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
-            門市標準定價（若為在職員工請於步驟 1 切換享 9 折）
-          </div>
-        `}
-        <div class="relative">
-          <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
-            <i data-lucide="search" class="w-4 h-4"></i>
-          </span>
-          <input type="text" id="pos-product-search" value="${query}" oninput="renderProductsOptions(document.getElementById('pos-picker-content'), this.value)" placeholder="搜尋 16 款產品名稱..." class="w-full pl-9 pr-3 py-2 text-xs font-semibold rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500">
-        </div>
+      <!-- 搜尋 -->
+      <div class="relative">
+        <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+          <i data-lucide="search" class="w-4 h-4"></i>
+        </span>
+        <input type="text" id="pos-product-search" value="${query}" oninput="renderProductsOptions(document.getElementById('pos-picker-content'), this.value)" placeholder="搜尋產品名稱..." class="w-full pl-9 pr-3 py-2 text-xs font-semibold rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500">
       </div>
 
       <!-- 產品列表 -->
@@ -834,7 +756,7 @@ function renderBillingRows() {
           <i data-lucide="shopping-bag" class="w-5 h-5"></i>
         </div>
         <p class="text-sm font-bold text-slate-600">本單尚未點選任何項目</p>
-        <p class="text-xs text-slate-400 mt-1">請從上方步驟 2 類別大按鈕點選服務或產品</p>
+        <p class="text-xs text-slate-400 mt-1">請點選上方服務項目加入</p>
       </div>
     `;
     if (window.lucide) lucide.createIcons();

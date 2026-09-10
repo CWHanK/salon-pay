@@ -1,6 +1,11 @@
 /**
- * SalonFlow - 現場開單抽成試算 (js/billing.js)
+ * SalonFlow - 店內專屬 POS 機互動答題開單介面 (js/billing.js)
  */
+
+// POS 答題當前狀態 (全域反應式變數)
+let posGender = 'female';      // 'female' | 'male'
+let posIdentity = 'employee';  // 'employee' | 'retiree' | 'family' | 'external'
+let posPermRolls = 1;          // 燙髮局部補燙卷數
 
 // 渲染所有設計師下拉選單與開單設計師身分顯示
 function populateStaffDropdowns() {
@@ -12,11 +17,13 @@ function populateStaffDropdowns() {
   const previousHistoryStaff = historyStaff?.value;
   const previousMonthlyStaff = monthlyStaff?.value;
 
-  updateLinkedStaff();
+  if (typeof updateLinkedStaff === 'function') {
+    updateLinkedStaff();
+  }
 
-  // 主作設計師：不再設計為選單，管理員與員工統一同一套（直接綁定當前登入者）
+  // 主作設計師：直接綁定當前登入者
   if (billingStaffName || billingStaffInput) {
-    if (currentLinkedStaff) {
+    if (typeof currentLinkedStaff !== 'undefined' && currentLinkedStaff) {
       if (billingStaffName) {
         billingStaffName.innerHTML = `<span class="font-bold text-slate-900">${currentLinkedStaff.name}</span>`;
       }
@@ -25,23 +32,23 @@ function populateStaffDropdowns() {
       }
       if (billingStaffDisplay) {
         billingStaffDisplay.onclick = null;
-        billingStaffDisplay.classList.remove('cursor-pointer', 'border-amber-300', 'bg-amber-50');
-        billingStaffDisplay.classList.add('border-slate-200', 'bg-slate-50');
+        billingStaffDisplay.classList?.remove('cursor-pointer', 'border-amber-300', 'bg-amber-50');
+        billingStaffDisplay.classList?.add('border-slate-200', 'bg-slate-50');
       }
     } else {
       if (billingStaffInput) {
         billingStaffInput.value = '';
       }
-      if (currentUserRole === 'admin') {
+      if (typeof currentUserRole !== 'undefined' && currentUserRole === 'admin') {
         if (billingStaffName) {
           billingStaffName.innerHTML = `<span class="text-amber-700 font-semibold text-xs flex items-center gap-1">⚠️ 尚未綁定設計師身分 (點此設定)</span>`;
         }
         if (billingStaffDisplay) {
           billingStaffDisplay.onclick = function() {
-            openStaffModal();
+            if (typeof openStaffModal === 'function') openStaffModal();
           };
-          billingStaffDisplay.classList.add('cursor-pointer', 'border-amber-300', 'bg-amber-50');
-          billingStaffDisplay.classList.remove('border-slate-200', 'bg-slate-50');
+          billingStaffDisplay.classList?.add('cursor-pointer', 'border-amber-300', 'bg-amber-50');
+          billingStaffDisplay.classList?.remove('border-slate-200', 'bg-slate-50');
         }
       } else {
         if (billingStaffName) {
@@ -49,15 +56,15 @@ function populateStaffDropdowns() {
         }
         if (billingStaffDisplay) {
           billingStaffDisplay.onclick = null;
-          billingStaffDisplay.classList.remove('cursor-pointer');
+          billingStaffDisplay.classList?.remove('cursor-pointer');
         }
       }
     }
   }
 
   if (historyStaff) {
-    if (currentUserRole === 'staff') {
-      if (currentLinkedStaff) {
+    if (typeof currentUserRole !== 'undefined' && currentUserRole === 'staff') {
+      if (typeof currentLinkedStaff !== 'undefined' && currentLinkedStaff) {
         historyStaff.innerHTML = `
           <option value="${currentLinkedStaff.id}">${currentLinkedStaff.name} (本人客單)</option>
         `;
@@ -69,29 +76,31 @@ function populateStaffDropdowns() {
       historyStaff.disabled = true;
     } else {
       historyStaff.disabled = false;
+      const staffList = (typeof appState !== 'undefined' && appState.staff) ? appState.staff : [];
       historyStaff.innerHTML = `
         <option value="ALL">全部人員</option>
-        ${appState.staff.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
+        ${staffList.map(s => `<option value="${s.id}">${s.name}</option>`).join('')}
       `;
     }
   }
 
   if (monthlyStaff) {
     monthlyStaff.disabled = false;
-    if (appState.staff.length === 0) {
+    const staffList = (typeof appState !== 'undefined' && appState.staff) ? appState.staff : [];
+    if (staffList.length === 0) {
       monthlyStaff.innerHTML = `<option value="">尚無人員資料</option>`;
     } else {
-      monthlyStaff.innerHTML = appState.staff.map(s => `
+      monthlyStaff.innerHTML = staffList.map(s => `
         <option value="${s.id}">${s.name}</option>
       `).join('');
     }
   }
 
-  if (historyStaff && currentUserRole === 'admin' &&
-      (previousHistoryStaff === 'ALL' || appState.staff.some(s => s.id === previousHistoryStaff))) {
+  if (historyStaff && typeof currentUserRole !== 'undefined' && currentUserRole === 'admin' &&
+      typeof appState !== 'undefined' && (previousHistoryStaff === 'ALL' || appState.staff?.some(s => s.id === previousHistoryStaff))) {
     historyStaff.value = previousHistoryStaff;
   }
-  if (monthlyStaff && appState.staff.some(s => s.id === previousMonthlyStaff)) {
+  if (monthlyStaff && typeof appState !== 'undefined' && appState.staff?.some(s => s.id === previousMonthlyStaff)) {
     monthlyStaff.value = previousMonthlyStaff;
   }
 
@@ -101,7 +110,7 @@ function populateStaffDropdowns() {
 // 檢查是否尚無人員，顯示提示引導
 function checkStaffEmptyState() {
   const emptyAlert = document.getElementById('billing-empty-staff-alert');
-  if (emptyAlert) {
+  if (emptyAlert && typeof appState !== 'undefined' && appState.staff) {
     if (appState.staff.length === 0) {
       emptyAlert.classList.remove('hidden');
     } else {
@@ -110,25 +119,26 @@ function checkStaffEmptyState() {
   }
 }
 
-// 初始化開單表單
+// 初始化開單表單與 POS 狀態
 function initBillingForm() {
   generateNewOrderNo();
   const restored = restoreBillingDraftFromStorage();
   if (!restored) {
     currentBillingRows = [];
-    addServiceRow();
   }
+  renderPosWizard();
+  renderBillingRows();
 }
 
 // 計算指定日期的下一號流水單號 (格式：T-YYYYMMDD-001)
-// 包含已刪除之客單，確保流水號依序累加且不撞號、不因刪除而重疊
 function getNextOrderNo(dateStr) {
   const d = dateStr || (typeof getLocalDateString === 'function' ? getLocalDateString() : new Date().toISOString().split('T')[0]);
   const compactDate = d.replace(/-/g, '');
   const prefix = `T-${compactDate}-`;
 
-  // 查詢當日所有客單（包含已刪除之客單，確保號碼永遠順延不重複）
-  const dayOrders = (appState.orders || []).filter(o => o && o.date === d);
+  const dayOrders = (typeof appState !== 'undefined' && appState.orders) 
+    ? appState.orders.filter(o => o && o.date === d) 
+    : [];
   let maxSeq = 0;
 
   dayOrders.forEach(o => {
@@ -165,36 +175,619 @@ function generateNewOrderNo() {
   }
 }
 
-// 新增一列服務項目 (預設為 ---請選擇項目---)
-function addServiceRow(presetServiceId = '') {
-  const rowId = 'row-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
-  const matchedService = presetServiceId 
-    ? appState.services.find(s => s.id === presetServiceId) 
-    : null;
+// ==================== POS 步驟 1：性別與身分切換 ====================
 
-  const newRow = {
-    rowId: rowId,
-    serviceId: matchedService ? matchedService.id : '',
-    price: matchedService ? matchedService.price : 0,
-    rate: matchedService ? matchedService.rate : 0,
-    qty: 1
-  };
-
-  currentBillingRows.push(newRow);
-  renderBillingRows();
+function setPosGender(gender) {
+  posGender = gender;
+  renderPosWizard();
 }
 
-// 刪除一列服務
-function removeServiceRow(rowId) {
-  if (currentBillingRows.length <= 1) {
-    showToast('每單至少需保留一項服務項目');
+function setPosIdentity(identity) {
+  posIdentity = identity;
+  renderPosWizard();
+}
+
+// 刷新步驟 1 按鈕樣式與步驟 2 分類徽章預覽
+function renderPosWizard() {
+  // 1. 性別按鈕樣式
+  const btnFemale = document.getElementById('pos-btn-gender-female');
+  const btnMale = document.getElementById('pos-btn-gender-male');
+  
+  if (btnFemale && btnMale) {
+    if (posGender === 'female') {
+      btnFemale.className = 'pos-gender-btn py-3 px-4 rounded-xl font-bold text-sm transition flex items-center justify-center gap-2 border bg-amber-600 text-white border-amber-600 shadow-sm shadow-amber-600/20 ring-2 ring-amber-400';
+      btnMale.className = 'pos-gender-btn py-3 px-4 rounded-xl font-bold text-sm transition flex items-center justify-center gap-2 border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100';
+    } else {
+      btnMale.className = 'pos-gender-btn py-3 px-4 rounded-xl font-bold text-sm transition flex items-center justify-center gap-2 border bg-amber-600 text-white border-amber-600 shadow-sm shadow-amber-600/20 ring-2 ring-amber-400';
+      btnFemale.className = 'pos-gender-btn py-3 px-4 rounded-xl font-bold text-sm transition flex items-center justify-center gap-2 border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100';
+    }
+  }
+
+  // 2. 身分按鈕樣式
+  const identities = ['employee', 'retiree', 'family', 'external'];
+  const idMap = {
+    employee: 'pos-btn-id-employee',
+    retiree: 'pos-btn-id-retiree',
+    family: 'pos-btn-id-family',
+    external: 'pos-btn-id-external'
+  };
+
+  identities.forEach(id => {
+    const el = document.getElementById(idMap[id]);
+    if (el) {
+      if (posIdentity === id) {
+        el.className = 'pos-id-btn py-2.5 px-3 rounded-xl font-bold text-xs sm:text-sm transition flex items-center justify-center gap-1.5 border bg-amber-600 text-white border-amber-600 shadow-sm shadow-amber-600/20 ring-2 ring-amber-400';
+      } else {
+        el.className = 'pos-id-btn py-2.5 px-3 rounded-xl font-bold text-xs sm:text-sm transition flex items-center justify-center gap-1.5 border border-slate-200 bg-slate-50 text-slate-700 hover:bg-slate-100';
+      }
+    }
+  });
+
+  // 3. 條件徽章與說明文字
+  const badgeEl = document.getElementById('pos-condition-badge');
+  const noteEl = document.getElementById('pos-discount-note-text');
+  const genderLabel = posGender === 'female' ? '👩 女性' : '👨 男性';
+  const identityLabels = {
+    employee: '🏢 在職員工',
+    retiree: '🎖️ 退休員工',
+    family: '👨‍👩‍👧 員工眷屬',
+    external: '👤 一般外客'
+  };
+
+  if (badgeEl) {
+    badgeEl.textContent = `${genderLabel} · ${identityLabels[posIdentity] || ''}`;
+  }
+
+  if (noteEl) {
+    if (posIdentity === 'employee') {
+      noteEl.textContent = `在職員工優惠：女性剪髮 $150 / 洗頭長髮 $110 短髮 $80 / 產品全系列享 9 折特惠！`;
+    } else if (posIdentity === 'retiree') {
+      noteEl.textContent = `退休同仁專屬：女性剪髮 $150 / 洗頭長髮 $140 短髮 $110 / 自帶染髮代工 $350。`;
+    } else if (posIdentity === 'family') {
+      noteEl.textContent = `員工眷屬優惠：純剪 $250 / 剪吹 $300；洗頭長髮 $140 / 短髮 $110；冷燙整頭 $2,300。`;
+    } else {
+      noteEl.textContent = `一般外客定價：純剪 $250 / 剪吹 $300；洗頭長髮 $140 / 短髮 $110；染燙依現場規格計費。`;
+    }
+  }
+
+  // 4. 更新大類卡片價格提示
+  const badgeCut = document.getElementById('pos-badge-cut');
+  const descCut = document.getElementById('pos-desc-cut');
+  if (badgeCut && descCut) {
+    if (posIdentity === 'employee' || posIdentity === 'retiree') {
+      badgeCut.textContent = posGender === 'female' ? '$150' : '$200';
+      descCut.textContent = posGender === 'female' ? '女 $150 (員工)' : '男 $200 (員工)';
+    } else {
+      badgeCut.textContent = '$250~$300';
+      descCut.textContent = '純剪 $250 / 剪吹 $300';
+    }
+  }
+
+  const badgeShampoo = document.getElementById('pos-badge-shampoo');
+  const descShampoo = document.getElementById('pos-desc-shampoo');
+  if (badgeShampoo && descShampoo) {
+    if (posIdentity === 'employee') {
+      badgeShampoo.textContent = '$80~$110';
+      descShampoo.textContent = '長髮 $110 / 短髮 $80';
+    } else {
+      badgeShampoo.textContent = '$110~$140';
+      descShampoo.textContent = '長髮 $140 / 短髮 $110';
+    }
+  }
+
+  const badgeProd = document.getElementById('pos-badge-prod');
+  if (badgeProd) {
+    if (posIdentity === 'employee') {
+      badgeProd.textContent = '9折特惠';
+      badgeProd.className = 'text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-800';
+    } else {
+      badgeProd.textContent = '門市定價';
+      badgeProd.className = 'text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-700';
+    }
+  }
+}
+
+// ==================== POS 步驟 2：智能答題規格選擇器 ====================
+
+function openPosCategoryModal(catId) {
+  const modal = document.getElementById('modal-pos-picker');
+  const emojiEl = document.getElementById('pos-picker-emoji');
+  const titleEl = document.getElementById('pos-picker-title');
+  const subtitleEl = document.getElementById('pos-picker-subtitle');
+  const contentEl = document.getElementById('pos-picker-content');
+  if (!modal || !contentEl) return;
+
+  const catMeta = {
+    cut: { emoji: '✂️', title: '剪髮服務選項', sub: '依身分與性別規格選擇' },
+    shampoo: { emoji: '💆', title: '洗頭服務選項', sub: '依長短髮與身分規格選擇' },
+    scalp: { emoji: '🌿', title: '頭皮去角質選項', sub: '深層淨化毛孔與頭皮' },
+    treatment: { emoji: '🧖', title: '護髮工法規格', sub: '選擇設備與產品來源' },
+    color: { emoji: '🎨', title: '染髮服務選項', sub: '選擇染劑料件或頭皮隔離霜' },
+    perm: { emoji: '🦱', title: '燙髮類型與長度', sub: '冷燙整頭補燙或溫朔燙' },
+    products: { emoji: '🧴', title: '產品銷售清單', sub: '店內16款專業洗護與去角質髮品' }
+  };
+
+  const meta = catMeta[catId] || { emoji: '📋', title: '服務選項', sub: '' };
+  if (emojiEl) emojiEl.textContent = meta.emoji;
+  if (titleEl) titleEl.textContent = meta.title;
+  if (subtitleEl) subtitleEl.textContent = meta.sub;
+
+  if (catId === 'cut') {
+    renderCutOptions(contentEl);
+  } else if (catId === 'shampoo') {
+    renderShampooOptions(contentEl);
+  } else if (catId === 'scalp') {
+    renderScalpOptions(contentEl);
+  } else if (catId === 'treatment') {
+    renderTreatmentOptions(contentEl);
+  } else if (catId === 'color') {
+    renderColorOptions(contentEl);
+  } else if (catId === 'perm') {
+    renderPermOptions(contentEl);
+  } else if (catId === 'products') {
+    renderProductsOptions(contentEl);
+  }
+
+  modal.classList.remove('hidden');
+  if (window.lucide) lucide.createIcons();
+}
+
+function closePosPickerModal() {
+  const modal = document.getElementById('modal-pos-picker');
+  if (modal) modal.classList.add('hidden');
+}
+
+// 1. 剪髮答題
+function renderCutOptions(el) {
+  const isEmployee = posIdentity === 'employee' || posIdentity === 'retiree';
+  if (isEmployee) {
+    el.innerHTML = `
+      <div class="space-y-2.5">
+        <div class="text-xs font-semibold text-amber-900 bg-amber-50 p-2.5 rounded-xl border border-amber-200/60 leading-relaxed">
+          🏢 員工/退休剪髮：系統已根據當前性別【${posGender === 'female' ? '女性' : '男性'}】標註推薦，點擊直接加入
+        </div>
+        <button type="button" onclick="addPosItem('cut-emp-f'); closePosPickerModal();" class="w-full p-4 rounded-2xl border ${posGender === 'female' ? 'border-amber-500 bg-amber-50/70 ring-2 ring-amber-400' : 'border-slate-200 bg-white hover:bg-slate-50'} transition flex items-center justify-between text-left">
+          <div class="flex items-center gap-3">
+            <span class="text-2xl">👩</span>
+            <div>
+              <div class="font-black text-slate-900 text-sm flex items-center gap-1.5">
+                <span>女剪髮 (員工/退休)</span>
+                ${posGender === 'female' ? '<span class="text-[10px] font-bold bg-amber-600 text-white px-1.5 py-0.2 rounded">推薦</span>' : ''}
+              </div>
+              <div class="text-xs text-slate-500">女性同仁福利剪髮</div>
+            </div>
+          </div>
+          <span class="text-base font-black text-amber-700 font-numeric">NT$ 150</span>
+        </button>
+        <button type="button" onclick="addPosItem('cut-emp-m'); closePosPickerModal();" class="w-full p-4 rounded-2xl border ${posGender === 'male' ? 'border-amber-500 bg-amber-50/70 ring-2 ring-amber-400' : 'border-slate-200 bg-white hover:bg-slate-50'} transition flex items-center justify-between text-left">
+          <div class="flex items-center gap-3">
+            <span class="text-2xl">👨</span>
+            <div>
+              <div class="font-black text-slate-900 text-sm flex items-center gap-1.5">
+                <span>男剪髮 (員工/退休)</span>
+                ${posGender === 'male' ? '<span class="text-[10px] font-bold bg-amber-600 text-white px-1.5 py-0.2 rounded">推薦</span>' : ''}
+              </div>
+              <div class="text-xs text-slate-500">男性同仁福利剪髮</div>
+            </div>
+          </div>
+          <span class="text-base font-black text-amber-700 font-numeric">NT$ 200</span>
+        </button>
+      </div>
+    `;
+  } else {
+    el.innerHTML = `
+      <div class="space-y-2.5">
+        <div class="text-xs font-semibold text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-200 leading-relaxed">
+          👤 眷屬 / 外客剪髮規格：請選擇「純剪」或「剪吹造型」
+        </div>
+        <button type="button" onclick="addPosItem('cut-ext-pure'); closePosPickerModal();" class="w-full p-4 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
+          <div class="flex items-center gap-3">
+            <span class="text-2xl">✂️</span>
+            <div>
+              <div class="font-black text-slate-900 text-sm">純剪髮 (眷屬/非員工)</div>
+              <div class="text-xs text-slate-500">單純修剪，不含吹風造型</div>
+            </div>
+          </div>
+          <span class="text-base font-black text-amber-700 font-numeric">NT$ 250</span>
+        </button>
+        <button type="button" onclick="addPosItem('cut-ext-blow'); closePosPickerModal();" class="w-full p-4 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
+          <div class="flex items-center gap-3">
+            <span class="text-2xl">💨</span>
+            <div>
+              <div class="font-black text-slate-900 text-sm">剪吹 (眷屬/非員工)</div>
+              <div class="text-xs text-slate-500">包含修剪與吹風造型</div>
+            </div>
+          </div>
+          <span class="text-base font-black text-amber-700 font-numeric">NT$ 300</span>
+        </button>
+      </div>
+    `;
+  }
+}
+
+// 2. 洗頭答題
+function renderShampooOptions(el) {
+  const isEmployee = posIdentity === 'employee';
+  if (isEmployee) {
+    el.innerHTML = `
+      <div class="space-y-2.5">
+        <div class="text-xs font-semibold text-emerald-800 bg-emerald-50 p-2.5 rounded-xl border border-emerald-200/60 leading-relaxed">
+          🏢 在職員工洗頭特惠：請選擇頭髮長度
+        </div>
+        <button type="button" onclick="addPosItem('shampoo-act-long'); closePosPickerModal();" class="w-full p-4 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
+          <div class="flex items-center gap-3">
+            <span class="text-2xl">💇‍♀️</span>
+            <div>
+              <div class="font-black text-slate-900 text-sm">在職員工洗頭 (長髮)</div>
+              <div class="text-xs text-slate-500">肩下長髮深層洗髮與吹整</div>
+            </div>
+          </div>
+          <span class="text-base font-black text-amber-700 font-numeric">NT$ 110</span>
+        </button>
+        <button type="button" onclick="addPosItem('shampoo-act-short'); closePosPickerModal();" class="w-full p-4 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
+          <div class="flex items-center gap-3">
+            <span class="text-2xl">💇‍♂️</span>
+            <div>
+              <div class="font-black text-slate-900 text-sm">在職員工洗頭 (短髮)</div>
+              <div class="text-xs text-slate-500">短髮深層洗髮與吹整</div>
+            </div>
+          </div>
+          <span class="text-base font-black text-amber-700 font-numeric">NT$ 80</span>
+        </button>
+      </div>
+    `;
+  } else {
+    el.innerHTML = `
+      <div class="space-y-2.5">
+        <div class="text-xs font-semibold text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-200 leading-relaxed">
+          🎖️ 退休同仁 / 眷屬 / 外客洗頭：請選擇頭髮長度
+        </div>
+        <button type="button" onclick="addPosItem('shampoo-ret-long'); closePosPickerModal();" class="w-full p-4 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
+          <div class="flex items-center gap-3">
+            <span class="text-2xl">💇‍♀️</span>
+            <div>
+              <div class="font-black text-slate-900 text-sm">退休/非員工洗頭 (長髮)</div>
+              <div class="text-xs text-slate-500">肩下長髮深層洗髮與吹整</div>
+            </div>
+          </div>
+          <span class="text-base font-black text-amber-700 font-numeric">NT$ 140</span>
+        </button>
+        <button type="button" onclick="addPosItem('shampoo-ret-short'); closePosPickerModal();" class="w-full p-4 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
+          <div class="flex items-center gap-3">
+            <span class="text-2xl">💇‍♂️</span>
+            <div>
+              <div class="font-black text-slate-900 text-sm">退休/非員工洗頭 (短髮)</div>
+              <div class="text-xs text-slate-500">短髮深層洗髮與吹整</div>
+            </div>
+          </div>
+          <span class="text-base font-black text-amber-700 font-numeric">NT$ 110</span>
+        </button>
+      </div>
+    `;
+  }
+}
+
+// 3. 去角質答題
+function renderScalpOptions(el) {
+  el.innerHTML = `
+    <div class="space-y-2.5">
+      <button type="button" onclick="addPosItem('scalp-standard'); closePosPickerModal();" class="w-full p-4 rounded-2xl border border-emerald-300 bg-emerald-50/50 hover:bg-emerald-50 transition flex items-center justify-between text-left">
+        <div class="flex items-center gap-3">
+          <span class="text-2xl">🌿</span>
+          <div>
+            <div class="font-black text-slate-900 text-sm">頭皮深層去角質</div>
+            <div class="text-xs text-slate-500">專業深層淨化頭皮角質與毛孔油脂</div>
+          </div>
+        </div>
+        <span class="text-base font-black text-emerald-800 font-numeric">NT$ 350</span>
+      </button>
+    </div>
+  `;
+}
+
+// 4. 護髮答題
+function renderTreatmentOptions(el) {
+  const items = [
+    { id: 'treat-steamer', name: '護髮 (蒸器)', desc: '蒸氣加壓深層導入', price: 120, icon: '💨' },
+    { id: 'treat-sonic', name: '護髮 (超音波)', desc: '超音波紅外線震盪護理', price: 250, icon: '🔊' },
+    { id: 'treat-ext-comp', name: '護髮 (非員工/用公司)', desc: '非員工使用公司沙龍專業髮品', price: 450, icon: '🏢' },
+    { id: 'treat-emp-steamer', name: '護髮 (員工產品蒸器)', desc: '員工自備產品 + 蒸器深層護理', price: 450, icon: '🧴' },
+    { id: 'treat-emp-sonic', name: '護髮 (員工產品超音波)', desc: '員工自備產品 + 超音波導入', price: 600, icon: '✨' }
+  ];
+
+  el.innerHTML = `
+    <div class="space-y-2">
+      ${items.map(it => `
+        <button type="button" onclick="addPosItem('${it.id}'); closePosPickerModal();" class="w-full p-3.5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
+          <div class="flex items-center gap-3">
+            <span class="text-2xl">${it.icon}</span>
+            <div>
+              <div class="font-black text-slate-900 text-sm">${it.name}</div>
+              <div class="text-xs text-slate-500">${it.desc}</div>
+            </div>
+          </div>
+          <span class="text-sm font-black text-amber-700 font-numeric">NT$ ${it.price.toLocaleString()}</span>
+        </button>
+      `).join('')}
+    </div>
+  `;
+}
+
+// 5. 染髮答題
+function renderColorOptions(el) {
+  const items = [
+    { id: 'color-company', name: '染髮 (用公司染劑)', desc: '專業沙龍品牌染膏與調配服務', price: 800, icon: '🏢' },
+    { id: 'color-bring', name: '染髮 (員工/退休/自帶代工)', desc: '員工或退休同仁自備染劑代工費', price: 350, icon: '🧴' },
+    { id: 'color-barrier', name: '染髮 (頭皮隔離霜)', desc: '染前防護精華油，隔絕染劑刺激', price: 350, icon: '🛡️' },
+    { id: 'color-bring-next', name: '染髮 (自帶-明年啟動)', desc: '自備染劑明年新規劃費率', price: 450, icon: '🗓️' }
+  ];
+
+  el.innerHTML = `
+    <div class="space-y-2">
+      ${items.map(it => `
+        <button type="button" onclick="addPosItem('${it.id}'); closePosPickerModal();" class="w-full p-3.5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
+          <div class="flex items-center gap-3">
+            <span class="text-2xl">${it.icon}</span>
+            <div>
+              <div class="font-black text-slate-900 text-sm">${it.name}</div>
+              <div class="text-xs text-slate-500">${it.desc}</div>
+            </div>
+          </div>
+          <span class="text-sm font-black text-amber-700 font-numeric">NT$ ${it.price.toLocaleString()}</span>
+        </button>
+      `).join('')}
+    </div>
+  `;
+}
+
+// 6. 燙髮答題
+function renderPermOptions(el) {
+  const isEmployee = posIdentity === 'employee';
+  posPermRolls = 1;
+
+  el.innerHTML = `
+    <div class="space-y-3.5">
+      <!-- 區塊 1：冷燙髮 -->
+      <div class="space-y-2">
+        <div class="text-xs font-black text-slate-700 flex items-center gap-1">
+          <span>❄️ 冷燙髮系列</span>
+        </div>
+        ${isEmployee ? `
+          <button type="button" onclick="addPosItem('perm-cold-emp'); closePosPickerModal();" class="w-full p-3.5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
+            <div class="flex items-center gap-3">
+              <span class="text-2xl">❄️</span>
+              <div>
+                <div class="font-black text-slate-900 text-sm">冷燙髮 (整頭-在職員工)</div>
+                <div class="text-xs text-slate-500">全頭冷燙員工福利價</div>
+              </div>
+            </div>
+            <span class="text-sm font-black text-amber-700 font-numeric">NT$ 2,000</span>
+          </button>
+        ` : `
+          <button type="button" onclick="addPosItem('perm-cold-fam'); closePosPickerModal();" class="w-full p-3.5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
+            <div class="flex items-center gap-3">
+              <span class="text-2xl">❄️</span>
+              <div>
+                <div class="font-black text-slate-900 text-sm">冷燙髮 (整頭-家屬/外客)</div>
+                <div class="text-xs text-slate-500">眷屬與外客整頭冷燙</div>
+              </div>
+            </div>
+            <span class="text-sm font-black text-amber-700 font-numeric">NT$ 2,300</span>
+          </button>
+        `}
+
+        <!-- 局部補燙 -->
+        <div class="p-3.5 rounded-2xl border border-sky-200 bg-sky-50/50 space-y-2">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <span class="text-xl">🌀</span>
+              <div>
+                <div class="font-bold text-slate-900 text-sm">局部補燙 ($50/卷)</div>
+                <div class="text-xs text-slate-500">依燙卷數量彈性計費</div>
+              </div>
+            </div>
+            <div class="flex items-center border border-slate-300 rounded-xl overflow-hidden bg-white shadow-2xs">
+              <button type="button" onclick="updatePermRolls(-1)" class="w-8 h-8 flex items-center justify-center text-slate-700 hover:bg-slate-100 font-bold select-none">−</button>
+              <span id="pos-perm-rolls-val" class="w-8 text-center text-xs font-bold font-numeric">1</span>
+              <button type="button" onclick="updatePermRolls(1)" class="w-8 h-8 flex items-center justify-center text-slate-700 hover:bg-slate-100 font-bold select-none">＋</button>
+            </div>
+          </div>
+          <button type="button" id="pos-perm-rolls-add-btn" onclick="addPermRollsItem()" class="w-full py-2 bg-sky-600 hover:bg-sky-700 text-white font-bold rounded-xl text-xs transition flex items-center justify-center gap-1 shadow-xs">
+            ＋ 加入局部補燙 (NT$ 50)
+          </button>
+        </div>
+      </div>
+
+      <!-- 區塊 2：溫朔燙 (溫塑燙) -->
+      <div class="space-y-2 pt-1 border-t border-slate-100">
+        <div class="text-xs font-black text-slate-700 flex items-center gap-1">
+          <span>♨️ 溫朔燙 (溫塑燙) 系列</span>
+        </div>
+        <button type="button" onclick="addPosItem('perm-dig-short'); closePosPickerModal();" class="w-full p-3.5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
+          <div>
+            <div class="font-black text-slate-900 text-sm">溫朔燙 (短髮)</div>
+            <div class="text-xs text-slate-500">短髮立體溫塑燙捲造型</div>
+          </div>
+          <span class="text-sm font-black text-amber-700 font-numeric">NT$ 2,300</span>
+        </button>
+        <button type="button" onclick="addPosItem('perm-dig-long'); closePosPickerModal();" class="w-full p-3.5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
+          <div>
+            <div class="font-black text-slate-900 text-sm">溫朔燙 (長髮)</div>
+            <div class="text-xs text-slate-500">中長髮深層溫塑波浪造型</div>
+          </div>
+          <span class="text-sm font-black text-amber-700 font-numeric">NT$ 2,500</span>
+        </button>
+        <button type="button" onclick="addPosItem('perm-dig-xlong'); closePosPickerModal();" class="w-full p-3.5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
+          <div>
+            <div class="font-black text-slate-900 text-sm">溫朔燙 (過長)</div>
+            <div class="text-xs text-slate-500">及腰特長髮專用溫塑燙</div>
+          </div>
+          <span class="text-sm font-black text-amber-700 font-numeric">NT$ 2,800</span>
+        </button>
+      </div>
+    </div>
+  `;
+}
+
+function updatePermRolls(delta) {
+  posPermRolls = Math.max(1, posPermRolls + delta);
+  const valEl = document.getElementById('pos-perm-rolls-val');
+  const btnEl = document.getElementById('pos-perm-rolls-add-btn');
+  if (valEl) valEl.textContent = posPermRolls;
+  if (btnEl) btnEl.textContent = `＋ 加入局部補燙 (NT$ ${(posPermRolls * 50).toLocaleString()})`;
+}
+
+function addPermRollsItem() {
+  const total = posPermRolls * 50;
+  addPosItem('perm-cold-part', total, `冷燙髮 (局部補燙 ${posPermRolls}卷)`, 1);
+  closePosPickerModal();
+}
+
+// 7. 產品銷售答題 (含搜尋與 9 折優惠)
+function renderProductsOptions(el, query = '') {
+  const isEmployee = posIdentity === 'employee';
+  const products = (typeof DEFAULT_SERVICES !== 'undefined' ? DEFAULT_SERVICES : []).filter(s => s.category === '產品銷售');
+  const filtered = query
+    ? products.filter(p => p.name.toLowerCase().includes(query.toLowerCase()))
+    : products;
+
+  el.innerHTML = `
+    <div class="space-y-3">
+      <!-- 頂部身分優惠提示與搜尋 -->
+      <div class="space-y-2">
+        ${isEmployee ? `
+          <div class="text-xs font-bold text-emerald-800 bg-emerald-50 p-2.5 rounded-xl border border-emerald-200 flex items-center gap-1.5">
+            <i data-lucide="sparkles" class="w-4 h-4 text-emerald-600 shrink-0"></i>
+            <span>在職員工身分：全系列產品自動套用 9 折特惠價！</span>
+          </div>
+        ` : `
+          <div class="text-xs font-bold text-slate-600 bg-slate-50 p-2.5 rounded-xl border border-slate-200">
+            門市標準定價（若為在職員工請於步驟 1 切換享 9 折）
+          </div>
+        `}
+        <div class="relative">
+          <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
+            <i data-lucide="search" class="w-4 h-4"></i>
+          </span>
+          <input type="text" id="pos-product-search" value="${query}" oninput="renderProductsOptions(document.getElementById('pos-picker-content'), this.value)" placeholder="搜尋 16 款產品名稱..." class="w-full pl-9 pr-3 py-2 text-xs font-semibold rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500">
+        </div>
+      </div>
+
+      <!-- 產品列表 -->
+      <div class="space-y-2 max-h-[55vh] overflow-y-auto pr-1">
+        ${filtered.length === 0 ? `
+          <div class="p-6 text-center text-slate-400 text-xs">查無符合名稱的產品</div>
+        ` : filtered.map(p => {
+          const finalPrice = isEmployee ? (p.empPrice || p.price) : p.price;
+          const hasDiscount = isEmployee && p.empPrice && p.empPrice < p.price;
+
+          return `
+            <div class="p-3 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50/80 transition flex items-center justify-between gap-2 shadow-2xs">
+              <div class="min-w-0 flex-1">
+                <div class="font-bold text-slate-900 text-xs sm:text-sm truncate">${p.name}</div>
+                <div class="flex items-center gap-1.5 mt-0.5">
+                  <span class="text-xs font-black text-amber-700 font-numeric">NT$ ${finalPrice.toLocaleString()}</span>
+                  ${hasDiscount ? `
+                    <span class="text-[10px] text-slate-400 line-through font-numeric">NT$ ${p.price.toLocaleString()}</span>
+                    <span class="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded">9折</span>
+                  ` : ''}
+                </div>
+              </div>
+
+              <button type="button" onclick="addPosItem('${p.id}', ${finalPrice}, '${p.name}');" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl transition flex items-center gap-1 shrink-0 shadow-2xs">
+                <i data-lucide="plus" class="w-3.5 h-3.5"></i> 加入
+              </button>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    </div>
+  `;
+  if (window.lucide) lucide.createIcons();
+}
+
+// ==================== POS 步驟 3：消費項目票據 (購物車) ====================
+
+// 將指定項目加入客單購物車
+function addPosItem(serviceId, overridePrice = null, customName = '', customQty = 1) {
+  const srv = (typeof appState !== 'undefined' && appState.services && appState.services.find(s => s.id === serviceId)) ||
+              (typeof DEFAULT_SERVICES !== 'undefined' && DEFAULT_SERVICES.find(s => s.id === serviceId));
+  
+  const price = overridePrice !== null ? overridePrice : (srv ? srv.price : 0);
+  const name = customName || (srv ? srv.name : '美髮項目');
+  const rate = srv ? (srv.rate || 0) : 0;
+
+  // 檢查是否已有完全相同品項與相同單價 (自動累加數量)
+  const existing = currentBillingRows.find(r => r.serviceId === serviceId && r.price === price && (!customName || r.name === customName));
+  if (existing) {
+    existing.qty = (existing.qty || 1) + customQty;
+  } else {
+    const rowId = 'row-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
+    currentBillingRows.push({
+      rowId,
+      serviceId: srv ? srv.id : serviceId,
+      name,
+      price,
+      rate,
+      qty: customQty
+    });
+  }
+
+  renderBillingRows();
+  if (typeof showToast === 'function') {
+    showToast(`已加入：${name} (NT$ ${price.toLocaleString()})`);
+  }
+}
+
+// 支援歷史介面呼叫的新增列
+function addServiceRow(presetServiceId = '') {
+  if (presetServiceId) {
+    addPosItem(presetServiceId);
     return;
   }
+  const srv = (typeof appState !== 'undefined' && appState.services && appState.services[0]) || 
+              (typeof DEFAULT_SERVICES !== 'undefined' && DEFAULT_SERVICES[0]);
+  if (srv) {
+    addPosItem(srv.id);
+  }
+}
+
+// 購物車數量步進控制 (+1 / -1)
+function changeCartQty(rowId, delta) {
+  const row = currentBillingRows.find(r => r.rowId === rowId);
+  if (!row) return;
+
+  const newQty = (row.qty || 1) + delta;
+  if (newQty <= 0) {
+    removeServiceRow(rowId);
+  } else {
+    row.qty = newQty;
+    renderBillingRows();
+  }
+}
+
+// 刪除客單項目
+function removeServiceRow(rowId) {
   currentBillingRows = currentBillingRows.filter(r => r.rowId !== rowId);
   renderBillingRows();
 }
 
-// 下拉選單選中服務項目時，自動帶入價格與抽成！
+// 彈窗自訂修改單價 (給店長特殊折扣或微調彈性)
+function promptEditRowPrice(rowId) {
+  const row = currentBillingRows.find(r => r.rowId === rowId);
+  if (!row) return;
+  const currentPrice = row.price || 0;
+  const input = prompt(`請輸入「${row.name || '此項目'}」的自訂單價 (NT$)：`, currentPrice);
+  if (input !== null) {
+    const num = parseFloat(input);
+    if (!isNaN(num) && num >= 0) {
+      onRowInputChange(rowId, 'price', num);
+      renderBillingRows();
+    }
+  }
+}
+
+// 下拉選單變更服務項目 (相容保留)
 function onServiceSelectChange(rowId, selectedServiceId) {
   const row = currentBillingRows.find(r => r.rowId === rowId);
   if (!row) return;
@@ -204,17 +797,19 @@ function onServiceSelectChange(rowId, selectedServiceId) {
     row.price = 0;
     row.rate = 0;
   } else {
-    const srv = appState.services.find(s => s.id === selectedServiceId);
+    const srv = (typeof appState !== 'undefined' && appState.services && appState.services.find(s => s.id === selectedServiceId)) ||
+                (typeof DEFAULT_SERVICES !== 'undefined' && DEFAULT_SERVICES.find(s => s.id === selectedServiceId));
     if (srv) {
       row.serviceId = srv.id;
       row.price = srv.price;
       row.rate = srv.rate;
+      row.name = srv.name;
     }
   }
   renderBillingRows();
 }
 
-// 價格、抽成趴數、數量手動輸入變更時
+// 價格、抽成趴數、數量變更時即時重算
 function onRowInputChange(rowId, field, value) {
   const row = currentBillingRows.find(r => r.rowId === rowId);
   if (!row) return;
@@ -227,62 +822,70 @@ function onRowInputChange(rowId, field, value) {
   updateRowCalculations();
 }
 
-// 重新繪製開單項目清單（管理員與員工介面完全一致）
+// 繪製消費項目清單 (購物車清單)
 function renderBillingRows() {
   const container = document.getElementById('service-rows-container');
   if (!container) return;
 
+  if (!currentBillingRows || currentBillingRows.length === 0) {
+    container.innerHTML = `
+      <div class="p-6 text-center text-slate-400 bg-slate-50/80 rounded-2xl border border-dashed border-slate-300">
+        <div class="w-10 h-10 mx-auto mb-2 rounded-full bg-slate-100 flex items-center justify-center text-slate-400">
+          <i data-lucide="shopping-bag" class="w-5 h-5"></i>
+        </div>
+        <p class="text-sm font-bold text-slate-600">本單尚未點選任何項目</p>
+        <p class="text-xs text-slate-400 mt-1">請從上方步驟 2 類別大按鈕點選服務或產品</p>
+      </div>
+    `;
+    if (window.lucide) lucide.createIcons();
+    updateRowCalculations();
+    return;
+  }
+
   container.innerHTML = currentBillingRows.map((row, index) => {
-    const itemTotal = row.price * row.qty;
+    const srv = (typeof appState !== 'undefined' && appState.services && appState.services.find(s => s.id === row.serviceId)) ||
+                (typeof DEFAULT_SERVICES !== 'undefined' && DEFAULT_SERVICES.find(s => s.id === row.serviceId));
+    const itemName = row.name || (srv ? srv.name : '美髮服務');
+    const itemTotal = (row.price || 0) * (row.qty || 1);
 
     return `
-      <div id="${row.rowId}" class="service-row-item p-3.5 sm:p-4 bg-slate-50/95 hover:bg-slate-50 border border-slate-200/90 rounded-2xl transition space-y-2.5 shadow-sm">
-        
-        <!-- 頂部：序號、下拉選單與刪除按鈕 -->
+      <div id="${row.rowId}" class="service-row-item p-3.5 sm:p-4 bg-slate-50/95 hover:bg-slate-50 border border-slate-200 rounded-2xl transition space-y-2 shadow-2xs">
         <div class="flex items-center justify-between gap-2">
-          <div class="flex items-center gap-2 flex-1 min-w-0">
-            <span class="w-6 h-6 rounded-full bg-amber-100 text-amber-800 text-xs font-bold flex items-center justify-center shrink-0">
-              ${index + 1}
-            </span>
-            <div class="flex-1 min-w-0">
-              <label class="block text-[11px] font-bold text-slate-500 mb-0.5">
-                選擇服務項目
-              </label>
-              <select onchange="onServiceSelectChange('${row.rowId}', this.value)" class="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-900 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500">
-                <option value="" ${!row.serviceId ? 'selected' : ''}>---請選擇項目---</option>
-                ${appState.services.map(s => {
-                  return `<option value="${s.id}" ${s.id === row.serviceId ? 'selected' : ''}>${s.name} [定價$${s.price}]</option>`;
-                }).join('')}
-              </select>
+          <div class="min-w-0 flex-1">
+            <div class="flex items-center gap-2">
+              <span class="w-5 h-5 rounded-md bg-amber-100 text-amber-800 text-xs font-bold flex items-center justify-center shrink-0">
+                ${index + 1}
+              </span>
+              <span class="font-bold text-slate-900 text-sm truncate">${itemName}</span>
+            </div>
+            <div class="text-xs text-slate-500 mt-0.5 pl-7 flex items-center gap-2">
+              <span>單價 NT$ ${(row.price || 0).toLocaleString()}</span>
+              <span class="text-slate-300">|</span>
+              <button type="button" onclick="promptEditRowPrice('${row.rowId}')" class="text-amber-700 hover:text-amber-800 underline text-[11px]">
+                修改金額
+              </button>
             </div>
           </div>
 
-          <button type="button" onclick="removeServiceRow('${row.rowId}')" class="p-2 text-slate-400 hover:text-rose-600 rounded-xl hover:bg-rose-50 transition shrink-0" title="刪除項目">
-            <i data-lucide="trash-2" class="w-5 h-5"></i>
-          </button>
-        </div>
+          <div class="flex items-center gap-2.5 shrink-0">
+            <!-- 數量控制 -->
+            <div class="flex items-center border border-slate-300 rounded-xl overflow-hidden bg-white shadow-2xs">
+              <button type="button" onclick="changeCartQty('${row.rowId}', -1)" class="w-8 h-8 flex items-center justify-center text-slate-600 hover:bg-slate-100 active:bg-slate-200 transition font-bold text-base select-none">−</button>
+              <span class="w-7 text-center text-xs font-bold font-numeric text-slate-900">${row.qty || 1}</span>
+              <button type="button" onclick="changeCartQty('${row.rowId}', 1)" class="w-8 h-8 flex items-center justify-center text-slate-600 hover:bg-slate-100 active:bg-slate-200 transition font-bold text-base select-none">＋</button>
+            </div>
 
-        <!-- 數值調整：單價、數量 -->
-        <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-200/70">
-          <div>
-            <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">單價 ($)</label>
-            <input type="number" value="${row.price}" oninput="onRowInputChange('${row.rowId}', 'price', this.value)" class="w-full rounded-xl border border-slate-300 px-3 py-1.5 text-sm font-numeric bg-white font-bold text-slate-900 focus:ring-1 focus:ring-amber-500">
-          </div>
+            <!-- 小計 -->
+            <div class="text-right min-w-[70px]">
+              <strong id="${row.rowId}-subtotal" class="text-slate-900 font-numeric text-sm font-extrabold block">NT$ ${itemTotal.toLocaleString()}</strong>
+            </div>
 
-          <div>
-            <label class="block text-[11px] font-semibold text-slate-600 mb-0.5">數量</label>
-            <input type="number" min="1" value="${row.qty}" oninput="onRowInputChange('${row.rowId}', 'qty', this.value)" class="w-full rounded-xl border border-slate-300 px-3 py-1.5 text-sm font-numeric bg-white focus:ring-1 focus:ring-amber-500">
-          </div>
-        </div>
-
-        <!-- 金額即時小計 -->
-        <div class="pt-2 border-t border-slate-200/60 flex items-center justify-end gap-3 text-xs">
-          <div>
-            <span class="text-slate-500 text-[11px]">小計金額:</span>
-            <strong id="${row.rowId}-subtotal" class="text-slate-900 font-numeric text-sm font-bold">NT$ ${itemTotal.toLocaleString()}</strong>
+            <!-- 刪除 -->
+            <button type="button" onclick="removeServiceRow('${row.rowId}')" class="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition shrink-0" title="移除此項目">
+              <i data-lucide="trash-2" class="w-4 h-4"></i>
+            </button>
           </div>
         </div>
-
       </div>
     `;
   }).join('');
@@ -297,16 +900,18 @@ function updateRowCalculations() {
   let totalCommission = 0;
   let totalItemsCount = 0;
 
-  currentBillingRows.forEach(row => {
-    const itemTotal = row.price * row.qty;
-    const itemComm = Math.round(itemTotal * (row.rate / 100));
-    const subtotalEl = document.getElementById(`${row.rowId}-subtotal`);
-    if (subtotalEl) subtotalEl.textContent = `NT$ ${itemTotal.toLocaleString()}`;
+  if (currentBillingRows && Array.isArray(currentBillingRows)) {
+    currentBillingRows.forEach(row => {
+      const itemTotal = (row.price || 0) * (row.qty || 1);
+      const itemComm = Math.round(itemTotal * ((row.rate || 0) / 100));
+      const subtotalEl = document.getElementById(`${row.rowId}-subtotal`);
+      if (subtotalEl) subtotalEl.textContent = `NT$ ${itemTotal.toLocaleString()}`;
 
-    totalAmount += itemTotal;
-    totalCommission += itemComm;
-    totalItemsCount += row.qty;
-  });
+      totalAmount += itemTotal;
+      totalCommission += itemComm;
+      totalItemsCount += (row.qty || 1);
+    });
+  }
 
   const countEl = document.getElementById('summary-card-items-count');
   if (countEl) countEl.textContent = `${totalItemsCount} 項服務`;
@@ -315,62 +920,61 @@ function updateRowCalculations() {
   if (totEl) totEl.textContent = totalAmount.toLocaleString();
 }
 
-// 儲存當前單據並同步雲端
+// 儲存當前客單並同步雲端 (當日流水號依序流續)
 async function saveCurrentOrder() {
-  if (appState.staff.length === 0) {
+  if (typeof appState !== 'undefined' && appState.staff && appState.staff.length === 0) {
     alert('系統中尚無人員！請先點擊上方提示或前往「設定」新增第一位設計師！');
-    if (currentUserRole === 'admin') openStaffModal();
+    if (typeof currentUserRole !== 'undefined' && currentUserRole === 'admin' && typeof openStaffModal === 'function') {
+      openStaffModal();
+    }
     return;
   }
 
-  if (currentBillingRows.length === 0) {
+  if (!currentBillingRows || currentBillingRows.length === 0) {
     alert('請至少新增一項服務項目！');
     return;
   }
 
-  // 檢查是否有尚未選擇項目的列
   const unselectedRow = currentBillingRows.find(r => !r.serviceId);
   if (unselectedRow) {
     alert('請為所有項目選擇服務項目！');
     return;
   }
 
-  // 管理員與員工開單同一套：直接綁定當前登入之人員身分
-  if (!currentLinkedStaff) {
-    if (currentUserRole === 'admin') {
+  if (typeof currentLinkedStaff === 'undefined' || !currentLinkedStaff) {
+    if (typeof currentUserRole !== 'undefined' && currentUserRole === 'admin') {
       alert('您的管理員帳號尚未綁定店內設計師身分，目前無法開單！請先至「設定」綁定或新增人員。');
-      openStaffModal();
+      if (typeof openStaffModal === 'function') openStaffModal();
     } else {
       alert('您的帳號尚未由管理員綁定店內人員身分，目前無法開單！請聯繫管理員協助綁定。');
     }
     return;
   }
 
-  // 二次確認開單
   if (typeof confirm === 'function' && !confirm('確認開單？')) {
     return;
   }
 
   const staff = currentLinkedStaff;
-
   const dateVal = document.getElementById('billing-date')?.value || (typeof getLocalDateString === 'function' ? getLocalDateString() : new Date().toISOString().split('T')[0]);
   const timeVal = document.getElementById('billing-time')?.value || (typeof getLocalTimeString === 'function' ? getLocalTimeString() : new Date().toTimeString().slice(0, 5));
-  const notes = document.getElementById('billing-notes').value.trim();
+  const notes = document.getElementById('billing-notes')?.value?.trim() || '';
 
   const itemsDetail = currentBillingRows.map(r => {
-    const srv = appState.services.find(s => s.id === r.serviceId);
-    const name = srv ? srv.name : '自訂美髮項目';
-    const amount = r.price * r.qty;
-    const commission = Math.round(amount * (r.rate / 100));
+    const srv = (typeof appState !== 'undefined' && appState.services && appState.services.find(s => s.id === r.serviceId)) ||
+                (typeof DEFAULT_SERVICES !== 'undefined' && DEFAULT_SERVICES.find(s => s.id === r.serviceId));
+    const name = r.name || (srv ? srv.name : '美髮項目');
+    const amount = (r.price || 0) * (r.qty || 1);
+    const commission = Math.round(amount * ((r.rate || 0) / 100));
 
     return {
       serviceId: r.serviceId,
       name: name,
-      price: r.price,
-      rate: r.rate,
-      qty: r.qty,
-      amount: amount, // 顧客實付金額
-      commission: commission // 設計師應得抽成
+      price: r.price || 0,
+      rate: r.rate || 0,
+      qty: r.qty || 1,
+      amount: amount,
+      commission: commission
     };
   });
 
@@ -404,14 +1008,22 @@ async function saveCurrentOrder() {
     createdAt: new Date().toISOString()
   };
 
-  appState.orders.unshift(newOrder);
-  await syncDataToCloud();
+  if (typeof appState !== 'undefined' && appState.orders) {
+    appState.orders.unshift(newOrder);
+  }
 
-  showToast('開單成功！');
+  if (typeof syncDataToCloud === 'function') {
+    await syncDataToCloud();
+  }
+
+  if (typeof showToast === 'function') {
+    showToast('開單成功！');
+  }
+
   resetBillingForm();
 }
 
-// 重設開單表單
+// 重設開單表單與 POS 介面
 function resetBillingForm() {
   try {
     if (typeof localStorage !== 'undefined') {
@@ -426,15 +1038,20 @@ function resetBillingForm() {
     timeInput.value = typeof getLocalTimeString === 'function' ? getLocalTimeString() : new Date().toTimeString().slice(0, 5);
   }
   const billingStaffInput = document.getElementById('billing-staff-select');
-  if (billingStaffInput && currentLinkedStaff) {
+  if (billingStaffInput && typeof currentLinkedStaff !== 'undefined' && currentLinkedStaff) {
     billingStaffInput.value = currentLinkedStaff.id;
   }
-  generateNewOrderNo();
+
+  posGender = 'female';
+  posIdentity = 'employee';
   currentBillingRows = [];
-  addServiceRow();
+
+  generateNewOrderNo();
+  renderPosWizard();
+  renderBillingRows();
 }
 
-// 暫存開單草稿至 LocalStorage (在系統強制更新或意外重載前呼叫)
+// 暫存開單草稿至 LocalStorage
 function saveBillingDraftToStorage() {
   try {
     if (typeof localStorage === 'undefined') return;
@@ -448,6 +1065,8 @@ function saveBillingDraftToStorage() {
         notes: notes,
         date: date,
         time: time,
+        posGender: posGender,
+        posIdentity: posIdentity,
         savedAt: Date.now()
       };
       localStorage.setItem('SALON_BILLING_DRAFT', JSON.stringify(draft));
@@ -457,7 +1076,7 @@ function saveBillingDraftToStorage() {
   }
 }
 
-// 從 LocalStorage 還原開單草稿 (僅保留 24 小時內之草稿)
+// 從 LocalStorage 還原開單草稿
 function restoreBillingDraftFromStorage() {
   try {
     if (typeof localStorage === 'undefined') return false;
@@ -466,9 +1085,8 @@ function restoreBillingDraftFromStorage() {
     const draft = JSON.parse(raw);
     if (draft && Array.isArray(draft.rows) && draft.rows.length > 0 && (Date.now() - (draft.savedAt || 0) < 24 * 3600 * 1000)) {
       currentBillingRows = draft.rows;
-      if (typeof renderBillingRows === 'function') {
-        renderBillingRows();
-      }
+      if (draft.posGender) posGender = draft.posGender;
+      if (draft.posIdentity) posIdentity = draft.posIdentity;
       if (draft.notes) {
         const notesEl = document.getElementById('billing-notes');
         if (notesEl) notesEl.value = draft.notes;
@@ -481,6 +1099,8 @@ function restoreBillingDraftFromStorage() {
         const timeEl = document.getElementById('billing-time');
         if (timeEl) timeEl.value = draft.time;
       }
+      if (typeof renderPosWizard === 'function') renderPosWizard();
+      if (typeof renderBillingRows === 'function') renderBillingRows();
       localStorage.removeItem('SALON_BILLING_DRAFT');
       return true;
     }

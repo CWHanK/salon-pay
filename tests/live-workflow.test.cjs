@@ -260,4 +260,119 @@ test('monthly payroll calculation excludes soft-deleted orders', () => {
   assert.equal(elements.get('stat-month-commission').textContent, '750');
 });
 
+test('POS wizard correctly switches gender, identity, and updates condition badges', () => {
+  const { elements, run } = setup(['constants', 'billing']);
+  const badge = {};
+  const note = {};
+  const badgeCut = {};
+  const descCut = {};
+  const badgeShampoo = {};
+  const descShampoo = {};
+  const badgeProd = {};
+
+  elements.set('pos-condition-badge', badge);
+  elements.set('pos-discount-note-text', note);
+  elements.set('pos-badge-cut', badgeCut);
+  elements.set('pos-desc-cut', descCut);
+  elements.set('pos-badge-shampoo', badgeShampoo);
+  elements.set('pos-desc-shampoo', descShampoo);
+  elements.set('pos-badge-prod', badgeProd);
+
+  // 1. 預設女性 + 在職員工
+  run("setPosGender('female'); setPosIdentity('employee');");
+  assert.equal(badge.textContent, '👩 女性 · 🏢 在職員工');
+  assert.match(note.textContent, /女性剪髮 \$150/);
+  assert.equal(badgeCut.textContent, '$150');
+  assert.equal(badgeShampoo.textContent, '$80~$110');
+  assert.equal(badgeProd.textContent, '9折特惠');
+
+  // 2. 切換男性 + 在職員工
+  run("setPosGender('male');");
+  assert.equal(badge.textContent, '👨 男性 · 🏢 在職員工');
+  assert.equal(badgeCut.textContent, '$200');
+
+  // 3. 切換一般外客
+  run("setPosIdentity('external');");
+  assert.equal(badge.textContent, '👨 男性 · 👤 一般外客');
+  assert.equal(badgeCut.textContent, '$250~$300');
+  assert.equal(badgeShampoo.textContent, '$110~$140');
+  assert.equal(badgeProd.textContent, '門市定價');
+});
+
+test('POS item addition applies exact pricing for employee, family, external, and retail 9-discount', () => {
+  const { elements, run } = setup(['constants', 'billing'], { showToast() {} });
+  elements.set('service-rows-container', {});
+  elements.set('summary-card-total-amount', {});
+  elements.set('summary-card-items-count', {});
+
+  // 測試在職員工加單：女剪髮 ($150) + 在職長髮洗頭 ($110) + 元氣潔淨露1號 (原價$2200, 員工價$1980)
+  run(`
+    appState.services = DEFAULT_SERVICES;
+    posGender = 'female';
+    posIdentity = 'employee';
+    addPosItem('cut-emp-f');
+    addPosItem('shampoo-act-long');
+    addPosItem('prod-1', 1980, '元氣潔淨露1號');
+  `);
+
+  assert.equal(run('currentBillingRows.length'), 3);
+  assert.equal(run('currentBillingRows[0].price'), 150);
+  assert.equal(run('currentBillingRows[1].price'), 110);
+  assert.equal(run('currentBillingRows[2].price'), 1980);
+  // 實收總計 = 150 + 110 + 1980 = 2240
+  assert.equal(elements.get('summary-card-total-amount').textContent, '2,240');
+  assert.equal(elements.get('summary-card-items-count').textContent, '3 項服務');
+
+  // 測試數量加減與局部補燙卷數
+  const rowId0 = run('currentBillingRows[0].rowId');
+  run(`changeCartQty('${rowId0}', 1);`); // 女剪髮變 2
+  assert.equal(run('currentBillingRows[0].qty'), 2);
+  assert.equal(elements.get('summary-card-total-amount').textContent, '2,390'); // 2240 + 150
+});
+
+test('POS complete billing flow generates sequential order and resets smoothly', async () => {
+  let synced = 0;
+  const { elements, run } = setup(['constants', 'billing'], {
+    syncDataToCloud: async () => { synced++; },
+    showToast() {}
+  });
+
+  elements.set('billing-date', { value: '2026-09-10' });
+  elements.set('billing-time', { value: '14:30' });
+  elements.set('billing-notes', { value: 'VIP 同仁指定洗剪' });
+  elements.set('billing-order-no', { textContent: '' });
+  elements.set('service-rows-container', {});
+  elements.set('summary-card-total-amount', {});
+  elements.set('summary-card-items-count', {});
+
+  run(`
+    appState.staff = [{id: 's_hank', name: 'Hank'}];
+    currentLinkedStaff = appState.staff[0];
+    appState.services = DEFAULT_SERVICES;
+    appState.orders = [];
+
+    // 開單：頭皮深層去角質 $350 + 護髮(蒸器) $120
+    addPosItem('scalp-standard');
+    addPosItem('treat-steamer');
+  `);
+
+  await run('saveCurrentOrder()');
+
+  assert.equal(synced, 1);
+  assert.equal(run('appState.orders.length'), 1);
+  const order = run('appState.orders[0]');
+  assert.equal(order.orderNo, 'T-20260910-001');
+  assert.equal(order.staffName, 'Hank');
+  assert.equal(order.totalAmount, 470); // 350 + 120
+  assert.equal(order.items.length, 2);
+  assert.equal(order.items[0].name, '頭皮深層去角質');
+  assert.equal(order.items[1].name, '護髮 (蒸器)');
+  assert.equal(order.time, '14:30');
+  assert.equal(order.notes, 'VIP 同仁指定洗剪');
+
+  // 開單後購物車清空且備註重設
+  assert.equal(run('currentBillingRows.length'), 0);
+  assert.equal(elements.get('billing-notes').value, '');
+});
+
 

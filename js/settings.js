@@ -265,6 +265,46 @@ function toggleServicesExpand() {
   applyServicesExpandUI();
 }
 
+// 服務項目分類篩選狀態
+let currentServiceCategoryFilter = 'ALL';
+
+function setServiceCategoryFilter(category) {
+  currentServiceCategoryFilter = category;
+  renderSettingsTables();
+}
+
+function getCategoryBadge(cat) {
+  const badgeMap = {
+    '剪髮': 'bg-amber-100 text-amber-800 border-amber-200',
+    '洗頭': 'bg-blue-100 text-blue-800 border-blue-200',
+    '去角質': 'bg-emerald-100 text-emerald-800 border-emerald-200',
+    '護髮': 'bg-purple-100 text-purple-800 border-purple-200',
+    '染髮': 'bg-rose-100 text-rose-800 border-rose-200',
+    '燙髮': 'bg-sky-100 text-sky-800 border-sky-200',
+    '產品銷售': 'bg-teal-100 text-teal-800 border-teal-200'
+  };
+  const cls = badgeMap[cat] || 'bg-slate-100 text-slate-700 border-slate-200';
+  return `<span class="inline-block text-[10px] font-bold px-1.5 py-0.2 rounded-md border ${cls}">${cat || '其他'}</span>`;
+}
+
+// 補齊店內 7 大類與產品銷售標準項目
+async function restoreDefaultServices() {
+  if (currentUserRole !== 'admin') {
+    alert('僅管理員有此操作權限！');
+    return;
+  }
+  if (!confirm('是否要補齊店內所有標準 POS 服務與產品項目？（現有已修改的價格、抽成與自訂項目皆會完整保留）')) {
+    return;
+  }
+  if (typeof ensureServicesSynced === 'function') {
+    appState.services = ensureServicesSynced(appState.services);
+  }
+  await syncDataToCloud();
+  renderSettingsTables();
+  if (typeof renderPosWizard === 'function') renderPosWizard();
+  showToast('已成功補齊標準服務項目');
+}
+
 // 渲染設定頁表格（服務項目與人員清單，僅管理員有權渲染）
 function renderSettingsTables() {
   if (currentUserRole !== 'admin') {
@@ -275,28 +315,65 @@ function renderSettingsTables() {
     return;
   }
 
+  const allServices = (appState && Array.isArray(appState.services)) ? appState.services : [];
   const countBadge = document.getElementById('settings-services-count-badge');
   if (countBadge) {
-    countBadge.textContent = `共 ${appState.services.length} 項服務`;
+    countBadge.textContent = `共 ${allServices.length} 項服務`;
   }
   applyServicesExpandUI();
 
+  // 更新分類切換按鈕高亮
+  const filterTabs = ['ALL', '剪髮', '洗頭', '去角質', '護髮', '染髮', '燙髮', '產品銷售'];
+  filterTabs.forEach(cat => {
+    const tabEl = document.getElementById(`filter-srv-${cat}`);
+    if (tabEl) {
+      if (cat === currentServiceCategoryFilter) {
+        tabEl.className = 'service-cat-tab px-3 py-1.5 rounded-xl font-bold transition bg-amber-600 text-white shadow-xs';
+      } else {
+        tabEl.className = 'service-cat-tab px-3 py-1.5 rounded-xl font-bold transition bg-slate-100 text-slate-600 hover:bg-slate-200';
+      }
+    }
+  });
+
+  const filteredServices = currentServiceCategoryFilter === 'ALL'
+    ? allServices
+    : allServices.filter(s => s.category === currentServiceCategoryFilter);
+
   const srvTbody = document.getElementById('settings-services-tbody');
   if (srvTbody) {
-    srvTbody.innerHTML = appState.services.map(s => `
-      <tr class="hover:bg-slate-50 transition">
-        <td class="px-3 py-2.5 font-medium text-slate-800">
-          ${s.name}
-          <span class="block text-[10px] text-slate-400">${s.category || '技術服務'}</span>
-        </td>
-        <td class="px-3 py-2.5 text-right font-numeric font-bold text-slate-700">NT$ ${s.price.toLocaleString()}</td>
-        <td class="px-3 py-2.5 text-right font-numeric font-bold text-amber-700">${s.rate}%</td>
-        <td class="px-3 py-2.5 text-center space-x-1 whitespace-nowrap">
-          <button onclick="editServiceItem('${s.id}')" class="text-xs text-amber-600 hover:text-amber-800 font-semibold p-1">編輯</button>
-          <button onclick="deleteServiceItem('${s.id}')" class="text-xs text-rose-500 hover:text-rose-700 p-1">刪除</button>
-        </td>
-      </tr>
-    `).join('');
+    if (filteredServices.length === 0) {
+      srvTbody.innerHTML = `
+        <tr>
+          <td colspan="4" class="py-8 text-center text-xs text-slate-400">
+            目前「${currentServiceCategoryFilter === 'ALL' ? '全部' : currentServiceCategoryFilter}」分類中尚無項目
+          </td>
+        </tr>
+      `;
+    } else {
+      srvTbody.innerHTML = filteredServices.map(s => {
+        const empPriceBadge = (s.category === '產品銷售' && typeof s.empPrice === 'number' && s.empPrice < s.price)
+          ? `<div class="text-[10px] text-emerald-700 font-bold mt-0.5">員工價 NT$ ${s.empPrice.toLocaleString()}</div>`
+          : '';
+
+        return `
+          <tr class="hover:bg-slate-50 transition">
+            <td class="px-3 py-2.5 font-medium text-slate-800">
+              <div class="flex items-center gap-1.5 flex-wrap">
+                <span class="font-bold text-slate-900">${s.name}</span>
+                ${getCategoryBadge(s.category)}
+              </div>
+              ${empPriceBadge}
+            </td>
+            <td class="px-3 py-2.5 text-right font-numeric font-bold text-slate-700">NT$ ${s.price.toLocaleString()}</td>
+            <td class="px-3 py-2.5 text-right font-numeric font-bold text-amber-700">${s.rate || 0}%</td>
+            <td class="px-3 py-2.5 text-center space-x-1 whitespace-nowrap">
+              <button onclick="editServiceItem('${s.id}')" class="text-xs text-amber-600 hover:text-amber-800 font-bold p-1">編輯</button>
+              <button onclick="deleteServiceItem('${s.id}')" class="text-xs text-rose-500 hover:text-rose-700 font-bold p-1">刪除</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
   }
 
   const staffTbody = document.getElementById('settings-staff-tbody');
@@ -334,6 +411,18 @@ function renderSettingsTables() {
   renderUsersTable();
 }
 
+// 服務項目分類切換監聽
+function onServiceModalCategoryChange(category) {
+  const wrapper = document.getElementById('modal-service-empprice-wrapper');
+  if (wrapper) {
+    if (category === '產品銷售') {
+      wrapper.classList.remove('hidden');
+    } else {
+      wrapper.classList.add('hidden');
+    }
+  }
+}
+
 // 服務項目 Modal
 function openServiceModal() {
   if (currentUserRole !== 'admin') {
@@ -344,6 +433,11 @@ function openServiceModal() {
   document.getElementById('modal-service-name').value = '';
   document.getElementById('modal-service-price').value = '';
   document.getElementById('modal-service-rate').value = '50';
+  const defaultCat = currentServiceCategoryFilter !== 'ALL' ? currentServiceCategoryFilter : '剪髮';
+  document.getElementById('modal-service-category').value = defaultCat;
+  const empPriceInput = document.getElementById('modal-service-empprice');
+  if (empPriceInput) empPriceInput.value = '';
+  onServiceModalCategoryChange(defaultCat);
   document.getElementById('modal-service-title').textContent = '新增美髮服務項目';
   document.getElementById('modal-service').classList.remove('hidden');
 }
@@ -359,8 +453,13 @@ function editServiceItem(serviceId) {
   document.getElementById('modal-service-id').value = srv.id;
   document.getElementById('modal-service-name').value = srv.name;
   document.getElementById('modal-service-price').value = srv.price;
-  document.getElementById('modal-service-rate').value = srv.rate;
-  document.getElementById('modal-service-category').value = srv.category || '技術服務';
+  document.getElementById('modal-service-rate').value = typeof srv.rate === 'number' ? srv.rate : 0;
+  document.getElementById('modal-service-category').value = srv.category || '剪髮';
+  const empPriceInput = document.getElementById('modal-service-empprice');
+  if (empPriceInput) {
+    empPriceInput.value = (typeof srv.empPrice === 'number') ? srv.empPrice : '';
+  }
+  onServiceModalCategoryChange(srv.category || '剪髮');
   document.getElementById('modal-service-title').textContent = '編輯服務項目';
   document.getElementById('modal-service').classList.remove('hidden');
 }
@@ -379,6 +478,8 @@ async function saveServiceItem() {
   const price = parseFloat(document.getElementById('modal-service-price').value) || 0;
   const rate = parseFloat(document.getElementById('modal-service-rate').value) || 0;
   const category = document.getElementById('modal-service-category').value;
+  const empPriceRaw = document.getElementById('modal-service-empprice')?.value?.trim();
+  const empPrice = empPriceRaw ? parseFloat(empPriceRaw) : (category === '產品銷售' ? Math.round(price * 0.9) : undefined);
 
   if (!name) {
     alert('請輸入服務項目名稱！');
@@ -392,20 +493,28 @@ async function saveServiceItem() {
       item.price = price;
       item.rate = rate;
       item.category = category;
+      if (category === '產品銷售') {
+        item.empPrice = empPrice;
+      }
     }
   } else {
-    appState.services.push({
+    const newItem = {
       id: 'srv-' + Date.now(),
       name: name,
       price: price,
       rate: rate,
       category: category
-    });
+    };
+    if (category === '產品銷售') {
+      newItem.empPrice = empPrice;
+    }
+    appState.services.push(newItem);
   }
 
   await syncDataToCloud();
   closeServiceModal();
   renderSettingsTables();
+  if (typeof renderPosWizard === 'function') renderPosWizard();
   showToast('服務項目已同步更新');
 }
 
@@ -422,6 +531,7 @@ async function deleteServiceItem(serviceId) {
   appState.services = appState.services.filter(s => s.id !== serviceId);
   await syncDataToCloud();
   renderSettingsTables();
+  if (typeof renderPosWizard === 'function') renderPosWizard();
   showToast('項目已刪除');
 }
 

@@ -47,6 +47,47 @@ function initFirebase() {
   }
 }
 
+// 智慧合併店內服務項目清單（確保 POS 開單項目一應俱全，同時保留管理員修改之定價與抽成）
+function ensureServicesSynced(existingServices) {
+  const defaultList = (typeof DEFAULT_SERVICES !== 'undefined') ? DEFAULT_SERVICES : [];
+  if (!Array.isArray(existingServices) || existingServices.length === 0) {
+    return defaultList.map(s => ({ ...s }));
+  }
+
+  const existingMap = new Map();
+  existingServices.forEach(s => {
+    if (s && s.id) existingMap.set(s.id, s);
+  });
+
+  const merged = [];
+
+  // 1. 依序對應 DEFAULT_SERVICES，若已有則保留其自訂定價與抽成，但補足缺漏欄位(如分類)
+  defaultList.forEach(def => {
+    if (existingMap.has(def.id)) {
+      const current = existingMap.get(def.id);
+      merged.push({
+        ...def,
+        ...current,
+        // 若舊版分類為「技術服務」，自動對齊 POS 精確分類
+        category: (current.category && current.category !== '技術服務') ? current.category : def.category,
+        price: typeof current.price === 'number' ? current.price : def.price,
+        rate: typeof current.rate === 'number' ? current.rate : (def.rate || 0),
+        empPrice: typeof current.empPrice === 'number' ? current.empPrice : def.empPrice
+      });
+      existingMap.delete(def.id);
+    } else {
+      merged.push({ ...def });
+    }
+  });
+
+  // 2. 保留使用者自行新增之自訂項目
+  existingMap.forEach(customItem => {
+    merged.push(customItem);
+  });
+
+  return merged;
+}
+
 // 監聽全店共享沙龍即時同步 (salon_stores/main_store)
 function subscribeToCloudData() {
   if (unsubscribeFirestore) {
@@ -69,7 +110,7 @@ function subscribeToCloudData() {
         return;
       }
 
-      appState.services = data.services || [...DEFAULT_SERVICES];
+      appState.services = ensureServicesSynced(data.services);
       appState.staff = data.staff || [];
       appState.orders = data.orders || [];
 
@@ -97,7 +138,7 @@ function subscribeToCloudData() {
       }
     } else {
       // 若尚未建立 main_store，檢查現有使用者的舊獨立庫並自動無縫遷移！
-      let initialServices = [...DEFAULT_SERVICES];
+      let initialServices = ensureServicesSynced([]);
       let initialStaff = [];
       let initialOrders = [];
 
@@ -106,7 +147,7 @@ function subscribeToCloudData() {
           const oldDoc = await db.collection('users').doc(currentUser.uid).get();
           if (oldDoc.exists) {
             const oldData = sanitizeOldMockData(oldDoc.data());
-            initialServices = oldData.services || initialServices;
+            initialServices = ensureServicesSynced(oldData.services || []);
             initialStaff = oldData.staff || initialStaff;
             initialOrders = oldData.orders || initialOrders;
           }

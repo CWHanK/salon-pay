@@ -3,40 +3,40 @@
  */
 
 // 系統當前版本 (部署新版本時與 version.json 保持一致)
-const APP_VERSION = '20260911_1';
+const APP_VERSION = '20260912_1';
 
 // 店內正式技術服務與產品清單 (預設服務項目)
 const DEFAULT_SERVICES = [
   // 剪髮
-  { id: 'cut-emp-f', name: '剪髮 (員工-女)', price: 150, rate: 0, category: '技術服務' },
-  { id: 'cut-emp-m', name: '剪髮 (員工-男)', price: 200, rate: 0, category: '技術服務' },
-  { id: 'cut-ext-pure', name: '純剪 (非員工)', price: 250, rate: 0, category: '技術服務' },
-  { id: 'cut-ext-blow', name: '剪吹 (非員工)', price: 300, rate: 0, category: '技術服務' },
+  { id: 'cut-emp-f', name: '剪髮 (員工-女)', price: 150, rate: 0, category: '剪髮' },
+  { id: 'cut-emp-m', name: '剪髮 (員工-男)', price: 200, rate: 0, category: '剪髮' },
+  { id: 'cut-ext-pure', name: '純剪 (非員工)', price: 250, rate: 0, category: '剪髮' },
+  { id: 'cut-ext-blow', name: '剪吹 (非員工)', price: 300, rate: 0, category: '剪髮' },
   // 洗頭
-  { id: 'shampoo-act-long', name: '在職員工洗頭 (長髮)', price: 110, rate: 0, category: '技術服務' },
-  { id: 'shampoo-act-short', name: '在職員工洗頭 (短髮)', price: 80, rate: 0, category: '技術服務' },
-  { id: 'shampoo-ret-long', name: '退休/非員工洗頭 (長髮)', price: 140, rate: 0, category: '技術服務' },
-  { id: 'shampoo-ret-short', name: '退休/非員工洗頭 (短髮)', price: 110, rate: 0, category: '技術服務' },
+  { id: 'shampoo-act-long', name: '在職員工洗頭 (長髮)', price: 110, rate: 0, category: '洗頭' },
+  { id: 'shampoo-act-short', name: '在職員工洗頭 (短髮)', price: 80, rate: 0, category: '洗頭' },
+  { id: 'shampoo-ret-long', name: '退休/非員工洗頭 (長髮)', price: 140, rate: 0, category: '洗頭' },
+  { id: 'shampoo-ret-short', name: '退休/非員工洗頭 (短髮)', price: 110, rate: 0, category: '洗頭' },
   // 去角質
-  { id: 'scalp-standard', name: '頭皮深層去角質', price: 350, rate: 0, category: '技術服務' },
+  { id: 'scalp-standard', name: '頭皮深層去角質', price: 350, rate: 0, category: '去角質' },
   // 護髮
-  { id: 'treat-steamer', name: '護髮 (蒸器)', price: 120, rate: 0, category: '技術服務' },
-  { id: 'treat-sonic', name: '護髮 (超音波)', price: 250, rate: 0, category: '技術服務' },
-  { id: 'treat-ext-comp', name: '護髮 (非員工/用公司)', price: 450, rate: 0, category: '技術服務' },
-  { id: 'treat-emp-steamer', name: '護髮 (員工產品蒸器)', price: 450, rate: 0, category: '技術服務' },
-  { id: 'treat-emp-sonic', name: '護髮 (員工產品超音波)', price: 600, rate: 0, category: '技術服務' },
+  { id: 'treat-steamer', name: '護髮 (蒸器)', price: 120, rate: 0, category: '護髮' },
+  { id: 'treat-sonic', name: '護髮 (超音波)', price: 250, rate: 0, category: '護髮' },
+  { id: 'treat-ext-comp', name: '護髮 (非員工/用公司)', price: 450, rate: 0, category: '護髮' },
+  { id: 'treat-emp-steamer', name: '護髮 (員工產品蒸器)', price: 450, rate: 0, category: '護髮' },
+  { id: 'treat-emp-sonic', name: '護髮 (員工產品超音波)', price: 600, rate: 0, category: '護髮' },
   // 染髮
-  { id: 'color-company', name: '染髮 (用公司染劑)', price: 800, rate: 0, category: '技術服務' },
-  { id: 'color-bring', name: '染髮 (員工/退休/自帶代工)', price: 350, rate: 0, category: '技術服務' },
-  { id: 'color-barrier', name: '染髮 (頭皮隔離霜)', price: 350, rate: 0, category: '技術服務' },
-  { id: 'color-bring-next', name: '染髮 (自帶-明年啟動)', price: 450, rate: 0, category: '技術服務' },
+  { id: 'color-company', name: '染髮 (用公司染劑)', price: 800, rate: 0, category: '染髮' },
+  { id: 'color-bring', name: '染髮 (員工/退休/自帶代工)', price: 350, rate: 0, category: '染髮' },
+  { id: 'color-barrier', name: '染髮 (頭皮隔離霜)', price: 350, rate: 0, category: '染髮' },
+  { id: 'color-bring-next', name: '染髮 (自帶-明年啟動)', price: 450, rate: 0, category: '染髮' },
   // 燙髮
-  { id: 'perm-cold-emp', name: '冷燙髮 (整頭-員工)', price: 2000, rate: 0, category: '技術服務' },
-  { id: 'perm-cold-fam', name: '冷燙髮 (整頭-員工家屬/非員工)', price: 2300, rate: 0, category: '技術服務' },
-  { id: 'perm-cold-part', name: '冷燙髮 (局部補燙 $50/卷)', price: 50, rate: 0, category: '技術服務' },
-  { id: 'perm-dig-short', name: '溫朔燙 (短髮)', price: 2300, rate: 0, category: '技術服務' },
-  { id: 'perm-dig-long', name: '溫朔燙 (長髮)', price: 2500, rate: 0, category: '技術服務' },
-  { id: 'perm-dig-xlong', name: '溫朔燙 (過長)', price: 2800, rate: 0, category: '技術服務' },
+  { id: 'perm-cold-emp', name: '冷燙髮 (整頭-員工)', price: 2000, rate: 0, category: '燙髮' },
+  { id: 'perm-cold-fam', name: '冷燙髮 (整頭-員工家屬/非員工)', price: 2300, rate: 0, category: '燙髮' },
+  { id: 'perm-cold-part', name: '冷燙髮 (局部補燙 $50/卷)', price: 50, rate: 0, category: '燙髮' },
+  { id: 'perm-dig-short', name: '溫朔燙 (短髮)', price: 2300, rate: 0, category: '燙髮' },
+  { id: 'perm-dig-long', name: '溫朔燙 (長髮)', price: 2500, rate: 0, category: '燙髮' },
+  { id: 'perm-dig-xlong', name: '溫朔燙 (過長)', price: 2800, rate: 0, category: '燙髮' },
   // 產品銷售 (含 16 款品項)
   { id: 'prod-1', name: '元氣潔淨露1號', price: 2200, empPrice: 1980, rate: 0, category: '產品銷售' },
   { id: 'prod-2', name: '元氣調理霜1號', price: 2800, empPrice: 2520, rate: 0, category: '產品銷售' },

@@ -375,4 +375,84 @@ test('POS complete billing flow generates sequential order and resets smoothly',
   assert.equal(elements.get('billing-notes').value, '');
 });
 
+test('ensureServicesSynced preserves admin-customized price and commission while providing all POS items', () => {
+  const { run } = setup(['constants', 'firebase']);
+  const customList = [
+    { id: 'cut-emp-f', name: '女剪髮', price: 180, rate: 60, category: '剪髮' },
+    { id: 'custom-special', name: '店長特調護髮', price: 880, rate: 50, category: '護髮' }
+  ];
+
+  const result = run(`ensureServicesSynced(${JSON.stringify(customList)})`);
+  assert.equal(result.length, 41); // 40 default POS items + 1 custom item
+  const cutItem = result.find(s => s.id === 'cut-emp-f');
+  assert.equal(cutItem.price, 180);
+  assert.equal(cutItem.rate, 60);
+  assert.equal(cutItem.category, '剪髮');
+
+  const customItem = result.find(s => s.id === 'custom-special');
+  assert.equal(customItem.name, '店長特調護髮');
+  assert.equal(customItem.price, 880);
+  assert.equal(customItem.rate, 50);
+
+  const prodItem = result.find(s => s.id === 'prod-1');
+  assert.equal(prodItem.category, '產品銷售');
+});
+
+test('customizing service price and commission in appState.services propagates to POS modal, cart, and order commission', async () => {
+  let synced = 0;
+  const { elements, run } = setup(['constants', 'billing'], {
+    syncDataToCloud: async () => { synced++; },
+    showToast() {}
+  });
+
+  const pickerContainer = {};
+  elements.set('pos-picker-content', pickerContainer);
+  elements.set('billing-date', { value: '2026-09-12' });
+  elements.set('billing-time', { value: '11:00' });
+  elements.set('billing-notes', { value: '' });
+  elements.set('billing-order-no', { textContent: '' });
+  elements.set('service-rows-container', {});
+  elements.set('summary-card-total-amount', {});
+  elements.set('summary-card-items-count', {});
+
+  run(`
+    appState.staff = [{id: 's1', name: 'Alice'}];
+    currentLinkedStaff = appState.staff[0];
+    appState.services = DEFAULT_SERVICES.map(s => ({ ...s }));
+    appState.orders = [];
+
+    // 管理員在設定頁面修改了「女剪髮」價格為 $180，抽成調整為 60%
+    const cutSrv = appState.services.find(s => s.id === 'cut-emp-f');
+    cutSrv.price = 180;
+    cutSrv.rate = 60;
+
+    // 驗證 POS 彈窗即時渲染最新單價 NT$ 180
+    posIdentity = 'employee';
+    posGender = 'female';
+    renderCutOptions(document.getElementById('pos-picker-content'));
+  `);
+
+  assert.match(pickerContainer.innerHTML, /NT\$ 180/);
+  assert.doesNotMatch(pickerContainer.innerHTML, /NT\$ 150/);
+
+  // 點選加入客單購物車並開單
+  run(`
+    addPosItem('cut-emp-f');
+  `);
+
+  assert.equal(run('currentBillingRows.length'), 1);
+  assert.equal(run('currentBillingRows[0].price'), 180);
+  assert.equal(run('currentBillingRows[0].rate'), 60);
+
+  await run('saveCurrentOrder()');
+
+  assert.equal(synced, 1);
+  const order = run('appState.orders[0]');
+  assert.equal(order.totalAmount, 180);
+  // 抽成: Math.round(180 * (60 / 100)) = 108
+  assert.equal(order.totalCommission, 108);
+  assert.equal(order.salonNet, 72);
+});
+
+
 

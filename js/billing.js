@@ -7,6 +7,18 @@ let posGender = 'female';      // 'female' | 'male'
 let posIdentity = 'employee';  // 'employee' | 'retiree' | 'family' | 'external'
 let posPermRolls = 1;          // 燙髮局部補燙卷數
 
+// 取得服務項目物件 (優先從 appState.services 讀取自訂價格與抽成，找不到時降級讀取 DEFAULT_SERVICES)
+function getServiceItem(serviceId) {
+  return (typeof appState !== 'undefined' && appState.services && appState.services.find(s => s.id === serviceId)) ||
+         (typeof DEFAULT_SERVICES !== 'undefined' && DEFAULT_SERVICES.find(s => s.id === serviceId)) || null;
+}
+
+// 取得服務項目單價
+function getServicePrice(serviceId, fallback = 0) {
+  const srv = getServiceItem(serviceId);
+  return (srv && typeof srv.price === 'number') ? srv.price : fallback;
+}
+
 // 渲染所有設計師下拉選單與開單設計師身分顯示
 function populateStaffDropdowns() {
   const billingStaffName = document.getElementById('billing-staff-name');
@@ -238,15 +250,27 @@ function renderPosWizard() {
     badgeEl.textContent = `${genderLabel} · ${identityLabels[posIdentity] || ''}`;
   }
 
+  const pCutEmpF = getServicePrice('cut-emp-f', 150);
+  const pCutEmpM = getServicePrice('cut-emp-m', 200);
+  const pCutPure = getServicePrice('cut-ext-pure', 250);
+  const pCutBlow = getServicePrice('cut-ext-blow', 300);
+
+  const pShampActLong = getServicePrice('shampoo-act-long', 110);
+  const pShampActShort = getServicePrice('shampoo-act-short', 80);
+  const pShampRetLong = getServicePrice('shampoo-ret-long', 140);
+  const pShampRetShort = getServicePrice('shampoo-ret-short', 110);
+
+  const pScalp = getServicePrice('scalp-standard', 350);
+
   if (noteEl) {
     if (posIdentity === 'employee') {
-      noteEl.textContent = `在職員工：女性剪髮 $150 / 洗頭 $80~$110 / 產品 9 折`;
+      noteEl.textContent = `在職員工：女性剪髮 $${pCutEmpF} / 洗頭 $${pShampActShort}~$${pShampActLong} / 產品 9 折`;
     } else if (posIdentity === 'retiree') {
-      noteEl.textContent = `退休員工：女性剪髮 $150 / 洗頭 $110~$140`;
+      noteEl.textContent = `退休員工：女性剪髮 $${pCutEmpF} / 洗頭 $${pShampRetShort}~$${pShampRetLong}`;
     } else if (posIdentity === 'family') {
-      noteEl.textContent = `員工眷屬：純剪 $250 / 洗頭 $110~$140`;
+      noteEl.textContent = `員工眷屬：純剪 $${pCutPure} / 洗頭 $${pShampRetShort}~$${pShampRetLong}`;
     } else {
-      noteEl.textContent = `非員工：純剪 $250 / 洗頭 $110~$140`;
+      noteEl.textContent = `非員工：純剪 $${pCutPure} / 洗頭 $${pShampRetShort}~$${pShampRetLong}`;
     }
   }
 
@@ -255,16 +279,16 @@ function renderPosWizard() {
   const descCut = document.getElementById('pos-desc-cut');
   if (badgeCut) {
     if (posIdentity === 'employee' || posIdentity === 'retiree') {
-      badgeCut.textContent = posGender === 'female' ? '$150' : '$200';
+      badgeCut.textContent = posGender === 'female' ? `$${pCutEmpF}` : `$${pCutEmpM}`;
     } else {
-      badgeCut.textContent = '$250~$300';
+      badgeCut.textContent = pCutPure === pCutBlow ? `$${pCutPure}` : `$${pCutPure}~$${pCutBlow}`;
     }
   }
   if (descCut) {
     if (posIdentity === 'employee' || posIdentity === 'retiree') {
-      descCut.textContent = posGender === 'female' ? '女 $150 (員工)' : '男 $200 (員工)';
+      descCut.textContent = posGender === 'female' ? `女 $${pCutEmpF} (員工)` : `男 $${pCutEmpM} (員工)`;
     } else {
-      descCut.textContent = '純剪 $250 / 剪吹 $300';
+      descCut.textContent = `純剪 $${pCutPure} / 剪吹 $${pCutBlow}`;
     }
   }
 
@@ -272,17 +296,48 @@ function renderPosWizard() {
   const descShampoo = document.getElementById('pos-desc-shampoo');
   if (badgeShampoo) {
     if (posIdentity === 'employee') {
-      badgeShampoo.textContent = '$80~$110';
+      badgeShampoo.textContent = pShampActShort === pShampActLong ? `$${pShampActShort}` : `$${pShampActShort}~$${pShampActLong}`;
     } else {
-      badgeShampoo.textContent = '$110~$140';
+      badgeShampoo.textContent = pShampRetShort === pShampRetLong ? `$${pShampRetShort}` : `$${pShampRetShort}~$${pShampRetLong}`;
     }
   }
   if (descShampoo) {
     if (posIdentity === 'employee') {
-      descShampoo.textContent = '長髮 $110 / 短髮 $80';
+      descShampoo.textContent = `長髮 $${pShampActLong} / 短髮 $${pShampActShort}`;
     } else {
-      descShampoo.textContent = '長髮 $140 / 短髮 $110';
+      descShampoo.textContent = `長髮 $${pShampRetLong} / 短髮 $${pShampRetShort}`;
     }
+  }
+
+  const badgeScalp = document.getElementById('pos-badge-scalp');
+  if (badgeScalp) {
+    badgeScalp.textContent = `$${pScalp}`;
+  }
+
+  const badgeTreatment = document.getElementById('pos-badge-treatment');
+  if (badgeTreatment) {
+    const treatPrices = ['treat-steamer', 'treat-sonic', 'treat-ext-comp', 'treat-emp-steamer', 'treat-emp-sonic'].map(id => getServicePrice(id, 0)).filter(p => p > 0);
+    if (treatPrices.length > 0) {
+      const minT = Math.min(...treatPrices);
+      const maxT = Math.max(...treatPrices);
+      badgeTreatment.textContent = minT === maxT ? `$${minT}` : `$${minT}~$${maxT}`;
+    }
+  }
+
+  const badgeColor = document.getElementById('pos-badge-color');
+  if (badgeColor) {
+    const colorPrices = ['color-company', 'color-bring', 'color-barrier', 'color-bring-next'].map(id => getServicePrice(id, 0)).filter(p => p > 0);
+    if (colorPrices.length > 0) {
+      const minC = Math.min(...colorPrices);
+      const maxC = Math.max(...colorPrices);
+      badgeColor.textContent = minC === maxC ? `$${minC}` : `$${minC}~$${maxC}`;
+    }
+  }
+
+  const badgePerm = document.getElementById('pos-badge-perm');
+  if (badgePerm) {
+    const pCold = posIdentity === 'employee' ? getServicePrice('perm-cold-emp', 2000) : getServicePrice('perm-cold-fam', 2300);
+    badgePerm.textContent = `$${pCold.toLocaleString()}起`;
   }
 
   const badgeProd = document.getElementById('pos-badge-prod');
@@ -350,6 +405,11 @@ function closePosPickerModal() {
 // 1. 剪髮
 function renderCutOptions(el) {
   const isEmployee = posIdentity === 'employee' || posIdentity === 'retiree';
+  const fPrice = getServicePrice('cut-emp-f', 150);
+  const mPrice = getServicePrice('cut-emp-m', 200);
+  const purePrice = getServicePrice('cut-ext-pure', 250);
+  const blowPrice = getServicePrice('cut-ext-blow', 300);
+
   if (isEmployee) {
     el.innerHTML = `
       <div class="space-y-2">
@@ -358,14 +418,14 @@ function renderCutOptions(el) {
             <span class="text-2xl">👩</span>
             <div class="font-bold text-slate-900 text-sm">女剪髮</div>
           </div>
-          <span class="text-base font-black text-amber-700 font-numeric">NT$ 150</span>
+          <span class="text-base font-black text-amber-700 font-numeric">NT$ ${fPrice.toLocaleString()}</span>
         </button>
         <button type="button" onclick="addPosItem('cut-emp-m'); closePosPickerModal();" class="w-full p-4 rounded-2xl border ${posGender === 'male' ? 'border-amber-500 bg-amber-50/70 ring-2 ring-amber-400' : 'border-slate-200 bg-white hover:bg-slate-50'} transition flex items-center justify-between text-left">
           <div class="flex items-center gap-3">
             <span class="text-2xl">👨</span>
             <div class="font-bold text-slate-900 text-sm">男剪髮</div>
           </div>
-          <span class="text-base font-black text-amber-700 font-numeric">NT$ 200</span>
+          <span class="text-base font-black text-amber-700 font-numeric">NT$ ${mPrice.toLocaleString()}</span>
         </button>
       </div>
     `;
@@ -377,14 +437,14 @@ function renderCutOptions(el) {
             <span class="text-2xl">✂️</span>
             <div class="font-bold text-slate-900 text-sm">純剪</div>
           </div>
-          <span class="text-base font-black text-amber-700 font-numeric">NT$ 250</span>
+          <span class="text-base font-black text-amber-700 font-numeric">NT$ ${purePrice.toLocaleString()}</span>
         </button>
         <button type="button" onclick="addPosItem('cut-ext-blow'); closePosPickerModal();" class="w-full p-4 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
           <div class="flex items-center gap-3">
             <span class="text-2xl">💨</span>
             <div class="font-bold text-slate-900 text-sm">剪吹</div>
           </div>
-          <span class="text-base font-black text-amber-700 font-numeric">NT$ 300</span>
+          <span class="text-base font-black text-amber-700 font-numeric">NT$ ${blowPrice.toLocaleString()}</span>
         </button>
       </div>
     `;
@@ -394,6 +454,11 @@ function renderCutOptions(el) {
 // 2. 洗頭
 function renderShampooOptions(el) {
   const isEmployee = posIdentity === 'employee';
+  const actLong = getServicePrice('shampoo-act-long', 110);
+  const actShort = getServicePrice('shampoo-act-short', 80);
+  const retLong = getServicePrice('shampoo-ret-long', 140);
+  const retShort = getServicePrice('shampoo-ret-short', 110);
+
   if (isEmployee) {
     el.innerHTML = `
       <div class="space-y-2">
@@ -402,14 +467,14 @@ function renderShampooOptions(el) {
             <span class="text-2xl">💇‍♀️</span>
             <div class="font-bold text-slate-900 text-sm">長髮</div>
           </div>
-          <span class="text-base font-black text-amber-700 font-numeric">NT$ 110</span>
+          <span class="text-base font-black text-amber-700 font-numeric">NT$ ${actLong.toLocaleString()}</span>
         </button>
         <button type="button" onclick="addPosItem('shampoo-act-short'); closePosPickerModal();" class="w-full p-4 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
           <div class="flex items-center gap-3">
             <span class="text-2xl">💇‍♂️</span>
             <div class="font-bold text-slate-900 text-sm">短髮</div>
           </div>
-          <span class="text-base font-black text-amber-700 font-numeric">NT$ 80</span>
+          <span class="text-base font-black text-amber-700 font-numeric">NT$ ${actShort.toLocaleString()}</span>
         </button>
       </div>
     `;
@@ -421,14 +486,14 @@ function renderShampooOptions(el) {
             <span class="text-2xl">💇‍♀️</span>
             <div class="font-bold text-slate-900 text-sm">長髮</div>
           </div>
-          <span class="text-base font-black text-amber-700 font-numeric">NT$ 140</span>
+          <span class="text-base font-black text-amber-700 font-numeric">NT$ ${retLong.toLocaleString()}</span>
         </button>
         <button type="button" onclick="addPosItem('shampoo-ret-short'); closePosPickerModal();" class="w-full p-4 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
           <div class="flex items-center gap-3">
             <span class="text-2xl">💇‍♂️</span>
             <div class="font-bold text-slate-900 text-sm">短髮</div>
           </div>
-          <span class="text-base font-black text-amber-700 font-numeric">NT$ 110</span>
+          <span class="text-base font-black text-amber-700 font-numeric">NT$ ${retShort.toLocaleString()}</span>
         </button>
       </div>
     `;
@@ -437,6 +502,7 @@ function renderShampooOptions(el) {
 
 // 3. 去角質
 function renderScalpOptions(el) {
+  const scalpPrice = getServicePrice('scalp-standard', 350);
   el.innerHTML = `
     <div class="space-y-2">
       <button type="button" onclick="addPosItem('scalp-standard'); closePosPickerModal();" class="w-full p-4 rounded-2xl border border-emerald-300 bg-emerald-50/50 hover:bg-emerald-50 transition flex items-center justify-between text-left">
@@ -444,7 +510,7 @@ function renderScalpOptions(el) {
           <span class="text-2xl">🌿</span>
           <div class="font-bold text-slate-900 text-sm">頭皮去角質</div>
         </div>
-        <span class="text-base font-black text-emerald-800 font-numeric">NT$ 350</span>
+        <span class="text-base font-black text-emerald-800 font-numeric">NT$ ${scalpPrice.toLocaleString()}</span>
       </button>
     </div>
   `;
@@ -453,11 +519,11 @@ function renderScalpOptions(el) {
 // 4. 護髮
 function renderTreatmentOptions(el) {
   const items = [
-    { id: 'treat-steamer', name: '護髮 (蒸器)', price: 120, icon: '💨' },
-    { id: 'treat-sonic', name: '護髮 (超音波)', price: 250, icon: '🔊' },
-    { id: 'treat-ext-comp', name: '非員工 (用公司)', price: 450, icon: '🏢' },
-    { id: 'treat-emp-steamer', name: '員工產品 (蒸器)', price: 450, icon: '🧴' },
-    { id: 'treat-emp-sonic', name: '員工產品 (超音波)', price: 600, icon: '✨' }
+    { id: 'treat-steamer', name: getServiceItem('treat-steamer')?.name || '護髮 (蒸器)', price: getServicePrice('treat-steamer', 120), icon: '💨' },
+    { id: 'treat-sonic', name: getServiceItem('treat-sonic')?.name || '護髮 (超音波)', price: getServicePrice('treat-sonic', 250), icon: '🔊' },
+    { id: 'treat-ext-comp', name: getServiceItem('treat-ext-comp')?.name || '非員工 (用公司)', price: getServicePrice('treat-ext-comp', 450), icon: '🏢' },
+    { id: 'treat-emp-steamer', name: getServiceItem('treat-emp-steamer')?.name || '員工產品 (蒸器)', price: getServicePrice('treat-emp-steamer', 450), icon: '🧴' },
+    { id: 'treat-emp-sonic', name: getServiceItem('treat-emp-sonic')?.name || '員工產品 (超音波)', price: getServicePrice('treat-emp-sonic', 600), icon: '✨' }
   ];
 
   el.innerHTML = `
@@ -478,10 +544,10 @@ function renderTreatmentOptions(el) {
 // 5. 染髮
 function renderColorOptions(el) {
   const items = [
-    { id: 'color-company', name: '用公司染劑', price: 800, icon: '🏢' },
-    { id: 'color-bring', name: '自帶代工', price: 350, icon: '🧴' },
-    { id: 'color-barrier', name: '頭皮隔離霜', price: 350, icon: '🛡️' },
-    { id: 'color-bring-next', name: '自帶代工 (明年)', price: 450, icon: '🗓️' }
+    { id: 'color-company', name: getServiceItem('color-company')?.name || '用公司染劑', price: getServicePrice('color-company', 800), icon: '🏢' },
+    { id: 'color-bring', name: getServiceItem('color-bring')?.name || '自帶代工', price: getServicePrice('color-bring', 350), icon: '🧴' },
+    { id: 'color-barrier', name: getServiceItem('color-barrier')?.name || '頭皮隔離霜', price: getServicePrice('color-barrier', 350), icon: '🛡️' },
+    { id: 'color-bring-next', name: getServiceItem('color-bring-next')?.name || '自帶代工 (明年)', price: getServicePrice('color-bring-next', 450), icon: '🗓️' }
   ];
 
   el.innerHTML = `
@@ -503,6 +569,12 @@ function renderColorOptions(el) {
 function renderPermOptions(el) {
   const isEmployee = posIdentity === 'employee';
   posPermRolls = 1;
+  const coldEmp = getServicePrice('perm-cold-emp', 2000);
+  const coldFam = getServicePrice('perm-cold-fam', 2300);
+  const partRollUnit = getServicePrice('perm-cold-part', 50);
+  const digShort = getServicePrice('perm-dig-short', 2300);
+  const digLong = getServicePrice('perm-dig-long', 2500);
+  const digXlong = getServicePrice('perm-dig-xlong', 2800);
 
   el.innerHTML = `
     <div class="space-y-3">
@@ -515,7 +587,7 @@ function renderPermOptions(el) {
               <span class="text-2xl">❄️</span>
               <div class="font-bold text-slate-900 text-sm">冷燙整頭</div>
             </div>
-            <span class="text-sm font-black text-amber-700 font-numeric">NT$ 2,000</span>
+            <span class="text-sm font-black text-amber-700 font-numeric">NT$ ${coldEmp.toLocaleString()}</span>
           </button>
         ` : `
           <button type="button" onclick="addPosItem('perm-cold-fam'); closePosPickerModal();" class="w-full p-3.5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
@@ -523,14 +595,14 @@ function renderPermOptions(el) {
               <span class="text-2xl">❄️</span>
               <div class="font-bold text-slate-900 text-sm">冷燙整頭</div>
             </div>
-            <span class="text-sm font-black text-amber-700 font-numeric">NT$ 2,300</span>
+            <span class="text-sm font-black text-amber-700 font-numeric">NT$ ${coldFam.toLocaleString()}</span>
           </button>
         `}
 
         <!-- 局部補燙 -->
         <div class="p-3 rounded-2xl border border-slate-200 bg-slate-50 space-y-2">
           <div class="flex items-center justify-between">
-            <div class="font-bold text-slate-900 text-sm">局部補燙 ($50/卷)</div>
+            <div class="font-bold text-slate-900 text-sm">局部補燙 ($${partRollUnit}/卷)</div>
             <div class="flex items-center border border-slate-300 rounded-xl overflow-hidden bg-white shadow-2xs">
               <button type="button" onclick="updatePermRolls(-1)" class="w-8 h-8 flex items-center justify-center text-slate-700 hover:bg-slate-100 font-bold select-none">−</button>
               <span id="pos-perm-rolls-val" class="w-8 text-center text-xs font-bold font-numeric">1</span>
@@ -538,7 +610,7 @@ function renderPermOptions(el) {
             </div>
           </div>
           <button type="button" id="pos-perm-rolls-add-btn" onclick="addPermRollsItem()" class="w-full py-2 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl text-xs transition flex items-center justify-center gap-1 shadow-xs">
-            ＋ 加入局部補燙 (NT$ 50)
+            ＋ 加入局部補燙 (NT$ ${partRollUnit.toLocaleString()})
           </button>
         </div>
       </div>
@@ -548,15 +620,15 @@ function renderPermOptions(el) {
         <div class="text-xs font-bold text-slate-500">溫朔燙</div>
         <button type="button" onclick="addPosItem('perm-dig-short'); closePosPickerModal();" class="w-full p-3.5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
           <div class="font-bold text-slate-900 text-sm">短髮</div>
-          <span class="text-sm font-black text-amber-700 font-numeric">NT$ 2,300</span>
+          <span class="text-sm font-black text-amber-700 font-numeric">NT$ ${digShort.toLocaleString()}</span>
         </button>
         <button type="button" onclick="addPosItem('perm-dig-long'); closePosPickerModal();" class="w-full p-3.5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
           <div class="font-bold text-slate-900 text-sm">長髮</div>
-          <span class="text-sm font-black text-amber-700 font-numeric">NT$ 2,500</span>
+          <span class="text-sm font-black text-amber-700 font-numeric">NT$ ${digLong.toLocaleString()}</span>
         </button>
         <button type="button" onclick="addPosItem('perm-dig-xlong'); closePosPickerModal();" class="w-full p-3.5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
           <div class="font-bold text-slate-900 text-sm">過長</div>
-          <span class="text-sm font-black text-amber-700 font-numeric">NT$ 2,800</span>
+          <span class="text-sm font-black text-amber-700 font-numeric">NT$ ${digXlong.toLocaleString()}</span>
         </button>
       </div>
     </div>
@@ -565,14 +637,16 @@ function renderPermOptions(el) {
 
 function updatePermRolls(delta) {
   posPermRolls = Math.max(1, posPermRolls + delta);
+  const unitPrice = getServicePrice('perm-cold-part', 50);
   const valEl = document.getElementById('pos-perm-rolls-val');
   const btnEl = document.getElementById('pos-perm-rolls-add-btn');
   if (valEl) valEl.textContent = posPermRolls;
-  if (btnEl) btnEl.textContent = `＋ 加入局部補燙 (NT$ ${(posPermRolls * 50).toLocaleString()})`;
+  if (btnEl) btnEl.textContent = `＋ 加入局部補燙 (NT$ ${(posPermRolls * unitPrice).toLocaleString()})`;
 }
 
 function addPermRollsItem() {
-  const total = posPermRolls * 50;
+  const unitPrice = getServicePrice('perm-cold-part', 50);
+  const total = posPermRolls * unitPrice;
   addPosItem('perm-cold-part', total, `冷燙髮 (局部補燙 ${posPermRolls}卷)`, 1);
   closePosPickerModal();
 }
@@ -580,7 +654,10 @@ function addPermRollsItem() {
 // 7. 產品銷售
 function renderProductsOptions(el, query = '') {
   const isEmployee = posIdentity === 'employee';
-  const products = (typeof DEFAULT_SERVICES !== 'undefined' ? DEFAULT_SERVICES : []).filter(s => s.category === '產品銷售');
+  const allServices = (typeof appState !== 'undefined' && appState.services && appState.services.length > 0)
+    ? appState.services
+    : (typeof DEFAULT_SERVICES !== 'undefined' ? DEFAULT_SERVICES : []);
+  const products = allServices.filter(s => s.category === '產品銷售');
   const filtered = query
     ? products.filter(p => p.name.toLowerCase().includes(query.toLowerCase()))
     : products;
@@ -600,8 +677,8 @@ function renderProductsOptions(el, query = '') {
         ${filtered.length === 0 ? `
           <div class="p-6 text-center text-slate-400 text-xs">查無符合名稱的產品</div>
         ` : filtered.map(p => {
-          const finalPrice = isEmployee ? (p.empPrice || p.price) : p.price;
-          const hasDiscount = isEmployee && p.empPrice && p.empPrice < p.price;
+          const finalPrice = isEmployee ? ((typeof p.empPrice === 'number' && p.empPrice > 0) ? p.empPrice : p.price) : p.price;
+          const hasDiscount = isEmployee && (typeof p.empPrice === 'number' && p.empPrice > 0 && p.empPrice < p.price);
 
           return `
             <div class="p-3 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50/80 transition flex items-center justify-between gap-2 shadow-2xs">
@@ -611,7 +688,7 @@ function renderProductsOptions(el, query = '') {
                   <span class="text-xs font-black text-amber-700 font-numeric">NT$ ${finalPrice.toLocaleString()}</span>
                   ${hasDiscount ? `
                     <span class="text-[10px] text-slate-400 line-through font-numeric">NT$ ${p.price.toLocaleString()}</span>
-                    <span class="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded">9折</span>
+                    <span class="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded">員工價</span>
                   ` : ''}
                 </div>
               </div>
@@ -632,8 +709,7 @@ function renderProductsOptions(el, query = '') {
 
 // 將指定項目加入客單購物車
 function addPosItem(serviceId, overridePrice = null, customName = '', customQty = 1) {
-  const srv = (typeof appState !== 'undefined' && appState.services && appState.services.find(s => s.id === serviceId)) ||
-              (typeof DEFAULT_SERVICES !== 'undefined' && DEFAULT_SERVICES.find(s => s.id === serviceId));
+  const srv = getServiceItem(serviceId);
   
   const price = overridePrice !== null ? overridePrice : (srv ? srv.price : 0);
   const name = customName || (srv ? srv.name : '美髮項目');
@@ -765,8 +841,7 @@ function renderBillingRows() {
   }
 
   container.innerHTML = currentBillingRows.map((row, index) => {
-    const srv = (typeof appState !== 'undefined' && appState.services && appState.services.find(s => s.id === row.serviceId)) ||
-                (typeof DEFAULT_SERVICES !== 'undefined' && DEFAULT_SERVICES.find(s => s.id === row.serviceId));
+    const srv = getServiceItem(row.serviceId);
     const itemName = row.name || (srv ? srv.name : '美髮服務');
     const itemTotal = (row.price || 0) * (row.qty || 1);
 
@@ -883,8 +958,7 @@ async function saveCurrentOrder() {
   const notes = document.getElementById('billing-notes')?.value?.trim() || '';
 
   const itemsDetail = currentBillingRows.map(r => {
-    const srv = (typeof appState !== 'undefined' && appState.services && appState.services.find(s => s.id === r.serviceId)) ||
-                (typeof DEFAULT_SERVICES !== 'undefined' && DEFAULT_SERVICES.find(s => s.id === r.serviceId));
+    const srv = getServiceItem(r.serviceId);
     const name = r.name || (srv ? srv.name : '美髮項目');
     const amount = (r.price || 0) * (r.qty || 1);
     const commission = Math.round(amount * ((r.rate || 0) / 100));

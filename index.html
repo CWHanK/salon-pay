@@ -336,7 +336,7 @@
             <button type="button" onclick="openPosCategoryModal('scalp')" class="pos-cat-tile p-3 rounded-2xl border border-slate-200 hover:border-amber-400 bg-white hover:bg-amber-50/50 transition text-left flex flex-col justify-between shadow-2xs hover:shadow-sm active:scale-98">
               <div class="flex items-center justify-between">
                 <span class="text-xl">🌿</span>
-                <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-800">$350</span>
+                <span id="pos-badge-scalp" class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-800">$350</span>
               </div>
               <div class="mt-2 font-black text-sm text-slate-900">去角質</div>
             </button>
@@ -345,7 +345,7 @@
             <button type="button" onclick="openPosCategoryModal('treatment')" class="pos-cat-tile p-3 rounded-2xl border border-slate-200 hover:border-amber-400 bg-white hover:bg-amber-50/50 transition text-left flex flex-col justify-between shadow-2xs hover:shadow-sm active:scale-98">
               <div class="flex items-center justify-between">
                 <span class="text-xl">🧖</span>
-                <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-purple-100 text-purple-800">$120~$600</span>
+                <span id="pos-badge-treatment" class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-purple-100 text-purple-800">$120~$600</span>
               </div>
               <div class="mt-2 font-black text-sm text-slate-900">護髮</div>
             </button>
@@ -354,7 +354,7 @@
             <button type="button" onclick="openPosCategoryModal('color')" class="pos-cat-tile p-3 rounded-2xl border border-slate-200 hover:border-amber-400 bg-white hover:bg-amber-50/50 transition text-left flex flex-col justify-between shadow-2xs hover:shadow-sm active:scale-98">
               <div class="flex items-center justify-between">
                 <span class="text-xl">🎨</span>
-                <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-rose-100 text-rose-800">$350~$800</span>
+                <span id="pos-badge-color" class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-rose-100 text-rose-800">$350~$800</span>
               </div>
               <div class="mt-2 font-black text-sm text-slate-900">染髮</div>
             </button>
@@ -363,7 +363,7 @@
             <button type="button" onclick="openPosCategoryModal('perm')" class="pos-cat-tile p-3 rounded-2xl border border-slate-200 hover:border-amber-400 bg-white hover:bg-amber-50/50 transition text-left flex flex-col justify-between shadow-2xs hover:shadow-sm active:scale-98">
               <div class="flex items-center justify-between">
                 <span class="text-xl">🦱</span>
-                <span class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-sky-100 text-sky-800">冷燙/溫朔</span>
+                <span id="pos-badge-perm" class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-sky-100 text-sky-800">冷燙/溫朔</span>
               </div>
               <div class="mt-2 font-black text-sm text-slate-900">燙髮</div>
             </button>
@@ -690,7 +690,7 @@
             <h3 class="text-sm font-bold text-slate-900 flex items-center gap-1.5">
               <i data-lucide="scissors" class="w-4 h-4 text-amber-600"></i> 服務項目與抽成比例
             </h3>
-            <p class="text-[11px] text-slate-400">可自訂各項美髮服務定價與抽成趴數</p>
+            <p class="text-[11px] text-slate-400">自訂 POS 7 大類服務與產品之定價與抽成比例</p>
           </div>
           <div class="flex items-center flex-wrap gap-2">
             <span id="settings-services-count-badge" class="text-xs bg-amber-100 text-amber-800 font-bold px-2.5 py-1 rounded-xl">共 0 項服務</span>
@@ -698,10 +698,25 @@
               <i data-lucide="chevrons-down-up" class="w-3.5 h-3.5"></i>
               <span id="text-toggle-services-expand">收合為捲動</span>
             </button>
+            <button type="button" onclick="restoreDefaultServices()" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-2.5 py-1.5 rounded-xl transition flex items-center gap-1" title="補齊店內標準 7 大類與產品項目">
+              <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> 補齊標準項目
+            </button>
             <button onclick="openServiceModal()" class="text-xs bg-amber-600 hover:bg-amber-700 text-white font-bold px-3 py-1.5 rounded-xl transition flex items-center gap-1">
               <i data-lucide="plus" class="w-3.5 h-3.5"></i> 新增項目
             </button>
           </div>
+        </div>
+
+        <!-- POS 服務類別快速篩選切換列 -->
+        <div class="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none text-xs">
+          <button type="button" onclick="setServiceCategoryFilter('ALL')" id="filter-srv-ALL" class="service-cat-tab px-3 py-1.5 rounded-xl font-bold transition bg-amber-600 text-white shadow-xs">全部</button>
+          <button type="button" onclick="setServiceCategoryFilter('剪髮')" id="filter-srv-剪髮" class="service-cat-tab px-3 py-1.5 rounded-xl font-bold transition bg-slate-100 text-slate-600 hover:bg-slate-200">✂️ 剪髮</button>
+          <button type="button" onclick="setServiceCategoryFilter('洗頭')" id="filter-srv-洗頭" class="service-cat-tab px-3 py-1.5 rounded-xl font-bold transition bg-slate-100 text-slate-600 hover:bg-slate-200">💆 洗頭</button>
+          <button type="button" onclick="setServiceCategoryFilter('去角質')" id="filter-srv-去角質" class="service-cat-tab px-3 py-1.5 rounded-xl font-bold transition bg-slate-100 text-slate-600 hover:bg-slate-200">🌿 去角質</button>
+          <button type="button" onclick="setServiceCategoryFilter('護髮')" id="filter-srv-護髮" class="service-cat-tab px-3 py-1.5 rounded-xl font-bold transition bg-slate-100 text-slate-600 hover:bg-slate-200">🧖 護髮</button>
+          <button type="button" onclick="setServiceCategoryFilter('染髮')" id="filter-srv-染髮" class="service-cat-tab px-3 py-1.5 rounded-xl font-bold transition bg-slate-100 text-slate-600 hover:bg-slate-200">🎨 染髮</button>
+          <button type="button" onclick="setServiceCategoryFilter('燙髮')" id="filter-srv-燙髮" class="service-cat-tab px-3 py-1.5 rounded-xl font-bold transition bg-slate-100 text-slate-600 hover:bg-slate-200">🦱 燙髮</button>
+          <button type="button" onclick="setServiceCategoryFilter('產品銷售')" id="filter-srv-產品銷售" class="service-cat-tab px-3 py-1.5 rounded-xl font-bold transition bg-slate-100 text-slate-600 hover:bg-slate-200">🧴 產品銷售</button>
         </div>
 
         <div id="settings-services-scroll-container" class="overflow-x-auto transition-all duration-200">
@@ -857,10 +872,20 @@
       </div>
       <div>
         <label class="block text-xs font-semibold text-slate-600 mb-1">分類</label>
-        <select id="modal-service-category" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm bg-white">
-          <option value="技術服務">技術服務 (洗/剪/染/燙/護)</option>
-          <option value="產品銷售">產品銷售 (髮品/造型品)</option>
+        <select id="modal-service-category" onchange="onServiceModalCategoryChange(this.value)" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm bg-white font-semibold">
+          <option value="剪髮">✂️ 剪髮</option>
+          <option value="洗頭">💆 洗頭</option>
+          <option value="去角質">🌿 去角質</option>
+          <option value="護髮">🧖 護髮</option>
+          <option value="染髮">🎨 染髮</option>
+          <option value="燙髮">🦱 燙髮</option>
+          <option value="產品銷售">🧴 產品銷售</option>
+          <option value="其他">📋 其他自訂服務</option>
         </select>
+      </div>
+      <div id="modal-service-empprice-wrapper" class="hidden">
+        <label class="block text-xs font-semibold text-slate-600 mb-1">員工特惠價 ($) <span class="text-slate-400 font-normal">(選填，未填自動預設 9 折)</span></label>
+        <input type="number" id="modal-service-empprice" autocomplete="off" placeholder="未填自動為定價之 9 折" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm font-numeric">
       </div>
       <div class="flex gap-2 pt-2">
         <button onclick="closeServiceModal()" class="flex-1 py-2.5 bg-slate-100 text-slate-700 font-semibold rounded-xl text-xs">取消</button>
@@ -1023,15 +1048,15 @@
   </div>
 
   <!-- 模組化業務邏輯 (Vanilla JS 架構) -->
-  <script src="js/constants.js?v=20260911_1"></script>
-  <script src="js/state.js?v=20260911_1"></script>
-  <script src="js/version.js?v=20260911_1"></script>
-  <script src="js/firebase.js?v=20260911_1"></script>
-  <script src="js/auth.js?v=20260911_1"></script>
-  <script src="js/billing.js?v=20260911_1"></script>
-  <script src="js/history.js?v=20260911_1"></script>
-  <script src="js/monthly.js?v=20260911_1"></script>
-  <script src="js/settings.js?v=20260911_1"></script>
-  <script src="js/main.js?v=20260911_1"></script>
+  <script src="js/constants.js?v=20260912_1"></script>
+  <script src="js/state.js?v=20260912_1"></script>
+  <script src="js/version.js?v=20260912_1"></script>
+  <script src="js/firebase.js?v=20260912_1"></script>
+  <script src="js/auth.js?v=20260912_1"></script>
+  <script src="js/billing.js?v=20260912_1"></script>
+  <script src="js/history.js?v=20260912_1"></script>
+  <script src="js/monthly.js?v=20260912_1"></script>
+  <script src="js/settings.js?v=20260912_1"></script>
+  <script src="js/main.js?v=20260912_1"></script>
 </body>
 </html>

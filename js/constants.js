@@ -3,7 +3,7 @@
  */
 
 // 系統當前版本 (部署新版本時與 version.json 保持一致)
-const APP_VERSION = '20260912_1';
+const APP_VERSION = '20260912_2';
 
 // 店內正式技術服務與產品清單 (預設服務項目)
 const DEFAULT_SERVICES = [

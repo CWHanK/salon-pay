@@ -60,7 +60,7 @@ function updateLinkedStaff() {
   if (currentLinkedStaff && (!currentLinkedStaff.linkedUid || !currentLinkedStaff.linkedEmail)) {
     currentLinkedStaff.linkedUid = uid;
     currentLinkedStaff.linkedEmail = email;
-    if (typeof syncDataToCloud === 'function') syncDataToCloud().catch(() => {});
+    if (typeof syncDataToCloud === 'function') syncDataToCloud('staff').catch(() => {});
   }
 
   // 若仍未配對到且店內僅有一位未綁定人員，自動進行綁定
@@ -68,7 +68,7 @@ function updateLinkedStaff() {
     appState.staff[0].linkedUid = uid;
     appState.staff[0].linkedEmail = email;
     currentLinkedStaff = appState.staff[0];
-    if (typeof syncDataToCloud === 'function') syncDataToCloud().catch(() => {});
+    if (typeof syncDataToCloud === 'function') syncDataToCloud('staff').catch(() => {});
   }
 }
 

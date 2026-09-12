@@ -207,29 +207,33 @@ function subscribeToUsersList() {
   });
 }
 
-// 上傳與同步全店資料至雲端
-async function syncDataToCloud() {
+// 上傳與同步全店資料至雲端 (支援精準欄位獨立更新 targetField: 'services' | 'staff' | 'orders')
+async function syncDataToCloud(targetField = null) {
   localStorage.setItem('SALON_PAY_LOCAL_CACHE', JSON.stringify(appState));
 
   if (currentUser && db) {
     try {
       const storeDocRef = db.collection('salon_stores').doc('main_store');
-      if (currentUserRole === 'admin') {
-        // 管理員：同步整間沙龍資料
+      if (targetField === 'services') {
+        await storeDocRef.set({ services: appState.services }, { merge: true });
+      } else if (targetField === 'staff') {
+        await storeDocRef.set({ staff: appState.staff }, { merge: true });
+      } else if (targetField === 'orders') {
+        await storeDocRef.set({ orders: appState.orders }, { merge: true });
+      } else {
+        // 未指定特定欄位時：完整安全合併
         await storeDocRef.set({
           services: appState.services,
           staff: appState.staff,
           orders: appState.orders
-        });
-      } else {
-        // 員工：僅同步客單明細（不可覆蓋服務設定與人員名單）
-        await storeDocRef.update({
-          orders: appState.orders
-        });
+        }, { merge: true });
       }
     } catch (err) {
       console.error('上傳雲端失敗:', err);
-      showToast('⚠️ 離線暫存中，恢復網路後將自動同步雲端');
+      if (typeof showToast === 'function') {
+        showToast('⚠️ 雲端同步失敗: ' + (err.message || '請檢查網路連線'));
+      }
+      throw err;
     }
   }
 }

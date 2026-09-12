@@ -299,7 +299,7 @@ async function restoreDefaultServices() {
   if (typeof ensureServicesSynced === 'function') {
     appState.services = ensureServicesSynced(appState.services);
   }
-  await syncDataToCloud();
+  await syncDataToCloud('services');
   renderSettingsTables();
   if (typeof renderPosWizard === 'function') renderPosWizard();
   showToast('已成功補齊標準服務項目');
@@ -479,7 +479,7 @@ async function saveServiceItem() {
   const rate = parseFloat(document.getElementById('modal-service-rate').value) || 0;
   const category = document.getElementById('modal-service-category').value;
   const empPriceRaw = document.getElementById('modal-service-empprice')?.value?.trim();
-  const empPrice = empPriceRaw ? parseFloat(empPriceRaw) : (category === '產品銷售' ? Math.round(price * 0.9) : undefined);
+  const empPrice = empPriceRaw ? parseFloat(empPriceRaw) : (category === '產品銷售' ? Math.round(price * 0.9) : null);
 
   if (!name) {
     alert('請輸入服務項目名稱！');
@@ -494,7 +494,9 @@ async function saveServiceItem() {
       item.rate = rate;
       item.category = category;
       if (category === '產品銷售') {
-        item.empPrice = empPrice;
+        item.empPrice = empPrice !== null ? empPrice : Math.round(price * 0.9);
+      } else {
+        delete item.empPrice;
       }
     }
   } else {
@@ -505,13 +507,13 @@ async function saveServiceItem() {
       rate: rate,
       category: category
     };
-    if (category === '產品銷售') {
+    if (category === '產品銷售' && empPrice !== null) {
       newItem.empPrice = empPrice;
     }
     appState.services.push(newItem);
   }
 
-  await syncDataToCloud();
+  await syncDataToCloud('services');
   closeServiceModal();
   renderSettingsTables();
   if (typeof renderPosWizard === 'function') renderPosWizard();
@@ -529,7 +531,7 @@ async function deleteServiceItem(serviceId) {
   }
   if (!confirm('確定要刪除此服務項目嗎？')) return;
   appState.services = appState.services.filter(s => s.id !== serviceId);
-  await syncDataToCloud();
+  await syncDataToCloud('services');
   renderSettingsTables();
   if (typeof renderPosWizard === 'function') renderPosWizard();
   showToast('項目已刪除');
@@ -642,7 +644,7 @@ async function saveStaffMember() {
     });
   }
 
-  await syncDataToCloud();
+  await syncDataToCloud('staff');
   closeStaffModal();
   updateLinkedStaff();
   applyRolePermissions();
@@ -660,7 +662,7 @@ async function deleteStaffMember(staffId) {
   }
   if (!confirm('確定要刪除這位工作人員嗎？')) return;
   appState.staff = appState.staff.filter(s => s.id !== staffId);
-  await syncDataToCloud();
+  await syncDataToCloud('staff');
   populateStaffDropdowns();
   renderSettingsTables();
   showToast('人員已刪除');

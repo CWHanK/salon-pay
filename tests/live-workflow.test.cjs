@@ -454,5 +454,45 @@ test('customizing service price and commission in appState.services propagates t
   assert.equal(order.salonNet, 72);
 });
 
+test('syncDataToCloud executes targeted field updates with merge to prevent overwriting other collections', async () => {
+  const writtenPayloads = [];
+  const fakeDoc = {
+    set: async (payload, opts) => {
+      writtenPayloads.push({ payload, opts });
+    }
+  };
+  const { run } = setup(['firebase'], {
+    localStorage: { setItem() {} },
+    fakeDb: { collection: () => ({ doc: () => fakeDoc }) }
+  });
+
+  run(`
+    db = fakeDb;
+    currentUser = { uid: 'user_1' };
+    currentUserRole = 'staff'; // 即使身分非 admin 也能成功同步指定欄位
+    appState.services = [{ id: 's1', price: 200 }];
+    appState.staff = [{ id: 'st1', name: 'Bob' }];
+    appState.orders = [{ id: 'o1', totalAmount: 500 }];
+  `);
+
+  // 1. 僅同步 services
+  await run("syncDataToCloud('services')");
+  assert.equal(writtenPayloads.length, 1);
+  assert.equal(JSON.stringify(writtenPayloads[0].payload), JSON.stringify({ services: [{ id: 's1', price: 200 }] }));
+  assert.equal(JSON.stringify(writtenPayloads[0].opts), JSON.stringify({ merge: true }));
+
+  // 2. 僅同步 staff
+  await run("syncDataToCloud('staff')");
+  assert.equal(writtenPayloads.length, 2);
+  assert.equal(JSON.stringify(writtenPayloads[1].payload), JSON.stringify({ staff: [{ id: 'st1', name: 'Bob' }] }));
+  assert.equal(JSON.stringify(writtenPayloads[1].opts), JSON.stringify({ merge: true }));
+
+  // 3. 僅同步 orders
+  await run("syncDataToCloud('orders')");
+  assert.equal(writtenPayloads.length, 3);
+  assert.equal(JSON.stringify(writtenPayloads[2].payload), JSON.stringify({ orders: [{ id: 'o1', totalAmount: 500 }] }));
+  assert.equal(JSON.stringify(writtenPayloads[2].opts), JSON.stringify({ merge: true }));
+});
+
 
 

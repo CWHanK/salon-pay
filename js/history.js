@@ -384,7 +384,7 @@ async function deleteOrder(orderId) {
   order.deletedByName = deleterName;
   order.deletedByRole = currentUserRole;
 
-  await syncDataToCloud();
+  await syncDataToCloud('orders');
   filterHistoryOrders();
   showToast('客單已標記作廢，並記錄刪除人員與時間');
 }

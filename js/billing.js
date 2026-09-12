@@ -1009,7 +1009,7 @@ async function saveCurrentOrder() {
   }
 
   if (typeof syncDataToCloud === 'function') {
-    await syncDataToCloud();
+    await syncDataToCloud('orders');
   }
 
   if (typeof showToast === 'function') {

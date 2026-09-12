@@ -224,6 +224,7 @@ async function onUserLoggedIn(user) {
 
   // 3. 監聽雲端資料
   subscribeToCloudData();
+  subscribeToUserRole(user.uid);
 
   if (currentUserRole === 'admin') {
     subscribeToUsersList();
@@ -233,8 +234,45 @@ async function onUserLoggedIn(user) {
   }
 }
 
+let unsubscribeUserRole = null;
+
+// 即時監聽自身身分變化（若由其他管理員升級或降級，無須登出即時生效）
+function subscribeToUserRole(uid) {
+  if (unsubscribeUserRole) {
+    unsubscribeUserRole();
+    unsubscribeUserRole = null;
+  }
+  if (!db || !uid) return;
+
+  unsubscribeUserRole = db.collection('salon_users').doc(uid).onSnapshot(doc => {
+    if (doc && doc.exists) {
+      const data = doc.data();
+      const displayAccount = formatEmailToUsername(currentUser?.email || '').toLowerCase();
+      const isHank = displayAccount.includes('hank');
+      const latestRole = isHank ? 'admin' : (data.role || 'staff');
+      if (latestRole !== currentUserRole) {
+        console.log(`[Auth] 使用者身分已即時切換為: ${latestRole}`);
+        currentUserRole = latestRole;
+        applyRolePermissions();
+        if (currentUserRole === 'admin') {
+          subscribeToUsersList();
+          if (typeof initRegistrationSecretInCloud === 'function') initRegistrationSecretInCloud();
+        }
+        populateStaffDropdowns();
+        renderSettingsTables();
+      }
+    }
+  }, err => {
+    console.warn('使用者身分監聽略過:', err);
+  });
+}
+
 // 使用者登出之回呼
 function onUserLoggedOut() {
+  if (unsubscribeUserRole) {
+    unsubscribeUserRole();
+    unsubscribeUserRole = null;
+  }
   if (unsubscribeFirestore) {
     unsubscribeFirestore();
     unsubscribeFirestore = null;

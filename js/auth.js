@@ -190,13 +190,6 @@ async function onUserLoggedIn(user) {
       role = userDoc.data().role || 'staff';
     }
 
-    // 創始與管理開發帳號（帳號含 developer 或 hank）確保為管理員
-    const displayAccount = formatEmailToUsername(user.email).toLowerCase();
-    const isOwnerOrDev = displayAccount.includes('developer') || displayAccount.includes('hank');
-    if (isOwnerOrDev) {
-      role = 'admin';
-    }
-
     await db.collection('salon_users').doc(user.uid).set({
       uid: user.uid,
       email: user.email,
@@ -247,9 +240,7 @@ function subscribeToUserRole(uid) {
   unsubscribeUserRole = db.collection('salon_users').doc(uid).onSnapshot(doc => {
     if (doc && doc.exists) {
       const data = doc.data();
-      const displayAccount = formatEmailToUsername(currentUser?.email || '').toLowerCase();
-      const isOwnerOrDev = displayAccount.includes('developer') || displayAccount.includes('hank');
-      const latestRole = isOwnerOrDev ? 'admin' : (data.role || 'staff');
+      const latestRole = data.role || 'staff';
       if (latestRole !== currentUserRole) {
         console.log(`[Auth] 使用者身分已即時切換為: ${latestRole}`);
         currentUserRole = latestRole;

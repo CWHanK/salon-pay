@@ -494,5 +494,51 @@ test('syncDataToCloud executes targeted field updates with merge to prevent over
   assert.equal(JSON.stringify(writtenPayloads[2].opts), JSON.stringify({ merge: true }));
 });
 
+test('ensureServicesSynced and syncDataToCloud never pass undefined properties to Firestore', async () => {
+  const writtenPayloads = [];
+  const fakeDoc = {
+    set: async (payload, opts) => {
+      // 模擬 Firestore JS SDK 對 undefined 的嚴格檢查
+      const checkUndefined = (obj, path = '') => {
+        for (const key of Object.keys(obj)) {
+          const val = obj[key];
+          const currPath = path ? `${path}.${key}` : key;
+          if (val === undefined) {
+            throw new Error(`Function DocumentReference.set() called with invalid data. Unsupported field value: undefined (found in field ${currPath})`);
+          }
+          if (val && typeof val === 'object') {
+            checkUndefined(val, currPath);
+          }
+        }
+      };
+      checkUndefined(payload);
+      writtenPayloads.push(payload);
+    }
+  };
+
+  const { run } = setup(['constants', 'firebase'], {
+    localStorage: { setItem() {} },
+    fakeDb: { collection: () => ({ doc: () => fakeDoc }) }
+  });
+
+  run(`
+    db = fakeDb;
+    currentUser = { uid: 'user_dev' };
+    currentUserRole = 'admin';
+    // 故意注入包含 undefined 屬性的項目
+    appState.services = ensureServicesSynced([
+      { id: 'cut-emp-f', price: 160 },
+      { id: 'prod-1', price: 2200, empPrice: 1980 }
+    ]);
+  `);
+
+  const cutItem = run("appState.services.find(s => s.id === 'cut-emp-f')");
+  assert.equal('empPrice' in cutItem, false, 'Non-retail service must not have empPrice key');
+
+  // 嘗試同步到雲端，Firestore set() 絕不可拋出 undefined 異常
+  await run("syncDataToCloud('services')");
+  assert.equal(writtenPayloads.length, 1);
+});
+
 
 

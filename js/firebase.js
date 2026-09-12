@@ -51,7 +51,11 @@ function initFirebase() {
 function ensureServicesSynced(existingServices) {
   const defaultList = (typeof DEFAULT_SERVICES !== 'undefined') ? DEFAULT_SERVICES : [];
   if (!Array.isArray(existingServices) || existingServices.length === 0) {
-    return defaultList.map(s => ({ ...s }));
+    return defaultList.map(s => {
+      const copy = { ...s };
+      if (typeof copy.empPrice !== 'number') delete copy.empPrice;
+      return copy;
+    });
   }
 
   const existingMap = new Map();
@@ -65,24 +69,39 @@ function ensureServicesSynced(existingServices) {
   defaultList.forEach(def => {
     if (existingMap.has(def.id)) {
       const current = existingMap.get(def.id);
-      merged.push({
+      const item = {
         ...def,
         ...current,
         // 若舊版分類為「技術服務」，自動對齊 POS 精確分類
         category: (current.category && current.category !== '技術服務') ? current.category : def.category,
         price: typeof current.price === 'number' ? current.price : def.price,
-        rate: typeof current.rate === 'number' ? current.rate : (def.rate || 0),
-        empPrice: typeof current.empPrice === 'number' ? current.empPrice : def.empPrice
-      });
+        rate: typeof current.rate === 'number' ? current.rate : (def.rate || 0)
+      };
+      if (typeof current.empPrice === 'number') {
+        item.empPrice = current.empPrice;
+      } else if (typeof def.empPrice === 'number') {
+        item.empPrice = def.empPrice;
+      } else {
+        delete item.empPrice;
+      }
+      merged.push(item);
       existingMap.delete(def.id);
     } else {
-      merged.push({ ...def });
+      const item = { ...def };
+      if (typeof item.empPrice !== 'number') {
+        delete item.empPrice;
+      }
+      merged.push(item);
     }
   });
 
   // 2. 保留使用者自行新增之自訂項目
   existingMap.forEach(customItem => {
-    merged.push(customItem);
+    const item = { ...customItem };
+    if (typeof item.empPrice !== 'number') {
+      delete item.empPrice;
+    }
+    merged.push(item);
   });
 
   return merged;
@@ -214,20 +233,24 @@ async function syncDataToCloud(targetField = null) {
   if (currentUser && db) {
     try {
       const storeDocRef = db.collection('salon_stores').doc('main_store');
+      let payload = {};
       if (targetField === 'services') {
-        await storeDocRef.set({ services: appState.services }, { merge: true });
+        payload = { services: appState.services };
       } else if (targetField === 'staff') {
-        await storeDocRef.set({ staff: appState.staff }, { merge: true });
+        payload = { staff: appState.staff };
       } else if (targetField === 'orders') {
-        await storeDocRef.set({ orders: appState.orders }, { merge: true });
+        payload = { orders: appState.orders };
       } else {
         // 未指定特定欄位時：完整安全合併
-        await storeDocRef.set({
+        payload = {
           services: appState.services,
           staff: appState.staff,
           orders: appState.orders
-        }, { merge: true });
+        };
       }
+      // 防禦性清理：確保送往 Firestore 之物件絕對不含任何 undefined 屬性，避免 SDK 拋出 DocumentReference.set() 異常
+      const safePayload = JSON.parse(JSON.stringify(payload));
+      await storeDocRef.set(safePayload, { merge: true });
     } catch (err) {
       console.error('上傳雲端失敗:', err);
       if (typeof showToast === 'function') {

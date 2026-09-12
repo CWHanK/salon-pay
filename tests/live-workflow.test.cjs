@@ -83,7 +83,7 @@ test('saving and resetting an order works without a customer field', async () =>
   await run('saveCurrentOrder()');
   assert.equal(synced, 1);
   assert.equal(run('appState.orders[0].totalAmount'), 900);
-  assert.equal(run('appState.orders[0].time'), '16:45');
+  assert.match(run('appState.orders[0].time'), /^\d{2}:\d{2}$/);
   assert.equal(run("Object.hasOwn(appState.orders[0], 'customer')"), false);
   assert.equal(elements.get('billing-notes').value, '');
 });
@@ -367,7 +367,7 @@ test('POS complete billing flow generates sequential order and resets smoothly',
   assert.equal(order.items.length, 2);
   assert.equal(order.items[0].name, '頭皮深層去角質');
   assert.equal(order.items[1].name, '護髮 (蒸器)');
-  assert.equal(order.time, '14:30');
+  assert.match(order.time, /^\d{2}:\d{2}$/);
   assert.equal(order.notes, 'VIP 同仁指定洗剪');
 
   // 開單後購物車清空且備註重設
@@ -539,6 +539,43 @@ test('ensureServicesSynced and syncDataToCloud never pass undefined properties t
   await run("syncDataToCloud('services')");
   assert.equal(writtenPayloads.length, 1);
 });
+
+test('saveCurrentOrder captures live dynamic record time without manual time input and preserves editable date', async () => {
+  let synced = 0;
+  let dynamicTime = '10:00';
+  const { elements, run } = setup(['billing'], {
+    syncDataToCloud: async () => { synced++; },
+    showToast() {},
+    getLocalTimeString: () => dynamicTime
+  });
+
+  // 介面上完全沒有 billing-time 輸入框，僅有可編輯的 billing-date
+  elements.set('billing-date', { value: '2026-09-15' });
+  elements.set('billing-notes', { value: '指定預約' });
+  elements.set('billing-order-no', { textContent: '單號：T-20260915-001' });
+
+  run(`
+    appState.staff = [{ id: 'st1', name: 'Amy' }];
+    currentLinkedStaff = appState.staff[0];
+    appState.services = [{ id: 'cut', name: '剪髮', price: 200, rate: 0 }];
+    currentBillingRows = [{ serviceId: 'cut', price: 200, qty: 1 }];
+  `);
+
+  // 第一單在 10:00 開出
+  await run('saveCurrentOrder()');
+  assert.equal(run('appState.orders[0].date'), '2026-09-15');
+  assert.equal(run('appState.orders[0].time'), '10:00');
+
+  // 經過一段時間閒置，系統時間推進至 11:35
+  dynamicTime = '11:35';
+  run(`currentBillingRows = [{ serviceId: 'cut', price: 200, qty: 1 }];`);
+
+  // 第二單在 11:35 開出，記錄時間即時抓取 11:35 而不受任何舊時間或閒置影響
+  await run('saveCurrentOrder()');
+  assert.equal(run('appState.orders[0].time'), '11:35');
+  assert.equal(run('appState.orders[0].date'), '2026-09-15');
+});
+
 
 
 

@@ -954,7 +954,8 @@ async function saveCurrentOrder() {
 
   const staff = currentLinkedStaff;
   const dateVal = document.getElementById('billing-date')?.value || (typeof getLocalDateString === 'function' ? getLocalDateString() : new Date().toISOString().split('T')[0]);
-  const timeVal = document.getElementById('billing-time')?.value || (typeof getLocalTimeString === 'function' ? getLocalTimeString() : new Date().toTimeString().slice(0, 5));
+  // 開單當下由系統即時抓取「記錄時間」(HH:mm)，不受網頁閒置影響
+  const timeVal = (typeof getLocalTimeString === 'function') ? getLocalTimeString() : new Date().toTimeString().slice(0, 5);
   const notes = document.getElementById('billing-notes')?.value?.trim() || '';
 
   const itemsDetail = currentBillingRows.map(r => {
@@ -1029,9 +1030,10 @@ function resetBillingForm() {
 
   const notesInput = document.getElementById('billing-notes');
   if (notesInput) notesInput.value = '';
-  const timeInput = document.getElementById('billing-time');
-  if (timeInput) {
-    timeInput.value = typeof getLocalTimeString === 'function' ? getLocalTimeString() : new Date().toTimeString().slice(0, 5);
+  // 服務日期若為空則重設為今日
+  const dateInput = document.getElementById('billing-date');
+  if (dateInput && !dateInput.value) {
+    dateInput.value = typeof getLocalDateString === 'function' ? getLocalDateString() : new Date().toISOString().split('T')[0];
   }
   const billingStaffInput = document.getElementById('billing-staff-select');
   if (billingStaffInput && typeof currentLinkedStaff !== 'undefined' && currentLinkedStaff) {
@@ -1054,13 +1056,11 @@ function saveBillingDraftToStorage() {
     const hasMeaningfulItems = currentBillingRows && currentBillingRows.some(r => r.serviceId || (r.price && r.price > 0));
     const notes = document.getElementById('billing-notes')?.value || '';
     const date = document.getElementById('billing-date')?.value || '';
-    const time = document.getElementById('billing-time')?.value || '';
     if (hasMeaningfulItems || (notes && notes.trim())) {
       const draft = {
         rows: currentBillingRows,
         notes: notes,
         date: date,
-        time: time,
         posGender: posGender,
         posIdentity: posIdentity,
         savedAt: Date.now()
@@ -1090,10 +1090,6 @@ function restoreBillingDraftFromStorage() {
       if (draft.date) {
         const dateEl = document.getElementById('billing-date');
         if (dateEl) dateEl.value = draft.date;
-      }
-      if (draft.time) {
-        const timeEl = document.getElementById('billing-time');
-        if (timeEl) timeEl.value = draft.time;
       }
       if (typeof renderPosWizard === 'function') renderPosWizard();
       if (typeof renderBillingRows === 'function') renderBillingRows();

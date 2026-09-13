@@ -326,7 +326,7 @@ function renderPosWizard() {
 
   const badgeColor = document.getElementById('pos-badge-color');
   if (badgeColor) {
-    const colorPrices = ['color-company', 'color-bring', 'color-barrier', 'color-bring-next'].map(id => getServicePrice(id, 0)).filter(p => p > 0);
+    const colorPrices = ['color-company', 'color-bring', 'color-barrier'].map(id => getServicePrice(id, 0)).filter(p => p > 0);
     if (colorPrices.length > 0) {
       const minC = Math.min(...colorPrices);
       const maxC = Math.max(...colorPrices);
@@ -546,8 +546,7 @@ function renderColorOptions(el) {
   const items = [
     { id: 'color-company', name: getServiceItem('color-company')?.name || '用公司染劑', price: getServicePrice('color-company', 800), icon: '🏢' },
     { id: 'color-bring', name: getServiceItem('color-bring')?.name || '自帶代工', price: getServicePrice('color-bring', 350), icon: '🧴' },
-    { id: 'color-barrier', name: getServiceItem('color-barrier')?.name || '頭皮隔離霜', price: getServicePrice('color-barrier', 350), icon: '🛡️' },
-    { id: 'color-bring-next', name: getServiceItem('color-bring-next')?.name || '自帶代工 (明年)', price: getServicePrice('color-bring-next', 450), icon: '🗓️' }
+    { id: 'color-barrier', name: getServiceItem('color-barrier')?.name || '頭皮隔離霜', price: getServicePrice('color-barrier', 350), icon: '🛡️' }
   ];
 
   el.innerHTML = `

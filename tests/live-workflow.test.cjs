@@ -383,7 +383,7 @@ test('ensureServicesSynced preserves admin-customized price and commission while
   ];
 
   const result = run(`ensureServicesSynced(${JSON.stringify(customList)})`);
-  assert.equal(result.length, 41); // 40 default POS items + 1 custom item
+  assert.equal(result.length, 40); // 39 default POS items + 1 custom item
   const cutItem = result.find(s => s.id === 'cut-emp-f');
   assert.equal(cutItem.price, 180);
   assert.equal(cutItem.rate, 60);
@@ -601,6 +601,40 @@ test('ensureServicesSynced merges and eliminates duplicate services matching sam
   assert.ok(customItem);
   assert.equal(customItem.price, 500);
 });
+
+test('color-bring-next / 自帶明年啟動 is pruned from services and not shown in POS color modal', () => {
+  const { elements, run } = setup(['constants', 'billing', 'firebase']);
+
+  // 1. 驗證 DEFAULT_SERVICES 中已完全移除 color-bring-next
+  const defaultItems = run('DEFAULT_SERVICES');
+  assert.equal(defaultItems.some(s => s.id === 'color-bring-next'), false);
+  assert.equal(defaultItems.some(s => s.name.includes('明年啟動')), false);
+
+  // 2. 驗證即便舊資料庫中存在 color-bring-next 或「自帶代工 (明年)」，ensureServicesSynced 會自動過濾剔除
+  const legacyServices = [
+    { id: 'color-bring-next', name: '染髮 (自帶-明年啟動)', price: 450, rate: 0, category: '染髮' },
+    { id: 'srv-next-year', name: '自帶代工 (明年)', price: 450, rate: 0, category: '染髮' },
+    { id: 'color-bring', name: '染髮 (自帶代工)', price: 350, rate: 0, category: '染髮' }
+  ];
+
+  const cleaned = run(`ensureServicesSynced(${JSON.stringify(legacyServices)})`);
+  assert.equal(cleaned.some(s => s.id === 'color-bring-next'), false);
+  assert.equal(cleaned.some(s => s.id === 'srv-next-year'), false);
+  assert.equal(cleaned.some(s => s.name.includes('明年')), false);
+  assert.ok(cleaned.some(s => s.id === 'color-bring'));
+
+  // 3. 驗證 POS 染髮彈窗選項不再包含「自帶代工 (明年)」
+  const pickerContainer = {};
+  elements.set('pos-picker-content', pickerContainer);
+  run(`
+    appState.services = DEFAULT_SERVICES.map(s => ({ ...s }));
+    renderColorOptions(document.getElementById('pos-picker-content'));
+  `);
+  assert.equal(pickerContainer.innerHTML.includes('color-bring-next'), false);
+  assert.equal(pickerContainer.innerHTML.includes('明年'), false);
+  assert.ok(pickerContainer.innerHTML.includes('color-bring'));
+});
+
 
 
 

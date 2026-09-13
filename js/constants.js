@@ -3,7 +3,7 @@
  */
 
 // 系統當前版本 (部署新版本時與 version.json 保持一致)
-const APP_VERSION = '20260913_1';
+const APP_VERSION = '20260913_2';
 
 // 店內正式技術服務與產品清單 (預設服務項目)
 const DEFAULT_SERVICES = [
@@ -29,7 +29,6 @@ const DEFAULT_SERVICES = [
   { id: 'color-company', name: '染髮 (用公司染劑)', price: 800, rate: 0, category: '染髮' },
   { id: 'color-bring', name: '染髮 (員工/退休/自帶代工)', price: 350, rate: 0, category: '染髮' },
   { id: 'color-barrier', name: '染髮 (頭皮隔離霜)', price: 350, rate: 0, category: '染髮' },
-  { id: 'color-bring-next', name: '染髮 (自帶-明年啟動)', price: 450, rate: 0, category: '染髮' },
   // 燙髮
   { id: 'perm-cold-emp', name: '冷燙髮 (整頭-員工)', price: 2000, rate: 0, category: '燙髮' },
   { id: 'perm-cold-fam', name: '冷燙髮 (整頭-員工家屬/非員工)', price: 2300, rate: 0, category: '燙髮' },

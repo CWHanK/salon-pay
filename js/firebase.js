@@ -50,7 +50,22 @@ function initFirebase() {
 // 智慧合併店內服務項目清單（確保 POS 開單項目一應俱全，保留管理員修改之定價與抽成，並自動合併去重重複項目）
 function ensureServicesSynced(existingServices) {
   const defaultList = (typeof DEFAULT_SERVICES !== 'undefined') ? DEFAULT_SERVICES : [];
-  if (!Array.isArray(existingServices) || existingServices.length === 0) {
+  const norm = (typeof normalizeServiceName === 'function')
+    ? normalizeServiceName
+    : (name => String(name || '').replace(/[\s\(\)\-_（）]/g, '').toLowerCase());
+
+  // 排除已下架/廢棄之服務項目（例如：染髮 自帶明年啟動）
+  const isDeprecatedService = s => {
+    if (!s) return true;
+    if (s.id === 'color-bring-next') return true;
+    const n = norm(s.name);
+    if (n.includes('明年啟動') || (n.includes('自帶') && n.includes('明年'))) return true;
+    return false;
+  };
+
+  const cleanExisting = (Array.isArray(existingServices) ? existingServices : []).filter(s => !isDeprecatedService(s));
+
+  if (cleanExisting.length === 0) {
     return defaultList.map(s => {
       const copy = { ...s };
       if (typeof copy.empPrice !== 'number') delete copy.empPrice;
@@ -58,12 +73,8 @@ function ensureServicesSynced(existingServices) {
     });
   }
 
-  const norm = (typeof normalizeServiceName === 'function')
-    ? normalizeServiceName
-    : (name => String(name || '').replace(/[\s\(\)\-_（）]/g, '').toLowerCase());
-
   const existingMap = new Map();
-  existingServices.forEach(s => {
+  cleanExisting.forEach(s => {
     if (s && s.id) existingMap.set(s.id, s);
   });
 
@@ -177,6 +188,11 @@ function subscribeToCloudData() {
       appState.services = ensureServicesSynced(data.services);
       appState.staff = data.staff || [];
       appState.orders = data.orders || [];
+
+      // 若雲端存有已廢棄項目或未合併重複項，且目前使用者為 admin，自動向雲端寫入乾淨項目清單
+      if (currentUserRole === 'admin' && currentUser && Array.isArray(data.services) && JSON.stringify(appState.services) !== JSON.stringify(data.services)) {
+        storeDocRef.set({ services: appState.services }, { merge: true }).catch(e => console.warn('自動同步清理雲端廢棄服務失敗:', e));
+      }
 
       // 若 main_store 中的人員名單為空，但目前登入者舊資料庫(users/{uid})有人員，自動匯入至共享沙龍
       if ((!appState.staff || appState.staff.length === 0) && currentUser) {

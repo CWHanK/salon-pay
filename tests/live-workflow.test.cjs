@@ -576,6 +576,33 @@ test('saveCurrentOrder captures live dynamic record time without manual time inp
   assert.equal(run('appState.orders[0].date'), '2026-09-15');
 });
 
+test('ensureServicesSynced merges and eliminates duplicate services matching same normalized name', () => {
+  const { run } = setup(['constants', 'firebase']);
+
+  // 模擬資料庫中既有 cut-emp-f 又有重複建立的 srv-dup (剪髮員工女)
+  const messyServices = [
+    { id: 'cut-emp-f', name: '剪髮 (員工-女)', price: 150, rate: 0, category: '剪髮' },
+    { id: 'srv-dup', name: '剪髮員工女', price: 180, rate: 50, category: '剪髮' },
+    { id: 'custom-oil', name: '特調護髮精油', price: 500, rate: 10, category: '護髮' }
+  ];
+
+  const cleaned = run(`ensureServicesSynced(${JSON.stringify(messyServices)})`);
+
+  // 驗證女性剪髮項目被精準去重，只剩下一項
+  const femaleCuts = cleaned.filter(s => s.name.includes('剪髮') && s.name.includes('女'));
+  assert.equal(femaleCuts.length, 1);
+  assert.equal(femaleCuts[0].id, 'cut-emp-f');
+  // 驗證自訂修改之價格與抽成被完整繼承保留
+  assert.equal(femaleCuts[0].price, 180);
+  assert.equal(femaleCuts[0].rate, 50);
+
+  // 驗證獨立自訂項目不受影響保留
+  const customItem = cleaned.find(s => s.id === 'custom-oil');
+  assert.ok(customItem);
+  assert.equal(customItem.price, 500);
+});
+
+
 
 
 

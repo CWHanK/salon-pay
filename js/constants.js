@@ -3,7 +3,7 @@
  */
 
 // 系統當前版本 (部署新版本時與 version.json 保持一致)
-const APP_VERSION = '20260912_4';
+const APP_VERSION = '20260913_1';
 
 // 店內正式技術服務與產品清單 (預設服務項目)
 const DEFAULT_SERVICES = [
@@ -127,5 +127,11 @@ function formatDateTime(input) {
     return String(input);
   }
 }
+
+// 正規化服務項目名稱（去除空格、各式括弧與特殊分隔符，便於模糊辨識防重與自動對齊合併）
+function normalizeServiceName(name) {
+  return String(name || '').replace(/[\s\(\)\-_（）]/g, '').toLowerCase();
+}
+
 
 

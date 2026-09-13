@@ -47,7 +47,7 @@ function initFirebase() {
   }
 }
 
-// 智慧合併店內服務項目清單（確保 POS 開單項目一應俱全，同時保留管理員修改之定價與抽成）
+// 智慧合併店內服務項目清單（確保 POS 開單項目一應俱全，保留管理員修改之定價與抽成，並自動合併去重重複項目）
 function ensureServicesSynced(existingServices) {
   const defaultList = (typeof DEFAULT_SERVICES !== 'undefined') ? DEFAULT_SERVICES : [];
   if (!Array.isArray(existingServices) || existingServices.length === 0) {
@@ -58,50 +58,95 @@ function ensureServicesSynced(existingServices) {
     });
   }
 
+  const norm = (typeof normalizeServiceName === 'function')
+    ? normalizeServiceName
+    : (name => String(name || '').replace(/[\s\(\)\-_（）]/g, '').toLowerCase());
+
   const existingMap = new Map();
   existingServices.forEach(s => {
     if (s && s.id) existingMap.set(s.id, s);
   });
 
   const merged = [];
+  const handledIds = new Set();
+  const seenNormNames = new Set();
 
-  // 1. 依序對應 DEFAULT_SERVICES，若已有則保留其自訂定價與抽成，但補足缺漏欄位(如分類)
+  // 1. 依序對應 DEFAULT_SERVICES，優先比對 ID，次之比對標準名稱以自動對齊並去除舊重複項目
   defaultList.forEach(def => {
+    const defNormName = norm(def.name);
+    let matchedItem = null;
+
     if (existingMap.has(def.id)) {
-      const current = existingMap.get(def.id);
+      matchedItem = existingMap.get(def.id);
+      handledIds.add(def.id);
+    } else {
+      // 若規範 ID 不在現有資料中，搜尋是否有同名之舊版/手動建立項目進行自動對齊
+      for (const [id, s] of existingMap.entries()) {
+        if (!handledIds.has(id) && norm(s.name) === defNormName) {
+          matchedItem = s;
+          handledIds.add(id);
+          break;
+        }
+      }
+    }
+
+    // 搜尋並清理所有與此標準項目同名的多餘重複項 (例如先前手動新增的重複 srv-xxx)
+    for (const [id, s] of existingMap.entries()) {
+      if (!handledIds.has(id) && norm(s.name) === defNormName) {
+        // 若重複項有自訂價格而 matchedItem 仍為預設，自動繼承其設定
+        if (matchedItem && matchedItem.price === def.price && typeof s.price === 'number' && s.price !== def.price) {
+          matchedItem.price = s.price;
+        }
+        if (matchedItem && (!matchedItem.rate || matchedItem.rate === 0) && typeof s.rate === 'number' && s.rate > 0) {
+          matchedItem.rate = s.rate;
+        }
+        handledIds.add(id);
+      }
+    }
+
+    if (matchedItem) {
       const item = {
         ...def,
-        ...current,
+        ...matchedItem,
+        id: def.id,
+        name: (matchedItem.id === def.id) ? (matchedItem.name || def.name) : def.name,
         // 若舊版分類為「技術服務」，自動對齊 POS 精確分類
-        category: (current.category && current.category !== '技術服務') ? current.category : def.category,
-        price: typeof current.price === 'number' ? current.price : def.price,
-        rate: typeof current.rate === 'number' ? current.rate : (def.rate || 0)
+        category: (matchedItem.category && matchedItem.category !== '技術服務') ? matchedItem.category : def.category,
+        price: typeof matchedItem.price === 'number' ? matchedItem.price : def.price,
+        rate: typeof matchedItem.rate === 'number' ? matchedItem.rate : (def.rate || 0)
       };
-      if (typeof current.empPrice === 'number') {
-        item.empPrice = current.empPrice;
+      if (typeof matchedItem.empPrice === 'number') {
+        item.empPrice = matchedItem.empPrice;
       } else if (typeof def.empPrice === 'number') {
         item.empPrice = def.empPrice;
       } else {
         delete item.empPrice;
       }
       merged.push(item);
-      existingMap.delete(def.id);
+      seenNormNames.add(norm(item.name));
     } else {
       const item = { ...def };
       if (typeof item.empPrice !== 'number') {
         delete item.empPrice;
       }
       merged.push(item);
+      seenNormNames.add(defNormName);
     }
   });
 
-  // 2. 保留使用者自行新增之自訂項目
-  existingMap.forEach(customItem => {
-    const item = { ...customItem };
-    if (typeof item.empPrice !== 'number') {
-      delete item.empPrice;
+  // 2. 保留使用者自行新增之自訂項目 (過濾掉同名重複項)
+  existingMap.forEach((customItem, id) => {
+    if (!handledIds.has(id)) {
+      const normName = norm(customItem.name);
+      if (!seenNormNames.has(normName)) {
+        const item = { ...customItem };
+        if (typeof item.empPrice !== 'number') {
+          delete item.empPrice;
+        }
+        merged.push(item);
+        seenNormNames.add(normName);
+      }
     }
-    merged.push(item);
   });
 
   return merged;

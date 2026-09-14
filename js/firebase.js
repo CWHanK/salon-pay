@@ -1,8 +1,6 @@
-/**
- * SalonFlow - Firebase 雲端資料庫連線與同步管理 (js/firebase.js)
- */
 
-// 初始化 Firebase 雲端服務
+
+
 function initFirebase() {
   let config = window.FIREBASE_CONFIG;
   const storedConfig = localStorage.getItem('SALON_FIREBASE_CONFIG');
@@ -47,14 +45,14 @@ function initFirebase() {
   }
 }
 
-// 智慧合併店內服務項目清單（確保 POS 開單項目一應俱全，保留管理員修改之定價與抽成，並自動合併去重重複項目）
+
 function ensureServicesSynced(existingServices) {
   const defaultList = (typeof DEFAULT_SERVICES !== 'undefined') ? DEFAULT_SERVICES : [];
   const norm = (typeof normalizeServiceName === 'function')
     ? normalizeServiceName
     : (name => String(name || '').replace(/[\s\(\)\-_（）]/g, '').toLowerCase());
 
-  // 排除已下架/廢棄之服務項目（例如：染髮 自帶明年啟動）
+
   const isDeprecatedService = s => {
     if (!s) return true;
     if (s.id === 'color-bring-next') return true;
@@ -82,7 +80,7 @@ function ensureServicesSynced(existingServices) {
   const handledIds = new Set();
   const seenNormNames = new Set();
 
-  // 1. 依序對應 DEFAULT_SERVICES，優先比對 ID，次之比對標準名稱以自動對齊並去除舊重複項目
+
   defaultList.forEach(def => {
     const defNormName = norm(def.name);
     let matchedItem = null;
@@ -91,7 +89,7 @@ function ensureServicesSynced(existingServices) {
       matchedItem = existingMap.get(def.id);
       handledIds.add(def.id);
     } else {
-      // 若規範 ID 不在現有資料中，搜尋是否有同名之舊版/手動建立項目進行自動對齊
+
       for (const [id, s] of existingMap.entries()) {
         if (!handledIds.has(id) && norm(s.name) === defNormName) {
           matchedItem = s;
@@ -101,10 +99,10 @@ function ensureServicesSynced(existingServices) {
       }
     }
 
-    // 搜尋並清理所有與此標準項目同名的多餘重複項 (例如先前手動新增的重複 srv-xxx)
+
     for (const [id, s] of existingMap.entries()) {
       if (!handledIds.has(id) && norm(s.name) === defNormName) {
-        // 若重複項有自訂價格而 matchedItem 仍為預設，自動繼承其設定
+
         if (matchedItem && matchedItem.price === def.price && typeof s.price === 'number' && s.price !== def.price) {
           matchedItem.price = s.price;
         }
@@ -121,10 +119,10 @@ function ensureServicesSynced(existingServices) {
         ...matchedItem,
         id: def.id,
         name: (matchedItem.id === def.id) ? (matchedItem.name || def.name) : def.name,
-        // 若舊版分類為「技術服務」，自動對齊 POS 精確分類
+
         category: (matchedItem.category && matchedItem.category !== '技術服務') ? matchedItem.category : def.category,
         price: typeof matchedItem.price === 'number' ? matchedItem.price : def.price,
-        rate: typeof matchedItem.rate === 'number' ? matchedItem.rate : (def.rate || 0)
+        rate: (typeof matchedItem.rate === 'number' && matchedItem.rate > 0) ? matchedItem.rate : (def.rate || 0)
       };
       if (typeof matchedItem.empPrice === 'number') {
         item.empPrice = matchedItem.empPrice;
@@ -145,7 +143,7 @@ function ensureServicesSynced(existingServices) {
     }
   });
 
-  // 2. 保留使用者自行新增之自訂項目 (過濾掉同名重複項)
+
   existingMap.forEach((customItem, id) => {
     if (!handledIds.has(id)) {
       const normName = norm(customItem.name);
@@ -163,7 +161,7 @@ function ensureServicesSynced(existingServices) {
   return merged;
 }
 
-// 監聽全店共享沙龍即時同步 (salon_stores/main_store)
+
 function subscribeToCloudData() {
   if (unsubscribeFirestore) {
     unsubscribeFirestore();
@@ -178,7 +176,7 @@ function subscribeToCloudData() {
     if (doc.exists) {
       const data = sanitizeOldMockData(doc.data());
 
-      // 若雲端文件指定了強制版本號且與本地不同，立刻觸發秒級更新
+
       if (data && data.appVersion && typeof triggerAppUpdate === 'function' && typeof CURRENT_APP_VERSION !== 'undefined' && data.appVersion !== CURRENT_APP_VERSION) {
         console.log(`[Firebase] 偵測到 Firestore 即時版本推播: ${data.appVersion}`);
         triggerAppUpdate(data.appVersion);
@@ -189,12 +187,12 @@ function subscribeToCloudData() {
       appState.staff = data.staff || [];
       appState.orders = data.orders || [];
 
-      // 若雲端存有已廢棄項目或未合併重複項，且目前使用者為 admin，自動向雲端寫入乾淨項目清單
+
       if (currentUserRole === 'admin' && currentUser && Array.isArray(data.services) && JSON.stringify(appState.services) !== JSON.stringify(data.services)) {
         storeDocRef.set({ services: appState.services }, { merge: true }).catch(e => console.warn('自動同步清理雲端廢棄服務失敗:', e));
       }
 
-      // 若 main_store 中的人員名單為空，但目前登入者舊資料庫(users/{uid})有人員，自動匯入至共享沙龍
+
       if ((!appState.staff || appState.staff.length === 0) && currentUser) {
         try {
           const oldDoc = await db.collection('users').doc(currentUser.uid).get();
@@ -217,7 +215,7 @@ function subscribeToCloudData() {
         }
       }
     } else {
-      // 若尚未建立 main_store，檢查現有使用者的舊獨立庫並自動無縫遷移！
+
       let initialServices = ensureServicesSynced([]);
       let initialStaff = [];
       let initialOrders = [];
@@ -254,7 +252,7 @@ function subscribeToCloudData() {
     initHistoryFilters();
     initMonthlyView();
     populateStaffDropdowns();
-    // 即時資料更新不可重設正在輸入的客單；僅在訂閱首次載入時初始化。
+
     if (!billingInitialized) {
       billingInitialized = true;
       initBillingForm();
@@ -268,7 +266,7 @@ function subscribeToCloudData() {
   });
 }
 
-// 監聽全店已註冊帳號列表 (供管理員綁定人員)
+
 function subscribeToUsersList() {
   if (unsubscribeUsersList) {
     unsubscribeUsersList();
@@ -287,7 +285,7 @@ function subscribeToUsersList() {
   });
 }
 
-// 上傳與同步全店資料至雲端 (支援精準欄位獨立更新 targetField: 'services' | 'staff' | 'orders')
+
 async function syncDataToCloud(targetField = null) {
   localStorage.setItem('SALON_PAY_LOCAL_CACHE', JSON.stringify(appState));
 
@@ -302,14 +300,14 @@ async function syncDataToCloud(targetField = null) {
       } else if (targetField === 'orders') {
         payload = { orders: appState.orders };
       } else {
-        // 未指定特定欄位時：完整安全合併
+
         payload = {
           services: appState.services,
           staff: appState.staff,
           orders: appState.orders
         };
       }
-      // 防禦性清理：確保送往 Firestore 之物件絕對不含任何 undefined 屬性，避免 SDK 拋出 DocumentReference.set() 異常
+
       const safePayload = JSON.parse(JSON.stringify(payload));
       await storeDocRef.set(safePayload, { merge: true });
     } catch (err) {
@@ -322,7 +320,7 @@ async function syncDataToCloud(targetField = null) {
   }
 }
 
-// 雲端金鑰貼上設定視窗
+
 function openCloudConfigModal() {
   const modal = document.getElementById('modal-cloud-config');
   const input = document.getElementById('modal-config-input');

@@ -665,3 +665,26 @@ test('official gsheet rates are populated and settings table renders calculated 
   assert.match(html, /NT\$ 189/);
   assert.match(html, /NT\$ 161/);
 });
+
+test('product commission applies 30% base rate and calculates 27% equivalent upon 9-discount', () => {
+  const { run } = setup(['constants', 'billing']);
+
+  const prod1 = run("DEFAULT_SERVICES.find(s => s.id === 'prod-1')");
+  assert.equal(prod1.price, 2200);
+  assert.equal(prod1.rate, 30);
+  assert.equal(prod1.empPrice, 1980);
+
+  // 1. 原價銷售：2,200 * 30% = 660
+  run("addPosItem('prod-1', 2200, '元氣潔淨露1號', 1, 30)");
+  let rows = run('currentBillingRows');
+  let commFull = Math.round(rows[0].price * (rows[0].rate / 100));
+  assert.equal(commFull, 660);
+
+  // 2. 員工價9折銷售：1,980 * 30% = 594 (等同原價 2,200 * 27% = 594)
+  run("currentBillingRows = []");
+  run("addPosItem('prod-1', 1980, '元氣潔淨露1號 (9折)', 1, 30)");
+  rows = run('currentBillingRows');
+  let commDisc = Math.round(rows[0].price * (rows[0].rate / 100));
+  assert.equal(commDisc, 594);
+  assert.equal(Math.round(2200 * 0.27), 594);
+});

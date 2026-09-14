@@ -1,4 +1,4 @@
-const APP_VERSION = '20260914_2';
+const APP_VERSION = '20260914_3';
 
 const DEFAULT_SERVICES = [
   { id: 'cut-emp-f', name: '剪髮 (員工-女)', price: 150, rate: 60, category: '剪髮' },
@@ -24,22 +24,22 @@ const DEFAULT_SERVICES = [
   { id: 'perm-dig-short', name: '溫朔燙 (短髮)', price: 2300, rate: 54, category: '燙髮' },
   { id: 'perm-dig-long', name: '溫朔燙 (長髮)', price: 2500, rate: 54, category: '燙髮' },
   { id: 'perm-dig-xlong', name: '溫朔燙 (過長)', price: 2800, rate: 54, category: '燙髮' },
-  { id: 'prod-1', name: '元氣潔淨露1號', price: 2200, empPrice: 1980, rate: 10, category: '產品銷售' },
-  { id: 'prod-2', name: '元氣調理霜1號', price: 2800, empPrice: 2520, rate: 10, category: '產品銷售' },
-  { id: 'prod-3', name: '頭皮溫感凝膠', price: 980, empPrice: 882, rate: 10, category: '產品銷售' },
-  { id: 'prod-4', name: '賦活養髮調理霜(一般髮質)', price: 1300, empPrice: 1170, rate: 10, category: '產品銷售' },
-  { id: 'prod-5', name: '賦活養髮不老泉', price: 1800, empPrice: 1620, rate: 10, category: '產品銷售' },
-  { id: 'prod-6', name: '珂蔻5淨髮精', price: 3080, empPrice: 2772, rate: 10, category: '產品銷售' },
-  { id: 'prod-7', name: 'JOICO水潤悅髮超潤澤精華', price: 1300, empPrice: 1300, rate: 10, category: '產品銷售' },
-  { id: 'prod-8', name: 'JOICO專業悅型水光霧', price: 1120, empPrice: 1120, rate: 10, category: '產品銷售' },
-  { id: 'prod-9', name: '薰衣草修護露', price: 900, empPrice: 900, rate: 10, category: '產品銷售' },
-  { id: 'prod-10', name: 'JOICO禦髮系列鏈鍵強化鎖色瞬效髮霜', price: 2600, empPrice: 2600, rate: 10, category: '產品銷售' },
-  { id: 'prod-11', name: 'JOICO禦髮系列鏈鍵強化鎖色髮膜', price: 1080, empPrice: 1080, rate: 10, category: '產品銷售' },
-  { id: 'prod-12', name: 'JOICO專業悅型長效霧', price: 980, empPrice: 980, rate: 10, category: '產品銷售' },
-  { id: 'prod-13', name: 'JOICO髮質悅髮瞬效髮霜', price: 2600, empPrice: 2600, rate: 10, category: '產品銷售' },
-  { id: 'prod-14', name: 'JOICO水潤悅髮瞬效髮霜', price: 1600, empPrice: 1600, rate: 10, category: '產品銷售' },
-  { id: 'prod-15', name: '髮質重建專家 淨化潔髮乳', price: 700, empPrice: 700, rate: 10, category: '產品銷售' },
-  { id: 'prod-16', name: '煥采重建瞬效髮霜（耀紫）', price: 900, empPrice: 900, rate: 10, category: '產品銷售' }
+  {id: "prod-1",name: "元氣潔淨露1號",price: 2200,empPrice: 1980,rate: 30,category: "產品銷售"},
+  {id: "prod-2",name: "元氣調理霜1號",price: 2800,empPrice: 2520,rate: 30,category: "產品銷售"},
+  {id: "prod-3",name: "頭皮溫感凝膠",price: 980,empPrice: 882,rate: 30,category: "產品銷售"},
+  {id: "prod-4",name: "賦活養髮調理霜(一般髮質)",price: 1300,empPrice: 1170,rate: 30,category: "產品銷售"},
+  {id: "prod-5",name: "賦活養髮不老泉",price: 1800,empPrice: 1620,rate: 30,category: "產品銷售"},
+  {id: "prod-6",name: "珂蔻5淨髮精",price: 3080,empPrice: 2772,rate: 30,category: "產品銷售"},
+  {id: "prod-7",name: "JOICO水潤悅髮超潤澤精華",price: 1300,empPrice: 1170,rate: 30,category: "產品銷售"},
+  {id: "prod-8",name: "JOICO專業悅型水光霧",price: 1120,empPrice: 1008,rate: 30,category: "產品銷售"},
+  {id: "prod-9",name: "薰衣草修護露",price: 900,empPrice: 810,rate: 30,category: "產品銷售"},
+  {id: "prod-10",name: "JOICO禦髮系列鏈鍵強化鎖色瞬效髮霜",price: 2600,empPrice: 2340,rate: 30,category: "產品銷售"},
+  {id: "prod-11",name: "JOICO禦髮系列鏈鍵強化鎖色髮膜",price: 1080,empPrice: 972,rate: 30,category: "產品銷售"},
+  {id: "prod-12",name: "JOICO專業悅型長效霧",price: 980,empPrice: 882,rate: 30,category: "產品銷售"},
+  {id: "prod-13",name: "JOICO髮質悅髮瞬效髮霜",price: 2600,empPrice: 2340,rate: 30,category: "產品銷售"},
+  {id: "prod-14",name: "JOICO水潤悅髮瞬效髮霜",price: 1600,empPrice: 1440,rate: 30,category: "產品銷售"},
+  {id: "prod-15",name: "髮質重建專家 淨化潔髮乳",price: 700,empPrice: 630,rate: 30,category: "產品銷售"},
+  {id: "prod-16",name: "JOICO亮金耀光精華露",price: 980,empPrice: 882,rate: 30,category: "產品銷售"}
 ];
 
 const POS_CATEGORIES = [

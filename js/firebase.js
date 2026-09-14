@@ -122,7 +122,13 @@ function ensureServicesSynced(existingServices) {
 
         category: (matchedItem.category && matchedItem.category !== '技術服務') ? matchedItem.category : def.category,
         price: typeof matchedItem.price === 'number' ? matchedItem.price : def.price,
-        rate: (typeof matchedItem.rate === 'number' && matchedItem.rate > 0) ? matchedItem.rate : (def.rate || 0)
+        rate: (() => {
+        let r = (typeof matchedItem.rate === 'number' && matchedItem.rate > 0) ? matchedItem.rate : (def.rate || 0);
+        if (def.category === '產品銷售' && (r === 10 || r === 0)) {
+          r = def.rate || 30;
+        }
+        return r;
+      })()
       };
       if (typeof matchedItem.empPrice === 'number') {
         item.empPrice = matchedItem.empPrice;

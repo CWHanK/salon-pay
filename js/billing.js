@@ -703,23 +703,29 @@ function renderProductsOptions(el, query = '') {
         ${filtered.length === 0 ? `
           <div class="p-6 text-center text-slate-400 text-xs">查無符合名稱的產品</div>
         ` : filtered.map(p => {
-          const finalPrice = isEmployee ? ((typeof p.empPrice === 'number' && p.empPrice > 0) ? p.empPrice : p.price) : p.price;
-          const hasDiscount = isEmployee && (typeof p.empPrice === 'number' && p.empPrice > 0 && p.empPrice < p.price);
+          const empP = (typeof p.empPrice === 'number' && p.empPrice > 0 && p.empPrice < p.price)
+            ? p.empPrice
+            : Math.round(p.price * 0.9);
+          const finalPrice = isEmployee ? empP : p.price;
+          const hasDiscount = isEmployee && (finalPrice < p.price);
+          const commRate = typeof p.rate === 'number' && p.rate > 0 ? p.rate : 30;
+          const estComm = Math.round(finalPrice * (commRate / 100));
 
           return `
             <div class="p-3 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50/80 transition flex items-center justify-between gap-2 shadow-2xs">
               <div class="min-w-0 flex-1">
                 <div class="font-bold text-slate-900 text-xs sm:text-sm truncate">${p.name}</div>
-                <div class="flex items-center gap-1.5 mt-0.5">
+                <div class="flex items-center gap-2 mt-0.5 flex-wrap">
                   <span class="text-xs font-black text-amber-700 font-numeric">NT$ ${finalPrice.toLocaleString()}</span>
                   ${hasDiscount ? `
                     <span class="text-[10px] text-slate-400 line-through font-numeric">NT$ ${p.price.toLocaleString()}</span>
-                    <span class="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded">員工價</span>
+                    <span class="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded">9折員工價</span>
                   ` : ''}
+                  <span class="text-[10px] font-bold text-slate-500 bg-slate-100 px-1.5 py-0.2 rounded">抽成 NT$ ${estComm.toLocaleString()} (${commRate}%)</span>
                 </div>
               </div>
 
-              <button type="button" onclick="addPosItem('${p.id}', ${finalPrice}, '${p.name}');" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl transition flex items-center gap-1 shrink-0 shadow-2xs">
+              <button type="button" onclick="addPosItem('${p.id}', ${finalPrice}, '${p.name}', 1, ${commRate});" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl transition flex items-center gap-1 shrink-0 shadow-2xs">
                 <i data-lucide="plus" class="w-3.5 h-3.5"></i> 加入
               </button>
             </div>

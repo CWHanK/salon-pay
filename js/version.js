@@ -1,12 +1,7 @@
-/**
- * SalonFlow - 版本自動偵測與智慧防遺失強制重載模組 (js/version.js)
- */
-
 const CURRENT_APP_VERSION = typeof APP_VERSION !== 'undefined' ? APP_VERSION : '20260907_3';
 let isUpdatingApp = false;
 let versionCheckTimer = null;
 
-// 更新介面上的版本標籤
 function renderVersionInfo() {
   const versionTags = [
     document.getElementById('header-version-tag'),
@@ -17,13 +12,11 @@ function renderVersionInfo() {
   });
 }
 
-// 檢查雲端是否有新版本
 async function checkForAppUpdates(options = {}) {
   const { manual = false, silent = false } = options;
   if (isUpdatingApp) return;
 
   try {
-    // 透過時間戳與 no-store 繞過瀏覽器/PWA快取
     const response = await fetch(`version.json?_t=${Date.now()}`, {
       cache: 'no-store',
       headers: {
@@ -54,12 +47,10 @@ async function checkForAppUpdates(options = {}) {
   }
 }
 
-// 觸發強制重載與版本升級
 function triggerAppUpdate(newVersion) {
   if (isUpdatingApp) return;
   isUpdatingApp = true;
 
-  // 1. 自動備份當前開單草稿至 LocalStorage，防範資料遺失
   if (typeof saveBillingDraftToStorage === 'function') {
     try {
       saveBillingDraftToStorage();
@@ -68,7 +59,6 @@ function triggerAppUpdate(newVersion) {
     }
   }
 
-  // 2. 顯示更新提示全螢幕蓋板，給予友善提示
   let modal = document.getElementById('version-update-modal');
   if (!modal && typeof document !== 'undefined' && document.body) {
     modal = document.createElement('div');
@@ -94,14 +84,20 @@ function triggerAppUpdate(newVersion) {
     document.body.appendChild(modal);
   }
 
-  // 3. 清理快取（若瀏覽器支援 Cache Storage API）
   if (typeof window !== 'undefined' && 'caches' in window && window.caches.keys) {
     window.caches.keys().then(names => {
       return Promise.all(names.map(name => window.caches.delete(name)));
     }).catch(() => {});
   }
 
-  // 4. 破快取強制重開
+  if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+    navigator.serviceWorker.getRegistrations().then(registrations => {
+      for (const reg of registrations) {
+        reg.unregister();
+      }
+    }).catch(() => {});
+  }
+
   setTimeout(() => {
     if (typeof window !== 'undefined' && window.location) {
       const cleanUrl = window.location.origin + window.location.pathname;
@@ -110,22 +106,18 @@ function triggerAppUpdate(newVersion) {
   }, 900);
 }
 
-// 初始化版本檢查監聽器
 function initVersionChecker() {
   renderVersionInfo();
 
-  // 1. 頁面載入後 3 秒初次檢查
   setTimeout(() => {
     checkForAppUpdates({ silent: true });
   }, 3000);
 
-  // 2. 每 60 秒常規背景輪詢
   if (versionCheckTimer) clearInterval(versionCheckTimer);
   versionCheckTimer = setInterval(() => {
     checkForAppUpdates({ silent: true });
   }, 60 * 1000);
 
-  // 3. 手機螢幕待機解鎖喚醒 / 切回分頁時立即檢查 (關鍵)
   if (typeof document !== 'undefined') {
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') {
@@ -134,7 +126,6 @@ function initVersionChecker() {
     });
   }
 
-  // 4. 視窗重獲焦點或網路重連時立即檢查
   if (typeof window !== 'undefined') {
     window.addEventListener('focus', () => {
       checkForAppUpdates({ silent: true });

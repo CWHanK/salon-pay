@@ -101,3 +101,15 @@ test('checkForAppUpdates detects newer version and triggers force reload', async
   assert.ok(replacedUrl, 'window.location.replace should have been called');
   assert.match(replacedUrl, /v=20260999_9/);
 });
+
+test('index.html script tags match constants.js APP_VERSION', () => {
+  const indexHtml = readFileSync(join(__dirname, '../index.html'), 'utf8');
+  const versionJsonRaw = readFileSync(join(__dirname, '../version.json'), 'utf8');
+  const versionData = JSON.parse(versionJsonRaw);
+
+  const scriptMatches = [...indexHtml.matchAll(/src="js\/([^"]+?)\.js\?v=([^"]+)"/g)];
+  assert.ok(scriptMatches.length >= 8, 'should have script tags with version query param');
+  for (const m of scriptMatches) {
+    assert.equal(m[2], versionData.version, 'script ' + m[1] + ' has matching version');
+  }
+});

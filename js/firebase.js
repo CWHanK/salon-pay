@@ -188,6 +188,9 @@ function subscribeToCloudData() {
       appState.orders = data.orders || [];
 
 
+      if (currentUserRole === 'admin' && currentUser && typeof APP_VERSION !== 'undefined' && data.appVersion !== APP_VERSION) {
+        storeDocRef.set({ appVersion: APP_VERSION }, { merge: true }).catch(e => console.warn('自動同步雲端版本失敗:', e));
+      }
       if (currentUserRole === 'admin' && currentUser && Array.isArray(data.services) && JSON.stringify(appState.services) !== JSON.stringify(data.services)) {
         storeDocRef.set({ services: appState.services }, { merge: true }).catch(e => console.warn('自動同步清理雲端廢棄服務失敗:', e));
       }
@@ -204,7 +207,8 @@ function subscribeToCloudData() {
                 appState.orders = oldData.orders;
               }
               await storeDocRef.set({
-                services: appState.services,
+                appVersion: typeof APP_VERSION !== 'undefined' ? APP_VERSION : undefined,
+          services: appState.services,
                 staff: appState.staff,
                 orders: appState.orders
               }, { merge: true });

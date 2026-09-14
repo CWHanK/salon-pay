@@ -1,25 +1,18 @@
-/**
- * SalonFlow - 店內專屬 POS 機互動答題開單介面 (js/billing.js)
- */
+let posGender = 'female';
+let posIdentity = 'employee';
+let posPermRolls = 1;
+let posPermChemical = 'company';
 
-// POS 答題當前狀態 (全域反應式變數)
-let posGender = 'female';      // 'female' | 'male'
-let posIdentity = 'employee';  // 'employee' | 'retiree' | 'family' | 'external'
-let posPermRolls = 1;          // 燙髮局部補燙卷數
-
-// 取得服務項目物件 (優先從 appState.services 讀取自訂價格與抽成，找不到時降級讀取 DEFAULT_SERVICES)
 function getServiceItem(serviceId) {
   return (typeof appState !== 'undefined' && appState.services && appState.services.find(s => s.id === serviceId)) ||
          (typeof DEFAULT_SERVICES !== 'undefined' && DEFAULT_SERVICES.find(s => s.id === serviceId)) || null;
 }
 
-// 取得服務項目單價
 function getServicePrice(serviceId, fallback = 0) {
   const srv = getServiceItem(serviceId);
   return (srv && typeof srv.price === 'number') ? srv.price : fallback;
 }
 
-// 渲染所有設計師下拉選單與開單設計師身分顯示
 function populateStaffDropdowns() {
   const billingStaffName = document.getElementById('billing-staff-name');
   const billingStaffInput = document.getElementById('billing-staff-select');
@@ -33,7 +26,6 @@ function populateStaffDropdowns() {
     updateLinkedStaff();
   }
 
-  // 主作設計師：直接綁定當前登入者
   if (billingStaffName || billingStaffInput) {
     if (typeof currentLinkedStaff !== 'undefined' && currentLinkedStaff) {
       if (billingStaffName) {
@@ -77,13 +69,9 @@ function populateStaffDropdowns() {
   if (historyStaff) {
     if (typeof currentUserRole !== 'undefined' && currentUserRole === 'staff') {
       if (typeof currentLinkedStaff !== 'undefined' && currentLinkedStaff) {
-        historyStaff.innerHTML = `
-          <option value="${currentLinkedStaff.id}">${currentLinkedStaff.name} (本人客單)</option>
-        `;
+        historyStaff.innerHTML = `<option value="${currentLinkedStaff.id}">${currentLinkedStaff.name} (本人客單)</option>`;
       } else {
-        historyStaff.innerHTML = `
-          <option value="">(尚未綁定人員)</option>
-        `;
+        historyStaff.innerHTML = `<option value="">(尚未綁定人員)</option>`;
       }
       historyStaff.disabled = true;
     } else {
@@ -119,7 +107,6 @@ function populateStaffDropdowns() {
   checkStaffEmptyState();
 }
 
-// 檢查是否尚無人員，顯示提示引導
 function checkStaffEmptyState() {
   const emptyAlert = document.getElementById('billing-empty-staff-alert');
   if (emptyAlert && typeof appState !== 'undefined' && appState.staff) {
@@ -131,7 +118,6 @@ function checkStaffEmptyState() {
   }
 }
 
-// 初始化開單表單與 POS 狀態
 function initBillingForm() {
   generateNewOrderNo();
   const restored = restoreBillingDraftFromStorage();
@@ -142,12 +128,10 @@ function initBillingForm() {
   renderBillingRows();
 }
 
-// 計算指定日期的下一號流水單號 (格式：T-YYYYMMDD-001)
 function getNextOrderNo(dateStr) {
   const d = dateStr || (typeof getLocalDateString === 'function' ? getLocalDateString() : new Date().toISOString().split('T')[0]);
   const compactDate = d.replace(/-/g, '');
   const prefix = `T-${compactDate}-`;
-
   const dayOrders = (typeof appState !== 'undefined' && appState.orders) 
     ? appState.orders.filter(o => o && o.date === d) 
     : [];
@@ -177,7 +161,6 @@ function getNextOrderNo(dateStr) {
   return `${prefix}${String(nextSeq).padStart(3, '0')}`;
 }
 
-// 自動生成當日流水單號顯示
 function generateNewOrderNo() {
   const dateVal = document.getElementById('billing-date')?.value || (typeof getLocalDateString === 'function' ? getLocalDateString() : new Date().toISOString().split('T')[0]);
   const nextNo = getNextOrderNo(dateVal);
@@ -186,8 +169,6 @@ function generateNewOrderNo() {
     orderNoEl.textContent = `單號：${nextNo}`;
   }
 }
-
-// ==================== POS 步驟 1：性別與身分切換 ====================
 
 function setPosGender(gender) {
   posGender = gender;
@@ -199,9 +180,7 @@ function setPosIdentity(identity) {
   renderPosWizard();
 }
 
-// 刷新按鈕樣式與分類徽章預覽
 function renderPosWizard() {
-  // 1. 性別按鈕樣式
   const btnFemale = document.getElementById('pos-btn-gender-female');
   const btnMale = document.getElementById('pos-btn-gender-male');
   
@@ -215,7 +194,6 @@ function renderPosWizard() {
     }
   }
 
-  // 2. 身分按鈕樣式
   const identities = ['employee', 'retiree', 'family', 'external'];
   const idMap = {
     employee: 'pos-btn-id-employee',
@@ -235,7 +213,6 @@ function renderPosWizard() {
     }
   });
 
-  // 3. 條件徽章與說明文字 (相容保留更新)
   const badgeEl = document.getElementById('pos-condition-badge');
   const noteEl = document.getElementById('pos-discount-note-text');
   const genderLabel = posGender === 'female' ? '女性' : '男性';
@@ -274,7 +251,6 @@ function renderPosWizard() {
     }
   }
 
-  // 4. 更新大類卡片價格提示
   const badgeCut = document.getElementById('pos-badge-cut');
   const descCut = document.getElementById('pos-desc-cut');
   if (badgeCut) {
@@ -352,8 +328,6 @@ function renderPosWizard() {
   }
 }
 
-// ==================== POS 步驟 2：智能答題規格選擇器 ====================
-
 function openPosCategoryModal(catId) {
   const modal = document.getElementById('modal-pos-picker');
   const emojiEl = document.getElementById('pos-picker-emoji');
@@ -402,7 +376,6 @@ function closePosPickerModal() {
   if (modal) modal.classList.add('hidden');
 }
 
-// 1. 剪髮
 function renderCutOptions(el) {
   const isEmployee = posIdentity === 'employee' || posIdentity === 'retiree';
   const fPrice = getServicePrice('cut-emp-f', 150);
@@ -451,7 +424,6 @@ function renderCutOptions(el) {
   }
 }
 
-// 2. 洗頭
 function renderShampooOptions(el) {
   const isEmployee = posIdentity === 'employee';
   const actLong = getServicePrice('shampoo-act-long', 110);
@@ -500,7 +472,6 @@ function renderShampooOptions(el) {
   }
 }
 
-// 3. 去角質
 function renderScalpOptions(el) {
   const scalpPrice = getServicePrice('scalp-standard', 350);
   el.innerHTML = `
@@ -508,7 +479,7 @@ function renderScalpOptions(el) {
       <button type="button" onclick="addPosItem('scalp-standard'); closePosPickerModal();" class="w-full p-4 rounded-2xl border border-emerald-300 bg-emerald-50/50 hover:bg-emerald-50 transition flex items-center justify-between text-left">
         <div class="flex items-center gap-3">
           <span class="text-2xl">🌿</span>
-          <div class="font-bold text-slate-900 text-sm">頭皮去角質</div>
+          <div class="font-bold text-slate-900 text-sm">頭皮深層去角質</div>
         </div>
         <span class="text-base font-black text-emerald-800 font-numeric">NT$ ${scalpPrice.toLocaleString()}</span>
       </button>
@@ -516,14 +487,13 @@ function renderScalpOptions(el) {
   `;
 }
 
-// 4. 護髮
 function renderTreatmentOptions(el) {
   const items = [
-    { id: 'treat-steamer', name: getServiceItem('treat-steamer')?.name || '護髮 (蒸器)', price: getServicePrice('treat-steamer', 120), icon: '💨' },
-    { id: 'treat-sonic', name: getServiceItem('treat-sonic')?.name || '護髮 (超音波)', price: getServicePrice('treat-sonic', 250), icon: '🔊' },
-    { id: 'treat-ext-comp', name: getServiceItem('treat-ext-comp')?.name || '非員工 (用公司)', price: getServicePrice('treat-ext-comp', 450), icon: '🏢' },
-    { id: 'treat-emp-steamer', name: getServiceItem('treat-emp-steamer')?.name || '員工產品 (蒸器)', price: getServicePrice('treat-emp-steamer', 450), icon: '🧴' },
-    { id: 'treat-emp-sonic', name: getServiceItem('treat-emp-sonic')?.name || '員工產品 (超音波)', price: getServicePrice('treat-emp-sonic', 600), icon: '✨' }
+    { id: 'treat-steamer', name: getServiceItem('treat-steamer')?.name || '護髮 (蒸器/顧客自備)', price: getServicePrice('treat-steamer', 120), icon: '💨' },
+    { id: 'treat-sonic', name: getServiceItem('treat-sonic')?.name || '護髮 (超音波/顧客自備)', price: getServicePrice('treat-sonic', 250), icon: '🔊' },
+    { id: 'treat-ext-comp', name: getServiceItem('treat-ext-comp')?.name || '護髮 (非員工/用公司)', price: getServicePrice('treat-ext-comp', 450), icon: '🏢' },
+    { id: 'treat-emp-steamer', name: getServiceItem('treat-emp-steamer')?.name || '護髮 (員工產品蒸器)', price: getServicePrice('treat-emp-steamer', 450), icon: '🧴' },
+    { id: 'treat-emp-sonic', name: getServiceItem('treat-emp-sonic')?.name || '護髮 (員工產品超音波)', price: getServicePrice('treat-emp-sonic', 600), icon: '✨' }
   ];
 
   el.innerHTML = `
@@ -541,33 +511,75 @@ function renderTreatmentOptions(el) {
   `;
 }
 
-// 5. 染髮
 function renderColorOptions(el) {
-  const items = [
-    { id: 'color-company', name: getServiceItem('color-company')?.name || '用公司染劑', price: getServicePrice('color-company', 800), icon: '🏢' },
-    { id: 'color-bring', name: getServiceItem('color-bring')?.name || '自帶代工', price: getServicePrice('color-bring', 350), icon: '🧴' },
-    { id: 'color-barrier', name: getServiceItem('color-barrier')?.name || '頭皮隔離霜', price: getServicePrice('color-barrier', 350), icon: '🛡️' }
-  ];
+  const pCompany = getServicePrice('color-company', 800);
+  const pBring = getServicePrice('color-bring', 350);
+  const pBarrier = getServicePrice('color-barrier', 350);
 
   el.innerHTML = `
     <div class="space-y-2">
-      ${items.map(it => `
-        <button type="button" onclick="addPosItem('${it.id}'); closePosPickerModal();" class="w-full p-3.5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
-          <div class="flex items-center gap-3">
-            <span class="text-2xl">${it.icon}</span>
-            <div class="font-bold text-slate-900 text-sm">${it.name}</div>
+      <button type="button" onclick="addPosItem('color-company', ${pCompany}, '染髮 (用公司染劑)', 1, 54); closePosPickerModal();" class="w-full p-3.5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
+        <div class="flex items-center gap-3">
+          <span class="text-2xl">🏢</span>
+          <div>
+            <div class="font-bold text-slate-900 text-sm">用公司染劑</div>
+            <div class="text-[11px] text-slate-400">標準染髮服務 · 抽成 54%</div>
           </div>
-          <span class="text-sm font-black text-amber-700 font-numeric">NT$ ${it.price.toLocaleString()}</span>
-        </button>
-      `).join('')}
+        </div>
+        <span class="text-sm font-black text-amber-700 font-numeric">NT$ ${pCompany.toLocaleString()}</span>
+      </button>
+
+      <button type="button" onclick="addPosItem('color-bring', ${pBring}, '染髮 (顧客自備染膏)', 1, 60); closePosPickerModal();" class="w-full p-3.5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
+        <div class="flex items-center gap-3">
+          <span class="text-2xl">🧴</span>
+          <div>
+            <div class="font-bold text-slate-900 text-sm">顧客自備染膏</div>
+            <div class="text-[11px] text-slate-400">自帶代工 · 抽成 60%</div>
+          </div>
+        </div>
+        <span class="text-sm font-black text-amber-700 font-numeric">NT$ ${pBring.toLocaleString()}</span>
+      </button>
+
+      <button type="button" onclick="addPosItem('color-company', 800, '染髮 (設計師自備染膏)', 1, 60); closePosPickerModal();" class="w-full p-3.5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
+        <div class="flex items-center gap-3">
+          <span class="text-2xl">🎨</span>
+          <div>
+            <div class="font-bold text-slate-900 text-sm">設計師自備染膏</div>
+            <div class="text-[11px] text-slate-400">設計師提供料件 · 抽成 60%</div>
+          </div>
+        </div>
+        <span class="text-sm font-black text-amber-700 font-numeric">NT$ 800</span>
+      </button>
+
+      <button type="button" onclick="addPosItem('color-barrier', ${pBarrier}, '染髮 (頭皮隔離霜)', 1, 54); closePosPickerModal();" class="w-full p-3.5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
+        <div class="flex items-center gap-3">
+          <span class="text-2xl">🛡️</span>
+          <div>
+            <div class="font-bold text-slate-900 text-sm">頭皮隔離霜</div>
+            <div class="text-[11px] text-slate-400">染前頭皮防護 · 抽成 54%</div>
+          </div>
+        </div>
+        <span class="text-sm font-black text-amber-700 font-numeric">NT$ ${pBarrier.toLocaleString()}</span>
+      </button>
     </div>
   `;
 }
 
-// 6. 燙髮
+function setPermChemicalType(type) {
+  posPermChemical = type;
+  const contentEl = document.getElementById('pos-picker-content');
+  if (contentEl) {
+    renderPermOptions(contentEl);
+  }
+}
+
 function renderPermOptions(el) {
   const isEmployee = posIdentity === 'employee';
   posPermRolls = 1;
+  const isDesignerChem = posPermChemical === 'designer';
+  const chemRate = isDesignerChem ? 60 : 54;
+  const chemLabel = isDesignerChem ? '(自備藥水)' : '(公司藥水)';
+
   const coldEmp = getServicePrice('perm-cold-emp', 2000);
   const coldFam = getServicePrice('perm-cold-fam', 2300);
   const partRollUnit = getServicePrice('perm-cold-part', 50);
@@ -577,19 +589,31 @@ function renderPermOptions(el) {
 
   el.innerHTML = `
     <div class="space-y-3">
-      <!-- 冷燙 -->
+      <div class="bg-slate-100 p-1 rounded-xl grid grid-cols-2 gap-1 text-xs font-bold">
+        <button type="button" onclick="setPermChemicalType('company')" class="py-2 rounded-lg transition ${!isDesignerChem ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-900'}">
+          🏢 公司藥水 (抽成 54%)
+        </button>
+        <button type="button" onclick="setPermChemicalType('designer')" class="py-2 rounded-lg transition ${isDesignerChem ? 'bg-amber-600 text-white shadow-xs' : 'text-slate-500 hover:text-slate-900'}">
+          ✨ 設計師自備 (抽成 60%)
+        </button>
+      </div>
+
       <div class="space-y-2">
-        <div class="text-xs font-bold text-slate-500">冷燙</div>
+        <div class="text-xs font-bold text-slate-500 flex items-center justify-between">
+          <span>冷燙髮 ${chemLabel}</span>
+          <span class="text-[11px] text-amber-700 font-bold">抽成 ${chemRate}%</span>
+        </div>
+
         ${isEmployee ? `
-          <button type="button" onclick="addPosItem('perm-cold-emp'); closePosPickerModal();" class="w-full p-3.5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
+          <button type="button" onclick="addPosItem('perm-cold-emp', ${coldEmp}, '冷燙整頭-員工 ${chemLabel}', 1, ${chemRate}); closePosPickerModal();" class="w-full p-3.5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
             <div class="flex items-center gap-3">
               <span class="text-2xl">❄️</span>
-              <div class="font-bold text-slate-900 text-sm">冷燙整頭</div>
+              <div class="font-bold text-slate-900 text-sm">冷燙整頭 (員工)</div>
             </div>
             <span class="text-sm font-black text-amber-700 font-numeric">NT$ ${coldEmp.toLocaleString()}</span>
           </button>
         ` : `
-          <button type="button" onclick="addPosItem('perm-cold-fam'); closePosPickerModal();" class="w-full p-3.5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
+          <button type="button" onclick="addPosItem('perm-cold-fam', ${coldFam}, '冷燙整頭-非員工 ${chemLabel}', 1, ${chemRate}); closePosPickerModal();" class="w-full p-3.5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
             <div class="flex items-center gap-3">
               <span class="text-2xl">❄️</span>
               <div class="font-bold text-slate-900 text-sm">冷燙整頭</div>
@@ -598,10 +622,12 @@ function renderPermOptions(el) {
           </button>
         `}
 
-        <!-- 局部補燙 -->
         <div class="p-3 rounded-2xl border border-slate-200 bg-slate-50 space-y-2">
           <div class="flex items-center justify-between">
-            <div class="font-bold text-slate-900 text-sm">局部補燙 ($${partRollUnit}/卷)</div>
+            <div>
+              <div class="font-bold text-slate-900 text-sm">局部補燙 ($${partRollUnit}/卷)</div>
+              <div class="text-[10px] text-slate-400">依卷數計算 · 抽成 ${chemRate}%</div>
+            </div>
             <div class="flex items-center border border-slate-300 rounded-xl overflow-hidden bg-white shadow-2xs">
               <button type="button" onclick="updatePermRolls(-1)" class="w-8 h-8 flex items-center justify-center text-slate-700 hover:bg-slate-100 font-bold select-none">−</button>
               <span id="pos-perm-rolls-val" class="w-8 text-center text-xs font-bold font-numeric">1</span>
@@ -614,18 +640,20 @@ function renderPermOptions(el) {
         </div>
       </div>
 
-      <!-- 溫朔燙 -->
       <div class="space-y-2 pt-2 border-t border-slate-100">
-        <div class="text-xs font-bold text-slate-500">溫朔燙</div>
-        <button type="button" onclick="addPosItem('perm-dig-short'); closePosPickerModal();" class="w-full p-3.5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
+        <div class="text-xs font-bold text-slate-500 flex items-center justify-between">
+          <span>溫朔燙 ${chemLabel}</span>
+          <span class="text-[11px] text-amber-700 font-bold">不分身分 · 抽成 ${chemRate}%</span>
+        </div>
+        <button type="button" onclick="addPosItem('perm-dig-short', ${digShort}, '溫朔燙 (短髮) ${chemLabel}', 1, ${chemRate}); closePosPickerModal();" class="w-full p-3.5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
           <div class="font-bold text-slate-900 text-sm">短髮</div>
           <span class="text-sm font-black text-amber-700 font-numeric">NT$ ${digShort.toLocaleString()}</span>
         </button>
-        <button type="button" onclick="addPosItem('perm-dig-long'); closePosPickerModal();" class="w-full p-3.5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
+        <button type="button" onclick="addPosItem('perm-dig-long', ${digLong}, '溫朔燙 (長髮) ${chemLabel}', 1, ${chemRate}); closePosPickerModal();" class="w-full p-3.5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
           <div class="font-bold text-slate-900 text-sm">長髮</div>
           <span class="text-sm font-black text-amber-700 font-numeric">NT$ ${digLong.toLocaleString()}</span>
         </button>
-        <button type="button" onclick="addPosItem('perm-dig-xlong'); closePosPickerModal();" class="w-full p-3.5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
+        <button type="button" onclick="addPosItem('perm-dig-xlong', ${digXlong}, '溫朔燙 (過長) ${chemLabel}', 1, ${chemRate}); closePosPickerModal();" class="w-full p-3.5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
           <div class="font-bold text-slate-900 text-sm">過長</div>
           <span class="text-sm font-black text-amber-700 font-numeric">NT$ ${digXlong.toLocaleString()}</span>
         </button>
@@ -646,11 +674,12 @@ function updatePermRolls(delta) {
 function addPermRollsItem() {
   const unitPrice = getServicePrice('perm-cold-part', 50);
   const total = posPermRolls * unitPrice;
-  addPosItem('perm-cold-part', total, `冷燙髮 (局部補燙 ${posPermRolls}卷)`, 1);
+  const chemRate = posPermChemical === 'designer' ? 60 : 54;
+  const chemLabel = posPermChemical === 'designer' ? '(自備藥水)' : '(公司藥水)';
+  addPosItem('perm-cold-part', total, `冷燙髮 (局部補燙 ${posPermRolls}卷) ${chemLabel}`, 1, chemRate);
   closePosPickerModal();
 }
 
-// 7. 產品銷售
 function renderProductsOptions(el, query = '') {
   const isEmployee = posIdentity === 'employee';
   const allServices = (typeof appState !== 'undefined' && appState.services && appState.services.length > 0)
@@ -663,7 +692,6 @@ function renderProductsOptions(el, query = '') {
 
   el.innerHTML = `
     <div class="space-y-3">
-      <!-- 搜尋 -->
       <div class="relative">
         <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
           <i data-lucide="search" class="w-4 h-4"></i>
@@ -671,7 +699,6 @@ function renderProductsOptions(el, query = '') {
         <input type="text" id="pos-product-search" value="${query}" oninput="renderProductsOptions(document.getElementById('pos-picker-content'), this.value)" placeholder="搜尋產品名稱..." class="w-full pl-9 pr-3 py-2 text-xs font-semibold rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500">
       </div>
 
-      <!-- 產品列表 -->
       <div class="space-y-2 max-h-[55vh] overflow-y-auto pr-1">
         ${filtered.length === 0 ? `
           <div class="p-6 text-center text-slate-400 text-xs">查無符合名稱的產品</div>
@@ -704,18 +731,13 @@ function renderProductsOptions(el, query = '') {
   if (window.lucide) lucide.createIcons();
 }
 
-// ==================== POS 步驟 3：消費項目票據 (購物車) ====================
-
-// 將指定項目加入客單購物車
-function addPosItem(serviceId, overridePrice = null, customName = '', customQty = 1) {
+function addPosItem(serviceId, overridePrice = null, customName = '', customQty = 1, customRate = null) {
   const srv = getServiceItem(serviceId);
-  
   const price = overridePrice !== null ? overridePrice : (srv ? srv.price : 0);
   const name = customName || (srv ? srv.name : '美髮項目');
-  const rate = srv ? (srv.rate || 0) : 0;
+  const rate = customRate !== null ? customRate : (srv ? (srv.rate || 0) : 0);
 
-  // 檢查是否已有完全相同品項與相同單價 (自動累加數量)
-  const existing = currentBillingRows.find(r => r.serviceId === serviceId && r.price === price && (!customName || r.name === customName));
+  const existing = currentBillingRows.find(r => r.serviceId === serviceId && r.price === price && r.rate === rate && (!customName || r.name === customName));
   if (existing) {
     existing.qty = (existing.qty || 1) + customQty;
   } else {
@@ -736,7 +758,6 @@ function addPosItem(serviceId, overridePrice = null, customName = '', customQty 
   }
 }
 
-// 支援歷史介面呼叫的新增列
 function addServiceRow(presetServiceId = '') {
   if (presetServiceId) {
     addPosItem(presetServiceId);
@@ -749,7 +770,6 @@ function addServiceRow(presetServiceId = '') {
   }
 }
 
-// 購物車數量步進控制 (+1 / -1)
 function changeCartQty(rowId, delta) {
   const row = currentBillingRows.find(r => r.rowId === rowId);
   if (!row) return;
@@ -763,13 +783,11 @@ function changeCartQty(rowId, delta) {
   }
 }
 
-// 刪除客單項目
 function removeServiceRow(rowId) {
   currentBillingRows = currentBillingRows.filter(r => r.rowId !== rowId);
   renderBillingRows();
 }
 
-// 彈窗自訂修改單價 (給店長特殊折扣或微調彈性)
 function promptEditRowPrice(rowId) {
   const row = currentBillingRows.find(r => r.rowId === rowId);
   if (!row) return;
@@ -784,7 +802,6 @@ function promptEditRowPrice(rowId) {
   }
 }
 
-// 下拉選單變更服務項目 (相容保留)
 function onServiceSelectChange(rowId, selectedServiceId) {
   const row = currentBillingRows.find(r => r.rowId === rowId);
   if (!row) return;
@@ -806,7 +823,6 @@ function onServiceSelectChange(rowId, selectedServiceId) {
   renderBillingRows();
 }
 
-// 價格、抽成趴數、數量變更時即時重算
 function onRowInputChange(rowId, field, value) {
   const row = currentBillingRows.find(r => r.rowId === rowId);
   if (!row) return;
@@ -819,7 +835,6 @@ function onRowInputChange(rowId, field, value) {
   updateRowCalculations();
 }
 
-// 繪製消費項目清單 (購物車清單)
 function renderBillingRows() {
   const container = document.getElementById('service-rows-container');
   if (!container) return;
@@ -864,19 +879,16 @@ function renderBillingRows() {
           </div>
 
           <div class="flex items-center gap-2.5 shrink-0">
-            <!-- 數量控制 -->
             <div class="flex items-center border border-slate-300 rounded-xl overflow-hidden bg-white shadow-2xs">
               <button type="button" onclick="changeCartQty('${row.rowId}', -1)" class="w-8 h-8 flex items-center justify-center text-slate-600 hover:bg-slate-100 active:bg-slate-200 transition font-bold text-base select-none">−</button>
               <span class="w-7 text-center text-xs font-bold font-numeric text-slate-900">${row.qty || 1}</span>
               <button type="button" onclick="changeCartQty('${row.rowId}', 1)" class="w-8 h-8 flex items-center justify-center text-slate-600 hover:bg-slate-100 active:bg-slate-200 transition font-bold text-base select-none">＋</button>
             </div>
 
-            <!-- 小計 -->
             <div class="text-right min-w-[70px]">
               <strong id="${row.rowId}-subtotal" class="text-slate-900 font-numeric text-sm font-extrabold block">NT$ ${itemTotal.toLocaleString()}</strong>
             </div>
 
-            <!-- 刪除 -->
             <button type="button" onclick="removeServiceRow('${row.rowId}')" class="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition shrink-0" title="移除此項目">
               <i data-lucide="trash-2" class="w-4 h-4"></i>
             </button>
@@ -890,7 +902,6 @@ function renderBillingRows() {
   updateRowCalculations();
 }
 
-// 更新結算卡片總數值
 function updateRowCalculations() {
   let totalAmount = 0;
   let totalCommission = 0;
@@ -916,7 +927,6 @@ function updateRowCalculations() {
   if (totEl) totEl.textContent = totalAmount.toLocaleString();
 }
 
-// 儲存當前客單並同步雲端 (當日流水號依序流續)
 async function saveCurrentOrder() {
   if (typeof appState !== 'undefined' && appState.staff && appState.staff.length === 0) {
     alert('系統中尚無人員！請先點擊上方提示或前往「設定」新增第一位設計師！');
@@ -953,7 +963,6 @@ async function saveCurrentOrder() {
 
   const staff = currentLinkedStaff;
   const dateVal = document.getElementById('billing-date')?.value || (typeof getLocalDateString === 'function' ? getLocalDateString() : new Date().toISOString().split('T')[0]);
-  // 開單當下由系統即時抓取「記錄時間」(HH:mm)，不受網頁閒置影響
   const timeVal = (typeof getLocalTimeString === 'function') ? getLocalTimeString() : new Date().toTimeString().slice(0, 5);
   const notes = document.getElementById('billing-notes')?.value?.trim() || '';
 
@@ -1019,7 +1028,6 @@ async function saveCurrentOrder() {
   resetBillingForm();
 }
 
-// 重設開單表單與 POS 介面
 function resetBillingForm() {
   try {
     if (typeof localStorage !== 'undefined') {
@@ -1029,7 +1037,6 @@ function resetBillingForm() {
 
   const notesInput = document.getElementById('billing-notes');
   if (notesInput) notesInput.value = '';
-  // 服務日期若為空則重設為今日
   const dateInput = document.getElementById('billing-date');
   if (dateInput && !dateInput.value) {
     dateInput.value = typeof getLocalDateString === 'function' ? getLocalDateString() : new Date().toISOString().split('T')[0];
@@ -1041,6 +1048,7 @@ function resetBillingForm() {
 
   posGender = 'female';
   posIdentity = 'employee';
+  posPermChemical = 'company';
   currentBillingRows = [];
 
   generateNewOrderNo();
@@ -1048,7 +1056,6 @@ function resetBillingForm() {
   renderBillingRows();
 }
 
-// 暫存開單草稿至 LocalStorage
 function saveBillingDraftToStorage() {
   try {
     if (typeof localStorage === 'undefined') return;
@@ -1071,7 +1078,6 @@ function saveBillingDraftToStorage() {
   }
 }
 
-// 從 LocalStorage 還原開單草稿
 function restoreBillingDraftFromStorage() {
   try {
     if (typeof localStorage === 'undefined') return false;
@@ -1100,4 +1106,3 @@ function restoreBillingDraftFromStorage() {
   }
   return false;
 }
-

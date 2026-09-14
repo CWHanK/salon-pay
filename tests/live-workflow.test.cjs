@@ -635,8 +635,33 @@ test('color-bring-next / 自帶明年啟動 is pruned from services and not show
   assert.ok(pickerContainer.innerHTML.includes('color-bring'));
 });
 
+test('official gsheet rates are populated and settings table renders calculated commission amount and net salon profit', () => {
+  const { elements, run } = setup(['constants', 'settings']);
+  const srvTbody = {};
+  elements.set('settings-services-tbody', srvTbody);
+  elements.set('settings-services-count-badge', {});
+  elements.set('settings-staff-tbody', {});
+  elements.set('settings-users-tbody', {});
+  elements.set('settings-users-count-badge', {});
 
+  run(`
+    currentUser = { uid: 'admin_1' };
+    currentUserRole = 'admin';
+    appState.services = DEFAULT_SERVICES.map(s => ({ ...s }));
+    renderSettingsTables();
+  `);
 
+  const cutF = run("DEFAULT_SERVICES.find(s => s.id === 'cut-emp-f')");
+  assert.equal(cutF.price, 150);
+  assert.equal(cutF.rate, 60);
 
+  const scalp = run("DEFAULT_SERVICES.find(s => s.id === 'scalp-standard')");
+  assert.equal(scalp.price, 350);
+  assert.equal(scalp.rate, 54);
 
-
+  const html = srvTbody.innerHTML;
+  assert.match(html, /NT\$ 90/);
+  assert.match(html, /NT\$ 60/);
+  assert.match(html, /NT\$ 189/);
+  assert.match(html, /NT\$ 161/);
+});

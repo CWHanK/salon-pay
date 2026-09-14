@@ -1,10 +1,7 @@
-/**
- * SalonFlow - 系統設定：服務項目、工作人員與帳號管理 (js/settings.js)
- */
+
 
 let currentStaffBindMode = 'select';
 
-// 切換綁定方式模式：'select' (從選單挑選) 或 'manual' (手動輸入自訂帳號)
 function setStaffBindMode(mode) {
   currentStaffBindMode = mode;
   const selectWrapper = document.getElementById('staff-bind-select-wrapper');
@@ -33,7 +30,6 @@ function setStaffBindMode(mode) {
   }
 }
 
-// 監聽下拉選單切換
 function onStaffSelectChange(val) {
   if (val === '__MANUAL__') {
     setStaffBindMode('manual');
@@ -43,7 +39,6 @@ function onStaffSelectChange(val) {
   }
 }
 
-// 填入人員綁定選單：跳出已註冊帳號選單供管理者選擇
 function populateLinkedUsersDropdown(currentLinkedEmail = '', editingStaffId = '') {
   const selectEl = document.getElementById('modal-staff-user-select');
   const emailInput = document.getElementById('modal-staff-email');
@@ -70,7 +65,6 @@ function populateLinkedUsersDropdown(currentLinkedEmail = '', editingStaffId = '
     selectEl.innerHTML = optionsHtml;
   }
 
-  // 判斷預設選中哪一個
   if (currentLinkedEmail) {
     const norm = currentLinkedEmail.toLowerCase();
     const matchedUser = allRegisteredUsers.find(u => 
@@ -84,7 +78,6 @@ function populateLinkedUsersDropdown(currentLinkedEmail = '', editingStaffId = '
       if (selectEl) selectEl.value = matchedUser.email;
       if (emailInput) emailInput.value = formatEmailToUsername(matchedUser.email);
     } else {
-      // 找不到代表是尚未註冊的自訂帳號，切換為手動輸入模式
       setStaffBindMode('manual');
       if (emailInput) emailInput.value = formatEmailToUsername(currentLinkedEmail);
       if (selectEl) selectEl.value = '__MANUAL__';
@@ -101,7 +94,6 @@ function populateLinkedUsersDropdown(currentLinkedEmail = '', editingStaffId = '
   }
 }
 
-// 渲染已註冊使用者名冊（供管理員檢視誰是管理員、誰是員工）
 function renderUsersTable() {
   const tbody = document.getElementById('settings-users-tbody');
   const badge = document.getElementById('settings-users-count-badge');
@@ -152,7 +144,6 @@ function renderUsersTable() {
   if (window.lucide) lucide.createIcons();
 }
 
-// 修改沙龍管理員密鑰 (以 SHA-256 雜湊儲存於獨立安全庫)
 async function changeAdminSecretKey() {
   if (currentUserRole !== 'admin') {
     alert('僅管理員有此操作權限！');
@@ -182,7 +173,6 @@ async function changeAdminSecretKey() {
   }
 }
 
-// 修改店家註冊密鑰 (以 SHA-256 雜湊儲存於獨立機密庫)
 async function changeRegistrationSecretKey() {
   if (currentUserRole !== 'admin') {
     alert('僅管理員有此操作權限！');
@@ -213,7 +203,6 @@ async function changeRegistrationSecretKey() {
   }
 }
 
-// 自動檢查並將預設店家註冊密鑰加密寫入雲端資料庫 (salon_secrets/registration)
 async function initRegistrationSecretInCloud() {
   if (!db || currentUserRole !== 'admin') return;
   try {
@@ -237,8 +226,7 @@ async function initRegistrationSecretInCloud() {
   }
 }
 
-// 服務項目列表是否完全展開 (預設 true: 完整展開一目了然；false: 收合為固定高度滾動)
-let isServicesListExpanded = localStorage.getItem('SALON_SERVICES_EXPANDED') !== 'false';
+let isServicesListExpanded = typeof localStorage !== 'undefined' ? (localStorage.getItem('SALON_SERVICES_EXPANDED') !== 'false') : true;
 
 function applyServicesExpandUI() {
   const container = document.getElementById('settings-services-scroll-container');
@@ -261,11 +249,10 @@ function applyServicesExpandUI() {
 
 function toggleServicesExpand() {
   isServicesListExpanded = !isServicesListExpanded;
-  localStorage.setItem('SALON_SERVICES_EXPANDED', isServicesListExpanded ? 'true' : 'false');
+  if (typeof localStorage !== 'undefined') localStorage.setItem('SALON_SERVICES_EXPANDED', isServicesListExpanded ? 'true' : 'false');
   applyServicesExpandUI();
 }
 
-// 服務項目分類篩選狀態
 let currentServiceCategoryFilter = 'ALL';
 
 function setServiceCategoryFilter(category) {
@@ -287,7 +274,6 @@ function getCategoryBadge(cat) {
   return `<span class="inline-block text-[10px] font-bold px-1.5 py-0.2 rounded-md border ${cls}">${cat || '其他'}</span>`;
 }
 
-// 補齊店內 7 大類與產品銷售標準項目
 async function restoreDefaultServices() {
   if (currentUserRole !== 'admin') {
     alert('僅管理員有此操作權限！');
@@ -305,7 +291,6 @@ async function restoreDefaultServices() {
   showToast('已成功補齊標準服務項目');
 }
 
-// 渲染設定頁表格（服務項目與人員清單，僅管理員有權渲染）
 function renderSettingsTables() {
   if (currentUserRole !== 'admin') {
     const srvTbody = document.getElementById('settings-services-tbody');
@@ -322,7 +307,6 @@ function renderSettingsTables() {
   }
   applyServicesExpandUI();
 
-  // 更新分類切換按鈕高亮
   const filterTabs = ['ALL', '剪髮', '洗頭', '去角質', '護髮', '染髮', '燙髮', '產品銷售'];
   filterTabs.forEach(cat => {
     const tabEl = document.getElementById(`filter-srv-${cat}`);
@@ -344,7 +328,7 @@ function renderSettingsTables() {
     if (filteredServices.length === 0) {
       srvTbody.innerHTML = `
         <tr>
-          <td colspan="4" class="py-8 text-center text-xs text-slate-400">
+          <td colspan="6" class="py-8 text-center text-xs text-slate-400">
             目前「${currentServiceCategoryFilter === 'ALL' ? '全部' : currentServiceCategoryFilter}」分類中尚無項目
           </td>
         </tr>
@@ -355,6 +339,9 @@ function renderSettingsTables() {
           ? `<div class="text-[10px] text-emerald-700 font-bold mt-0.5">員工價 NT$ ${s.empPrice.toLocaleString()}</div>`
           : '';
 
+        const rNum = typeof s.rate === 'number' ? s.rate : 0;
+        const commAmt = Math.round(s.price * (rNum / 100));
+        const sNet = Math.max(0, s.price - commAmt);
         return `
           <tr class="hover:bg-slate-50 transition">
             <td class="px-3 py-2.5 font-medium text-slate-800">
@@ -365,7 +352,9 @@ function renderSettingsTables() {
               ${empPriceBadge}
             </td>
             <td class="px-3 py-2.5 text-right font-numeric font-bold text-slate-700">NT$ ${s.price.toLocaleString()}</td>
-            <td class="px-3 py-2.5 text-right font-numeric font-bold text-amber-700">${s.rate || 0}%</td>
+            <td class="px-3 py-2.5 text-right font-numeric font-bold text-amber-700">${rNum}%</td>
+            <td class="px-3 py-2.5 text-right font-numeric font-bold text-emerald-700">NT$ ${commAmt.toLocaleString()}</td>
+            <td class="px-3 py-2.5 text-right font-numeric text-slate-500">NT$ ${sNet.toLocaleString()}</td>
             <td class="px-3 py-2.5 text-center space-x-1 whitespace-nowrap">
               <button onclick="editServiceItem('${s.id}')" class="text-xs text-amber-600 hover:text-amber-800 font-bold p-1">編輯</button>
               <button onclick="deleteServiceItem('${s.id}')" class="text-xs text-rose-500 hover:text-rose-700 font-bold p-1">刪除</button>
@@ -411,8 +400,8 @@ function renderSettingsTables() {
   renderUsersTable();
 }
 
-// 服務項目分類切換監聽
 function onServiceModalCategoryChange(category) {
+  updateServiceModalPreview();
   const wrapper = document.getElementById('modal-service-empprice-wrapper');
   if (wrapper) {
     if (category === '產品銷售') {
@@ -423,7 +412,6 @@ function onServiceModalCategoryChange(category) {
   }
 }
 
-// 服務項目 Modal
 function openServiceModal() {
   if (currentUserRole !== 'admin') {
     alert('僅管理員有此操作權限！');
@@ -439,6 +427,7 @@ function openServiceModal() {
   if (empPriceInput) empPriceInput.value = '';
   onServiceModalCategoryChange(defaultCat);
   document.getElementById('modal-service-title').textContent = '新增美髮服務項目';
+  updateServiceModalPreview();
   document.getElementById('modal-service').classList.remove('hidden');
 }
 
@@ -461,6 +450,7 @@ function editServiceItem(serviceId) {
   }
   onServiceModalCategoryChange(srv.category || '剪髮');
   document.getElementById('modal-service-title').textContent = '編輯服務項目';
+  updateServiceModalPreview();
   document.getElementById('modal-service').classList.remove('hidden');
 }
 
@@ -537,7 +527,6 @@ async function deleteServiceItem(serviceId) {
   showToast('項目已刪除');
 }
 
-// 員工 Modal
 function openStaffModal() {
   if (currentUserRole !== 'admin') {
     alert('僅管理員有此操作權限！');
@@ -617,7 +606,6 @@ async function saveStaffMember() {
     return;
   }
 
-  // 檢查此帳號是否已經在全店使用者中註冊過
   const registeredUser = allRegisteredUsers.find(u => 
     u.email && (
       u.email.toLowerCase() === linkedEmail.toLowerCase() ||
@@ -668,7 +656,6 @@ async function deleteStaffMember(staffId) {
   showToast('人員已刪除');
 }
 
-// 備份與還原
 function backupDataToJson() {
   if (currentUserRole !== 'admin') {
     alert('僅管理員有備份資料權限！');
@@ -684,12 +671,10 @@ function backupDataToJson() {
   showToast('已匯出系統備份檔案！');
 }
 
-// ==================== 刪除已註冊帳號雙重安全確認機制 ====================
 let pendingDeleteUser = null;
 let deleteUserCountdownTimer = null;
 let deleteUserCountdownSeconds = 5;
 
-// 第 1 步：啟動雙重確認流程，彈出第一道確認視窗
 function startDeleteUserFlow(uid, email) {
   if (currentUserRole !== 'admin') {
     alert('僅管理員有刪除帳號權限！');
@@ -712,7 +697,6 @@ function startDeleteUserFlow(uid, email) {
   if (window.lucide) lucide.createIcons();
 }
 
-// 第 2 步：通過第一道確認，進入第二道安全確認 (強制倒數 5 秒防誤觸)
 function proceedToDeleteUserStep2() {
   if (!pendingDeleteUser) return;
 
@@ -753,7 +737,6 @@ function proceedToDeleteUserStep2() {
   if (window.lucide) lucide.createIcons();
 }
 
-// 關閉刪除確認視窗並停止計時器
 function closeDeleteUserModal() {
   if (deleteUserCountdownTimer) {
     clearInterval(deleteUserCountdownTimer);
@@ -763,7 +746,6 @@ function closeDeleteUserModal() {
   document.getElementById('modal-delete-user')?.classList.add('hidden');
 }
 
-// 執行最終刪除帳號操作 (需通過兩道確認後觸發)
 async function executeDeleteUser() {
   if (!pendingDeleteUser) return;
   if (currentUserRole !== 'admin') {
@@ -780,10 +762,8 @@ async function executeDeleteUser() {
   }
 
   try {
-    // 1. 從 Firestore salon_users 集合中永久刪除此文件
     await db.collection('salon_users').doc(uid).delete();
 
-    // 2. 若該使用者已綁定到店內人員，自動解除該人員的 UID 綁定
     let hasUpdatedStaff = false;
     appState.staff.forEach(s => {
       if (s.linkedUid === uid) {
@@ -807,3 +787,14 @@ async function executeDeleteUser() {
   }
 }
 
+function updateServiceModalPreview() {
+  const priceInput = document.getElementById('modal-service-price');
+  const rateInput = document.getElementById('modal-service-rate');
+  const previewText = document.getElementById('modal-service-preview-text');
+  if (!previewText) return;
+  const price = parseFloat(priceInput?.value) || 0;
+  const rate = parseFloat(rateInput?.value) || 0;
+  const comm = Math.round(price * (rate / 100));
+  const net = Math.max(0, price - comm);
+  previewText.textContent = 'NT$ ' + comm.toLocaleString() + ' (店家淨額: NT$ ' + net.toLocaleString() + ')';
+}

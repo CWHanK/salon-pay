@@ -9,14 +9,12 @@
   <meta name="theme-color" content="#c28859">
   <title>SalonFlow</title>
 
-  <!-- 網頁 Icon 與手機「加入主畫面」圖示 -->
   <link rel="icon" type="image/svg+xml" href="favicon.svg">
   <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
   <link rel="manifest" href="manifest.json">
   
-  <!-- Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
@@ -40,12 +38,11 @@
       }
     }
   </script>
-  <!-- Lucide Icons -->
+  
   <script src="https://unpkg.com/lucide@latest"></script>
-  <!-- SheetJS (Excel 匯出) -->
+  
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 
-  <!-- Firebase 雲端資料庫 SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
@@ -55,11 +52,9 @@
 </head>
 <body class="min-vh-100 flex flex-col bg-slate-50 text-slate-800 antialiased pb-20 md:pb-6 not-logged-in">
 
-  <!-- ==================== 雲端帳號登入 / 註冊全螢幕畫面 ==================== -->
   <div id="auth-screen" class="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-4">
     <div class="bg-white rounded-3xl max-w-sm sm:max-w-md w-full p-6 sm:p-8 shadow-2xl border border-slate-100 relative">
       
-      <!-- 標頭 -->
       <div class="text-center mb-5">
         <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-amber-600 to-amber-400 flex items-center justify-center text-white mx-auto shadow-md shadow-amber-500/20 mb-2.5">
           <i data-lucide="scissors" class="w-6 h-6"></i>
@@ -67,7 +62,6 @@
         <h2 class="text-2xl font-black text-slate-900 tracking-tight">SalonFlow</h2>
       </div>
 
-      <!-- 登入 / 註冊 分頁切換 -->
       <div class="grid grid-cols-2 p-1 bg-slate-100 rounded-2xl mb-4 text-xs font-bold">
         <button type="button" onclick="setAuthMode(false)" id="auth-tab-login" class="py-2.5 rounded-xl transition bg-white text-slate-900 shadow-xs flex items-center justify-center gap-1.5">
           <i data-lucide="log-in" class="w-3.5 h-3.5"></i> 登入
@@ -77,7 +71,6 @@
         </button>
       </div>
 
-      <!-- 登入 / 註冊表單 -->
       <form id="login-form" onsubmit="handleAuthSubmit(event)" class="space-y-3.5">
         <div>
           <label id="auth-email-label" class="block text-xs font-bold text-slate-700 mb-1">自訂帳號</label>
@@ -99,7 +92,6 @@
           </div>
         </div>
 
-        <!-- 註冊專用：身分選擇 -->
         <div id="auth-role-container" class="hidden space-y-2 pt-1 border-t border-slate-100">
           <label class="block text-xs font-bold text-slate-700">註冊身分 <span class="text-rose-500">*</span></label>
           <div class="grid grid-cols-2 gap-2">
@@ -114,7 +106,6 @@
           </div>
         </div>
 
-        <!-- 註冊專用：店家註冊密鑰驗證框 (員工與管理員皆必填) -->
         <div id="auth-reg-key-container" class="hidden space-y-1.5 bg-amber-50/60 p-3 rounded-2xl border border-amber-200">
           <label class="block text-xs font-bold text-amber-900 flex items-center justify-between">
             <span>店家註冊密鑰 <span class="text-rose-500">*</span></span>
@@ -128,7 +119,6 @@
           </div>
         </div>
 
-        <!-- 註冊專用：管理員密鑰驗證框 -->
         <div id="auth-secret-key-container" class="hidden space-y-1.5 bg-amber-50 p-3 rounded-2xl border border-amber-200">
           <label class="block text-xs font-bold text-amber-900">
             管理員授權密鑰 <span class="text-rose-500">*</span>
@@ -141,13 +131,11 @@
           </div>
         </div>
 
-        <!-- 錯誤提示 -->
         <div id="auth-error-msg" class="text-xs text-rose-600 bg-rose-50 p-2.5 rounded-xl hidden flex items-center gap-1.5">
           <i data-lucide="alert-triangle" class="w-3.5 h-3.5 shrink-0"></i>
           <span id="auth-error-text">錯誤訊息</span>
         </div>
 
-        <!-- 提交按鈕 -->
         <button type="submit" id="auth-submit-btn" class="w-full py-3 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl shadow-md shadow-amber-600/20 hover:shadow-lg transition flex items-center justify-center gap-2 text-sm">
           <i data-lucide="log-in" class="w-4 h-4"></i>
           <span id="auth-submit-text">登入</span>
@@ -156,15 +144,12 @@
     </div>
   </div>
 
-  <!-- ==================== 主應用程式容器 (未登入前嚴格隱藏) ==================== -->
   <div id="app-container" class="hidden min-h-screen flex flex-col flex-1">
 
-  <!-- 頂部手機 / 電腦共用導航 -->
   <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs no-print">
     <div class="max-w-7xl mx-auto px-4 sm:px-6">
       <div class="flex justify-between h-14 sm:h-16 items-center">
         
-        <!-- Logo 與標題 -->
         <div class="flex items-center space-x-2.5">
           <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-amber-600 to-amber-400 flex items-center justify-center text-white shadow-md shadow-amber-500/20">
             <i data-lucide="scissors" class="w-4.5 h-4.5"></i>
@@ -172,12 +157,11 @@
           <div>
             <h1 class="text-base sm:text-lg font-black text-slate-900 tracking-tight flex items-center gap-1.5">
               <span>SalonFlow</span>
-              <span id="header-version-tag" class="text-[10px] font-mono font-medium text-amber-800 bg-amber-100/80 border border-amber-200/70 px-1.5 py-0.5 rounded-md">v20260910_1</span>
+              <span id="header-version-tag" class="text-[10px] font-mono font-medium text-amber-800 bg-amber-100/80 border border-amber-200/70 px-1.5 py-0.5 rounded-md">v20260914_1</span>
             </h1>
           </div>
         </div>
         
-        <!-- 當前狀態與登出按鈕 -->
         <div class="flex items-center space-x-2">
           <div class="flex items-center gap-1 text-[11px] font-medium text-emerald-600 bg-emerald-50/80 px-2.5 py-1 rounded-full border border-emerald-200/50">
             <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
@@ -190,7 +174,6 @@
         </div>
       </div>
 
-      <!-- 電腦端分頁導航 (在手機端隱藏，改用底部 Dock) -->
       <nav class="hidden md:flex space-x-2 -mb-px overflow-x-auto border-t border-slate-100 pt-1">
         <button onclick="switchTab('billing')" id="tab-btn-billing" class="tab-btn active px-4 py-2 text-sm font-medium rounded-t-lg transition flex items-center gap-1.5">
           <i data-lucide="clipboard-pen" class="w-4 h-4"></i> 開單
@@ -208,13 +191,10 @@
     </div>
   </header>
 
-  <!-- 主要內容區 -->
   <main class="flex-1 max-w-7xl w-full mx-auto px-3.5 sm:px-6 lg:px-8 py-4 sm:py-6 no-print">
 
-    <!-- ==================== 分頁 1：現場開單 (POS 模式) ==================== -->
     <section id="tab-billing" class="space-y-4">
       
-      <!-- 提示：若尚未建立人員時顯示 -->
       <div id="billing-empty-staff-alert" class="admin-only-block hidden bg-amber-500 text-white rounded-2xl p-4 shadow-md flex items-center justify-between gap-3">
         <div class="flex items-center gap-2 text-xs sm:text-sm font-semibold">
           <i data-lucide="user-plus" class="w-5 h-5 shrink-0"></i>
@@ -225,7 +205,6 @@
         </button>
       </div>
 
-      <!-- 📱 消費實收總額與單號 -->
       <div class="bg-gradient-to-br from-amber-500 via-amber-600 to-orange-600 rounded-2xl sm:rounded-3xl p-4 sm:p-5 text-white shadow-lg shadow-amber-600/20 relative overflow-hidden">
         <div class="absolute -right-3 -bottom-3 opacity-15">
           <i data-lucide="coins" class="w-24 h-24"></i>
@@ -245,10 +224,8 @@
         </div>
       </div>
 
-      <!-- 開單表單核心區 -->
       <form id="billing-form" onsubmit="return false;" autocomplete="off" class="space-y-3.5">
         
-        <!-- 人員、服務日期 (時間於開單當下由系統自動抓取即時記錄) -->
         <div class="bg-white rounded-2xl border border-slate-200/80 shadow-xs p-3 sm:p-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div class="min-w-0">
             <label class="block text-xs font-bold text-slate-700 mb-1">設計師 <span class="text-rose-500">*</span></label>
@@ -265,9 +242,8 @@
           </div>
         </div>
 
-        <!-- 性別與身分 -->
         <div class="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-xs p-4 sm:p-5 space-y-3.5">
-          <!-- 性別 -->
+          
           <div>
             <label class="block text-xs font-bold text-slate-700 mb-1.5">性別</label>
             <div class="grid grid-cols-2 gap-2.5">
@@ -280,7 +256,6 @@
             </div>
           </div>
 
-          <!-- 身分 -->
           <div>
             <label class="block text-xs font-bold text-slate-700 mb-1.5">身分</label>
             <div class="grid grid-cols-2 sm:grid-cols-4 gap-2">
@@ -300,16 +275,13 @@
           </div>
         </div>
 
-        <!-- 服務項目 -->
         <div class="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-xs p-4 sm:p-5 space-y-3">
           <div class="flex items-center justify-between">
             <span class="text-xs sm:text-sm font-black text-slate-900">服務項目</span>
           </div>
 
-          <!-- 7 類服務卡片網格 -->
           <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5">
             
-            <!-- 1. 剪髮 -->
             <button type="button" onclick="openPosCategoryModal('cut')" class="pos-cat-tile p-3 rounded-2xl border border-slate-200 hover:border-amber-400 bg-white hover:bg-amber-50/50 transition text-left flex flex-col justify-between shadow-2xs hover:shadow-sm active:scale-98">
               <div class="flex items-center justify-between">
                 <span class="text-xl">✂️</span>
@@ -318,7 +290,6 @@
               <div class="mt-2 font-black text-sm text-slate-900">剪髮</div>
             </button>
 
-            <!-- 2. 洗頭 -->
             <button type="button" onclick="openPosCategoryModal('shampoo')" class="pos-cat-tile p-3 rounded-2xl border border-slate-200 hover:border-amber-400 bg-white hover:bg-amber-50/50 transition text-left flex flex-col justify-between shadow-2xs hover:shadow-sm active:scale-98">
               <div class="flex items-center justify-between">
                 <span class="text-xl">💆</span>
@@ -327,7 +298,6 @@
               <div class="mt-2 font-black text-sm text-slate-900">洗頭</div>
             </button>
 
-            <!-- 3. 去角質 -->
             <button type="button" onclick="openPosCategoryModal('scalp')" class="pos-cat-tile p-3 rounded-2xl border border-slate-200 hover:border-amber-400 bg-white hover:bg-amber-50/50 transition text-left flex flex-col justify-between shadow-2xs hover:shadow-sm active:scale-98">
               <div class="flex items-center justify-between">
                 <span class="text-xl">🌿</span>
@@ -336,7 +306,6 @@
               <div class="mt-2 font-black text-sm text-slate-900">去角質</div>
             </button>
 
-            <!-- 4. 護髮 -->
             <button type="button" onclick="openPosCategoryModal('treatment')" class="pos-cat-tile p-3 rounded-2xl border border-slate-200 hover:border-amber-400 bg-white hover:bg-amber-50/50 transition text-left flex flex-col justify-between shadow-2xs hover:shadow-sm active:scale-98">
               <div class="flex items-center justify-between">
                 <span class="text-xl">🧖</span>
@@ -345,7 +314,6 @@
               <div class="mt-2 font-black text-sm text-slate-900">護髮</div>
             </button>
 
-            <!-- 5. 染髮 -->
             <button type="button" onclick="openPosCategoryModal('color')" class="pos-cat-tile p-3 rounded-2xl border border-slate-200 hover:border-amber-400 bg-white hover:bg-amber-50/50 transition text-left flex flex-col justify-between shadow-2xs hover:shadow-sm active:scale-98">
               <div class="flex items-center justify-between">
                 <span class="text-xl">🎨</span>
@@ -354,7 +322,6 @@
               <div class="mt-2 font-black text-sm text-slate-900">染髮</div>
             </button>
 
-            <!-- 6. 燙髮 -->
             <button type="button" onclick="openPosCategoryModal('perm')" class="pos-cat-tile p-3 rounded-2xl border border-slate-200 hover:border-amber-400 bg-white hover:bg-amber-50/50 transition text-left flex flex-col justify-between shadow-2xs hover:shadow-sm active:scale-98">
               <div class="flex items-center justify-between">
                 <span class="text-xl">🦱</span>
@@ -363,7 +330,6 @@
               <div class="mt-2 font-black text-sm text-slate-900">燙髮</div>
             </button>
 
-            <!-- 7. 產品銷售 -->
             <button type="button" onclick="openPosCategoryModal('products')" class="pos-cat-tile p-3 rounded-2xl border border-slate-200 hover:border-amber-400 bg-white hover:bg-amber-50/50 transition text-left flex flex-col justify-between shadow-2xs hover:shadow-sm active:scale-98">
               <div class="flex items-center justify-between">
                 <span class="text-xl">🧴</span>
@@ -375,7 +341,6 @@
           </div>
         </div>
 
-        <!-- 消費明細 -->
         <div class="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-xs p-4 sm:p-5 space-y-3">
           <div class="flex items-center justify-between">
             <span class="text-xs sm:text-sm font-black text-slate-900">消費明細</span>
@@ -384,19 +349,16 @@
             </button>
           </div>
 
-          <!-- 項目動態容器 -->
           <div id="service-rows-container" class="space-y-2.5">
-            <!-- 項目由 JS 渲染 -->
+            
           </div>
 
-          <!-- 備註說明 -->
           <div class="pt-2">
             <label class="block text-xs font-bold text-slate-700 mb-1">備註</label>
             <input type="text" id="billing-notes" name="billing-order-notes" autocomplete="off" data-lpignore="true" data-1p-ignore="true" data-form-type="other" placeholder="備註 (選填)" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 bg-white">
           </div>
         </div>
 
-        <!-- 底部大動作按鈕 -->
         <div class="space-y-2 pt-1">
           <button type="button" onclick="saveCurrentOrder()" class="w-full bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-black py-3.5 px-4 rounded-2xl shadow-lg shadow-emerald-600/25 transition flex items-center justify-center gap-2 text-base">
             <i data-lucide="check-circle-2" class="w-5 h-5"></i> 確認開單
@@ -411,12 +373,10 @@
 
     </section>
 
-    <!-- ==================== 分頁 2：歷史紀錄 ==================== -->
     <section id="tab-history" class="space-y-4 hidden">
       
-      <!-- 篩選器 -->
       <div class="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm p-4 space-y-3">
-        <!-- 頂部切換維度 (日 / 月 / 年) -->
+        
         <div class="flex items-center justify-between gap-2 pb-2.5 border-b border-slate-100">
           <span class="text-xs font-bold text-slate-700 flex items-center gap-1.5">
             <i data-lucide="calendar" class="w-3.5 h-3.5 text-amber-600"></i> 紀錄週期
@@ -428,29 +388,25 @@
           </div>
         </div>
 
-        <!-- 篩選條件輸入欄位 -->
         <div class="grid grid-cols-2 gap-2.5">
-          <!-- 日 (預設顯示) -->
+          
           <div id="history-filter-day-wrapper" class="min-w-0">
             <label class="block text-[11px] font-bold text-slate-600 mb-1">指定日期</label>
             <input type="date" id="history-filter-day" onchange="filterHistoryOrders()" class="w-full max-w-full appearance-none rounded-xl border border-slate-300 px-2.5 py-1.5 text-xs font-semibold bg-white">
           </div>
 
-          <!-- 月 (預設隱藏) -->
           <div id="history-filter-month-wrapper" class="min-w-0 hidden">
             <label class="block text-[11px] font-bold text-slate-600 mb-1">指定月份</label>
             <input type="month" id="history-filter-month" onchange="filterHistoryOrders()" class="w-full max-w-full appearance-none rounded-xl border border-slate-300 px-2.5 py-1.5 text-xs font-semibold bg-white">
           </div>
 
-          <!-- 年 (預設隱藏) -->
           <div id="history-filter-year-wrapper" class="min-w-0 hidden">
             <label class="block text-[11px] font-bold text-slate-600 mb-1">指定年份</label>
             <select id="history-filter-year" onchange="filterHistoryOrders()" class="w-full rounded-xl border border-slate-300 px-2.5 py-1.5 text-xs font-semibold bg-white">
-              <!-- 動態載入年份 -->
+              
             </select>
           </div>
 
-          <!-- 人員篩選 -->
           <div class="min-w-0">
             <label class="block text-[11px] font-bold text-slate-600 mb-1">人員</label>
             <select id="history-filter-staff" onchange="filterHistoryOrders()" class="w-full rounded-xl border border-slate-300 px-2.5 py-1.5 text-xs font-semibold bg-white">
@@ -471,12 +427,10 @@
         </div>
       </div>
 
-      <!-- 手機端：卡片式流水列表 -->
       <div id="history-cards-mobile" class="space-y-3 sm:hidden">
-        <!-- JS 渲染手機卡片 -->
+        
       </div>
 
-      <!-- 電腦端：傳統表格 -->
       <div class="hidden sm:block bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
         <div class="overflow-x-auto">
           <table class="w-full text-left text-sm text-slate-600">
@@ -496,7 +450,6 @@
         </div>
       </div>
 
-      <!-- 空資料提示 -->
       <div id="history-empty-hint" class="py-12 text-center text-slate-400 hidden">
         <i data-lucide="inbox" class="w-10 h-10 mx-auto mb-2 opacity-50"></i>
         <p class="text-xs">尚無符合條件的客單紀錄</p>
@@ -504,10 +457,8 @@
 
     </section>
 
-    <!-- ==================== 分頁 3：月薪結算與月報表匯出 (管理員專屬) ==================== -->
     <section id="tab-monthly" class="admin-only-block space-y-4 hidden">
 
-      <!-- 控制器 -->
       <div class="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm p-4 space-y-3">
         <div class="grid grid-cols-2 gap-3">
           <div class="min-w-0">
@@ -517,7 +468,7 @@
           <div class="min-w-0">
             <label class="block text-xs font-bold text-slate-600 mb-1">選擇員工</label>
             <select id="monthly-select-staff" onchange="calculateMonthlyPayroll()" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs font-bold bg-white">
-              <!-- 動態載入 -->
+              
             </select>
           </div>
         </div>
@@ -532,7 +483,6 @@
         </div>
       </div>
 
-      <!-- 關鍵數據卡 (手機 2x2 排列) -->
       <div class="grid grid-cols-2 gap-3">
         <div class="bg-white rounded-2xl border border-slate-200/80 p-3.5 shadow-sm">
           <p class="text-[11px] text-slate-500 font-medium">全月服務客數</p>
@@ -571,7 +521,6 @@
         </div>
       </div>
 
-      <!-- 薪資微調輸入器 (管理員專屬) -->
       <div id="monthly-salary-editor-box" class="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm p-4 space-y-3 admin-only-block">
         <h3 class="text-xs font-bold text-slate-900 flex items-center justify-between pb-2 border-b border-slate-100">
           <span>業績抽成與獎金結算（管理員專屬）</span>
@@ -594,7 +543,6 @@
         </div>
       </div>
 
-      <!-- 當月客單服務明細清單 (管理員與員工皆可查閱本月完成的所有項目) -->
       <div class="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm p-4 sm:p-6 space-y-3">
         <div class="flex items-center justify-between pb-2 border-b border-slate-100">
           <div>
@@ -625,10 +573,8 @@
 
     </section>
 
-    <!-- ==================== 分頁 4：服務項目與員工設定 (管理員專屬) ==================== -->
     <section id="tab-settings" class="admin-only-block space-y-4 hidden">
 
-      <!-- 管理員身分卡片（管理員專屬，含降級為員工功能） -->
       <div id="settings-admin-card" class="admin-only-block bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm p-4 sm:p-6 space-y-3">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div class="flex items-center gap-3">
@@ -650,7 +596,6 @@
         </div>
       </div>
 
-      <!-- 員工管理（管理員專屬） -->
       <div id="settings-staff-box" class="admin-only-block bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm p-4 sm:p-6 space-y-3">
         <div class="flex items-center justify-between pb-2 border-b border-slate-100">
           <div>
@@ -678,7 +623,6 @@
         </div>
       </div>
 
-      <!-- 服務項目設定（管理員專屬） -->
       <div id="settings-services-box" class="admin-only-block bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm p-4 sm:p-6 space-y-3">
         <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-2 border-b border-slate-100 gap-2">
           <div>
@@ -702,7 +646,6 @@
           </div>
         </div>
 
-        <!-- POS 服務類別快速篩選切換列 -->
         <div class="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none text-xs">
           <button type="button" onclick="setServiceCategoryFilter('ALL')" id="filter-srv-ALL" class="service-cat-tab px-3 py-1.5 rounded-xl font-bold transition bg-amber-600 text-white shadow-xs">全部</button>
           <button type="button" onclick="setServiceCategoryFilter('剪髮')" id="filter-srv-剪髮" class="service-cat-tab px-3 py-1.5 rounded-xl font-bold transition bg-slate-100 text-slate-600 hover:bg-slate-200">✂️ 剪髮</button>
@@ -729,7 +672,6 @@
         </div>
       </div>
 
-      <!-- 雲端已註冊帳號名冊與管理員身分管理（管理員專屬） -->
       <div id="settings-users-box" class="admin-only-block bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm p-4 sm:p-6 space-y-3">
         <div class="flex items-center justify-between pb-2 border-b border-slate-100">
           <div>
@@ -755,7 +697,6 @@
         </div>
       </div>
 
-      <!-- 管理員專屬：授權密鑰設定 -->
       <div id="settings-admin-key-box" class="admin-only-block bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm p-4 space-y-2.5">
         <div class="flex items-center justify-between">
           <h3 class="text-xs font-bold text-slate-900 flex items-center gap-1.5">
@@ -768,7 +709,6 @@
         </p>
       </div>
 
-      <!-- 管理員專屬：店家註冊密鑰設定 -->
       <div id="settings-reg-key-box" class="admin-only-block bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm p-4 space-y-2.5">
         <div class="flex items-center justify-between">
           <h3 class="text-xs font-bold text-slate-900 flex items-center gap-1.5">
@@ -782,7 +722,6 @@
         </p>
       </div>
 
-      <!-- 備份資料 -->
       <div id="settings-backup-box" class="admin-only-block bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm p-4 space-y-2.5">
         <h3 class="text-xs font-bold text-slate-900">雲端資料備份</h3>
         <div class="flex flex-wrap gap-2 text-xs">
@@ -792,7 +731,6 @@
         </div>
       </div>
 
-      <!-- 系統版本與更新偵測 -->
       <div id="settings-version-box" class="bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm p-4 space-y-2.5">
         <div class="flex items-center justify-between">
           <h3 class="text-xs font-bold text-slate-900 flex items-center gap-1.5">
@@ -804,7 +742,7 @@
         </div>
         <div class="text-[11px] text-slate-500 leading-relaxed flex items-center gap-2">
           <span>目前版本：</span>
-          <span id="settings-current-version" class="font-mono bg-slate-100 text-slate-700 px-2 py-0.5 rounded font-bold">v20260907_3</span>
+          <span id="settings-current-version" class="font-mono bg-slate-100 text-slate-700 px-2 py-0.5 rounded font-bold">v20260914_1</span>
           <span class="text-[10px] text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200/60 font-medium">背景即時偵測中</span>
         </div>
         <p class="text-[10px] text-slate-400">
@@ -816,7 +754,6 @@
 
   </main>
 
-  <!-- ==================== 📱 手機底部專用固定導覽欄 (Bottom Dock) ==================== -->
   <nav class="fixed bottom-0 left-0 right-0 z-40 bg-white/95 backdrop-blur-md border-t border-slate-200/90 py-1.5 px-2 flex justify-around items-center md:hidden mobile-bottom-dock shadow-lg">
     <button onclick="switchTab('billing')" id="dock-btn-billing" class="dock-item active flex flex-col items-center justify-center p-1.5 text-slate-400 hover:text-amber-700 transition">
       <i data-lucide="clipboard-pen" class="w-5 h-5 mb-0.5"></i>
@@ -836,12 +773,10 @@
     </button>
   </nav>
 
-  </div> <!-- /#app-container -->
+  </div> 
 
-  <!-- ==================== 列印專用專區 ==================== -->
   <div id="printable-slip" class="hidden"></div>
 
-  <!-- ==================== 模態視窗: 編輯/新增服務項目 ==================== -->
   <div id="modal-service" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
     <div class="bg-white rounded-3xl max-w-sm sm:max-w-md w-full p-6 shadow-2xl space-y-3.5">
       <div class="flex justify-between items-center pb-2 border-b border-slate-100">
@@ -889,10 +824,9 @@
     </div>
   </div>
 
-  <!-- ==================== 模態視窗: POS 智能答題選擇器 ==================== -->
   <div id="modal-pos-picker" class="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-3 sm:p-4 hidden">
     <div class="bg-white rounded-3xl max-w-lg w-full p-4 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] flex flex-col">
-      <!-- 頂部標題列 -->
+      
       <div class="flex justify-between items-center pb-2 border-b border-slate-100 shrink-0">
         <div class="flex items-center gap-2">
           <span id="pos-picker-emoji" class="text-2xl">✂️</span>
@@ -903,12 +837,10 @@
         </button>
       </div>
 
-      <!-- 選項內容區 (滾動) -->
       <div id="pos-picker-content" class="overflow-y-auto flex-1 space-y-3 py-1 pr-1">
-        <!-- 動態選項或產品清單 -->
+        
       </div>
 
-      <!-- 底部控制列 -->
       <div class="pt-2 border-t border-slate-100 flex items-center justify-end shrink-0">
         <button type="button" onclick="closePosPickerModal()" class="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition">
           關閉
@@ -917,7 +849,6 @@
     </div>
   </div>
 
-  <!-- ==================== 模態視窗: 編輯/新增人員 ==================== -->
   <div id="modal-staff" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
     <div class="bg-white rounded-3xl max-w-sm sm:max-w-md w-full p-6 shadow-2xl space-y-3.5">
       <div class="flex justify-between items-center pb-2 border-b border-slate-100">
@@ -947,17 +878,15 @@
           </div>
         </div>
 
-        <!-- 模式 1: 下拉選單 (手機與電腦原生跳出清單選單) -->
         <div id="staff-bind-select-wrapper" class="relative">
           <select id="modal-staff-user-select" onchange="onStaffSelectChange(this.value)" class="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm bg-white font-semibold text-slate-800 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500 appearance-none pr-9 cursor-pointer">
-            <!-- 動態填入店內已註冊之帳號 -->
+            
           </select>
           <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-slate-400">
             <i data-lucide="chevron-down" class="w-4 h-4"></i>
           </div>
         </div>
 
-        <!-- 模式 2: 手動輸入自訂帳號 (支援尚未註冊者) -->
         <div id="staff-bind-manual-wrapper" class="hidden">
           <input type="text" id="modal-staff-email" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="請輸入自訂帳號" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm bg-white font-semibold text-slate-800 focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500">
         </div>
@@ -973,11 +902,9 @@
     </div>
   </div>
 
-  <!-- ==================== 模態視窗: 刪除已註冊帳號雙重安全確認 ==================== -->
   <div id="modal-delete-user" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
     <div class="bg-white rounded-3xl max-w-sm sm:max-w-md w-full p-6 shadow-2xl space-y-4">
       
-      <!-- 第一道確認視窗 -->
       <div id="delete-user-step-1" class="space-y-3.5 text-center">
         <div class="w-12 h-12 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center mx-auto shadow-sm">
           <i data-lucide="alert-triangle" class="w-6 h-6"></i>
@@ -1005,7 +932,6 @@
         </div>
       </div>
 
-      <!-- 第二道確認視窗 (冷卻 5 秒防誤觸) -->
       <div id="delete-user-step-2" class="space-y-3.5 text-center hidden">
         <div class="w-12 h-12 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center mx-auto shadow-sm animate-pulse">
           <i data-lucide="shield-alert" class="w-6 h-6"></i>
@@ -1036,13 +962,11 @@
     </div>
   </div>
 
-  <!-- 全域浮動提示 (Toast) -->
   <div id="toast" class="fixed bottom-20 sm:bottom-6 right-4 sm:right-6 bg-slate-900/95 text-white px-4 py-3 rounded-2xl shadow-xl z-50 flex items-center gap-2.5 text-sm transition-all duration-300 transform translate-y-12 opacity-0 pointer-events-none backdrop-blur-sm border border-slate-700/50">
     <i data-lucide="check-circle-2" class="w-4.5 h-4.5 text-emerald-400 shrink-0"></i>
     <span id="toast-message" class="font-medium">操作完成</span>
   </div>
 
-  <!-- 模組化業務邏輯 (Vanilla JS 架構) -->
   <script src="js/constants.js?v=20260913_2"></script>
   <script src="js/state.js?v=20260913_2"></script>
   <script src="js/version.js?v=20260913_2"></script>

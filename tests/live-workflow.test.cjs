@@ -281,9 +281,9 @@ test('POS wizard correctly switches gender, identity, and updates condition badg
   // 1. 預設女性 + 在職員工
   run("setPosGender('female'); setPosIdentity('employee');");
   assert.equal(badge.textContent, '女性 · 在職員工');
-  assert.match(note.textContent, /女性剪髮 \$150/);
+  assert.equal(note.textContent, '');
   assert.equal(badgeCut.textContent, '$150');
-  assert.equal(badgeShampoo.textContent, '$80~$110');
+  assert.equal(badgeShampoo.textContent, '$110');
   assert.equal(badgeProd.textContent, '9折');
 
   // 2. 切換男性 + 在職員工
@@ -295,7 +295,7 @@ test('POS wizard correctly switches gender, identity, and updates condition badg
   run("setPosIdentity('external');");
   assert.equal(badge.textContent, '男性 · 非員工');
   assert.equal(badgeCut.textContent, '$250~$300');
-  assert.equal(badgeShampoo.textContent, '$110~$140');
+  assert.equal(badgeShampoo.textContent, '$140');
   assert.equal(badgeProd.textContent, '門市定價');
 });
 
@@ -383,7 +383,7 @@ test('ensureServicesSynced preserves admin-customized price and commission while
   ];
 
   const result = run(`ensureServicesSynced(${JSON.stringify(customList)})`);
-  assert.equal(result.length, 40); // 39 default POS items + 1 custom item
+  assert.equal(result.length, 45); // 44 default POS items + 1 custom item
   const cutItem = result.find(s => s.id === 'cut-emp-f');
   assert.equal(cutItem.price, 180);
   assert.equal(cutItem.rate, 60);
@@ -688,3 +688,91 @@ test('product commission applies 30% base rate and calculates 27% equivalent upo
   assert.equal(commDisc, 594);
   assert.equal(Math.round(2200 * 0.27), 594);
 });
+
+test('settings batch adjustment correctly updates targeted category, gender, and identity items including allowDiscount', async () => {
+  let synced = 0;
+  const { elements, run } = setup(['constants', 'settings'], {
+    syncDataToCloud: async () => { synced++; },
+    showToast() {}
+  });
+
+  const priceInput = { value: '220' };
+  const rateInput = { value: '65' };
+  const discountCb = { checked: true };
+  const allGenderCb = { checked: false };
+  const maleCb = { checked: true };
+  const femaleCb = { checked: false };
+  const allIdCb = { checked: true };
+  const empCb = { checked: true };
+  const retCb = { checked: true };
+  const famCb = { checked: true };
+  const extCb = { checked: true };
+
+  elements.set('batch-price', priceInput);
+  elements.set('batch-rate', rateInput);
+  elements.set('batch-allow-discount', discountCb);
+  elements.set('batch-gender-all', allGenderCb);
+  elements.set('batch-gender-male', maleCb);
+  elements.set('batch-gender-female', femaleCb);
+  elements.set('batch-id-all', allIdCb);
+  elements.set('batch-id-emp', empCb);
+  elements.set('batch-id-ret', retCb);
+  elements.set('batch-id-fam', famCb);
+  elements.set('batch-id-ext', extCb);
+  elements.set('settings-services-tbody', {});
+
+  run(`
+    currentUserRole = 'admin';
+    appState.services = DEFAULT_SERVICES.map(s => ({ ...s }));
+    setBatchSelectedCategory('剪髮');
+  `);
+
+  priceInput.value = '220';
+  rateInput.value = '65';
+  discountCb.checked = true;
+
+  await run('saveBatchServiceSettings()');
+
+  assert.equal(synced, 1);
+  const cutMale = run("appState.services.find(s => s.id === 'cut-emp-m')");
+  assert.equal(cutMale.price, 220);
+  assert.equal(cutMale.rate, 65);
+  assert.equal(cutMale.allowDiscount, true);
+
+  // Female cut remains untouched ($150, 60%, allowDiscount: false)
+  const cutFemale = run("appState.services.find(s => s.id === 'cut-emp-f')");
+  assert.equal(cutFemale.price, 150);
+  assert.equal(cutFemale.rate, 60);
+  assert.equal(cutFemale.allowDiscount, false);
+});
+
+test('billing discount prompt appears only for allowDiscount items and is completely suppressed for non-discount items', () => {
+  const { elements, run } = setup(['constants', 'billing']);
+  const pickerContent = {};
+  elements.set('pos-picker-content', pickerContent);
+  elements.set('service-rows-container', {});
+  elements.set('summary-card-total-amount', {});
+  elements.set('summary-card-items-count', {});
+
+  run(`
+    appState.services = DEFAULT_SERVICES.map(s => ({ ...s }));
+    currentBillingRows = [];
+  `);
+
+  // 1. 剪髮 (allowDiscount: false) 點選時直接入單，絕不彈出打折選項
+  run("selectPosItemWithDiscountCheck('cut-emp-f', 150, '剪髮 (員工-女)')");
+  assert.equal(run('currentBillingRows.length'), 1);
+  assert.equal(run('currentBillingRows[0].price'), 150);
+  assert.equal(pickerContent.innerHTML, undefined);
+
+  // 2. 將剪髮設置為 allowDiscount: true 後，點選必須觸發折扣選單
+  run(`
+    const cutSrv = appState.services.find(s => s.id === 'cut-emp-f');
+    cutSrv.allowDiscount = true;
+    selectPosItemWithDiscountCheck('cut-emp-f', 150, '剪髮 (員工-女)');
+  `);
+  assert.match(pickerContent.innerHTML, /打折 \(9折\)/);
+  assert.match(pickerContent.innerHTML, /原價/);
+  assert.match(pickerContent.innerHTML, /NT\$ 135/);
+});
+

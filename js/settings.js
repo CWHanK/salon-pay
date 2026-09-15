@@ -16,7 +16,8 @@ function setStaffBindMode(mode) {
     if (btnSelect) btnSelect.className = 'px-2.5 py-0.5 rounded-md bg-white text-slate-800 shadow-xs transition cursor-pointer';
     if (btnManual) btnManual.className = 'px-2.5 py-0.5 rounded-md text-slate-500 hover:text-slate-800 transition cursor-pointer';
     if (helpText) {
-      helpText.innerHTML = '📌 <strong>從選單挑選：</strong>直接點擊選單挑選已註冊人員；若該人員尚未註冊，可點右上方「手動輸入」預先綁定自訂帳號。';
+      helpText.innerHTML = '';
+      helpText.classList.add('hidden');
     }
   } else {
     selectWrapper?.classList.add('hidden');
@@ -24,7 +25,8 @@ function setStaffBindMode(mode) {
     if (btnManual) btnManual.className = 'px-2.5 py-0.5 rounded-md bg-white text-slate-800 shadow-xs transition cursor-pointer';
     if (btnSelect) btnSelect.className = 'px-2.5 py-0.5 rounded-md text-slate-500 hover:text-slate-800 transition cursor-pointer';
     if (helpText) {
-      helpText.innerHTML = '📌 <strong>手動輸入：</strong>請輸入欲預先綁定的自訂帳號；日後該人員以此帳號註冊登入時，系統會自動無縫綁定並啟用開單！';
+      helpText.innerHTML = '';
+      helpText.classList.add('hidden');
     }
     document.getElementById('modal-staff-email')?.focus();
   }
@@ -348,6 +350,7 @@ function renderSettingsTables() {
               <div class="flex items-center gap-1.5 flex-wrap">
                 <span class="font-bold text-slate-900">${s.name}</span>
                 ${getCategoryBadge(s.category)}
+                ${s.allowDiscount ? '<span class="inline-block text-[10px] font-bold px-1.5 py-0.2 rounded-md border bg-amber-50 text-amber-700 border-amber-200">可打折</span>' : ''}
               </div>
               ${empPriceBadge}
             </td>
@@ -398,6 +401,7 @@ function renderSettingsTables() {
   }
 
   renderUsersTable();
+  if (typeof initBatchSettingsUI === 'function') initBatchSettingsUI();
 }
 
 function onServiceModalCategoryChange(category) {
@@ -425,6 +429,10 @@ function openServiceModal() {
   document.getElementById('modal-service-category').value = defaultCat;
   const empPriceInput = document.getElementById('modal-service-empprice');
   if (empPriceInput) empPriceInput.value = '';
+  const allowDiscountCheckbox = document.getElementById('modal-service-allow-discount');
+  if (allowDiscountCheckbox) {
+    allowDiscountCheckbox.checked = (defaultCat === '產品銷售');
+  }
   onServiceModalCategoryChange(defaultCat);
   document.getElementById('modal-service-title').textContent = '新增美髮服務項目';
   updateServiceModalPreview();
@@ -448,6 +456,10 @@ function editServiceItem(serviceId) {
   if (empPriceInput) {
     empPriceInput.value = (typeof srv.empPrice === 'number') ? srv.empPrice : '';
   }
+  const allowDiscountCheckbox = document.getElementById('modal-service-allow-discount');
+  if (allowDiscountCheckbox) {
+    allowDiscountCheckbox.checked = !!srv.allowDiscount;
+  }
   onServiceModalCategoryChange(srv.category || '剪髮');
   document.getElementById('modal-service-title').textContent = '編輯服務項目';
   updateServiceModalPreview();
@@ -470,6 +482,7 @@ async function saveServiceItem() {
   const category = document.getElementById('modal-service-category').value;
   const empPriceRaw = document.getElementById('modal-service-empprice')?.value?.trim();
   const empPrice = empPriceRaw ? parseFloat(empPriceRaw) : (category === '產品銷售' ? Math.round(price * 0.9) : null);
+  const allowDiscount = !!document.getElementById('modal-service-allow-discount')?.checked;
 
   if (!name) {
     alert('請輸入服務項目名稱！');
@@ -483,6 +496,7 @@ async function saveServiceItem() {
       item.price = price;
       item.rate = rate;
       item.category = category;
+      item.allowDiscount = allowDiscount;
       if (category === '產品銷售') {
         item.empPrice = empPrice !== null ? empPrice : Math.round(price * 0.9);
       } else {
@@ -495,7 +509,8 @@ async function saveServiceItem() {
       name: name,
       price: price,
       rate: rate,
-      category: category
+      category: category,
+      allowDiscount: allowDiscount
     };
     if (category === '產品銷售' && empPrice !== null) {
       newItem.empPrice = empPrice;
@@ -820,5 +835,211 @@ async function syncAppVersionToCloud() {
     console.error('同步雲端版本失敗:', e);
     alert('同步失敗: ' + (e.message || e));
   }
+}
+
+let currentBatchCategory = '剪髮';
+
+function initBatchSettingsUI() {
+  const allGenderCb = document.getElementById('batch-gender-all');
+  const maleCb = document.getElementById('batch-gender-male');
+  const femaleCb = document.getElementById('batch-gender-female');
+  const allIdCb = document.getElementById('batch-id-all');
+  const priceInput = document.getElementById('batch-price');
+  const rateInput = document.getElementById('batch-rate');
+
+  if (!priceInput || !rateInput) return;
+
+  if (maleCb && !maleCb.checked && femaleCb && !femaleCb.checked && allGenderCb && !allGenderCb.checked) {
+    maleCb.checked = true;
+  }
+  if (allIdCb && !allIdCb.checked) {
+    allIdCb.checked = true;
+    ['emp', 'ret', 'fam', 'ext'].forEach(k => {
+      const cb = document.getElementById(`batch-id-${k}`);
+      if (cb) cb.checked = true;
+    });
+  }
+
+  setBatchSelectedCategory(currentBatchCategory);
+}
+
+function setBatchSelectedCategory(cat) {
+  currentBatchCategory = cat;
+  const cats = ['剪髮', '洗頭', '去角質', '護髮', '染髮', '燙髮', '產品銷售'];
+  cats.forEach(c => {
+    const btn = document.getElementById(`batch-cat-${c}`);
+    if (btn) {
+      if (c === cat) {
+        btn.className = 'batch-cat-btn px-3 py-1.5 rounded-xl font-bold transition bg-amber-600 text-white shadow-xs';
+      } else {
+        btn.className = 'batch-cat-btn px-3 py-1.5 rounded-xl font-bold transition bg-slate-100 text-slate-600 hover:bg-slate-200';
+      }
+    }
+  });
+  syncBatchInputsFromMatched();
+}
+
+function toggleBatchGenderAll(checked) {
+  const maleCb = document.getElementById('batch-gender-male');
+  const femaleCb = document.getElementById('batch-gender-female');
+  if (maleCb) maleCb.checked = checked;
+  if (femaleCb) femaleCb.checked = checked;
+  syncBatchInputsFromMatched();
+}
+
+function onBatchGenderChange() {
+  const allCb = document.getElementById('batch-gender-all');
+  const maleCb = document.getElementById('batch-gender-male');
+  const femaleCb = document.getElementById('batch-gender-female');
+  if (allCb && maleCb && femaleCb) {
+    allCb.checked = maleCb.checked && femaleCb.checked;
+  }
+  syncBatchInputsFromMatched();
+}
+
+function toggleBatchIdentityAll(checked) {
+  ['emp', 'ret', 'fam', 'ext'].forEach(k => {
+    const cb = document.getElementById(`batch-id-${k}`);
+    if (cb) cb.checked = checked;
+  });
+  syncBatchInputsFromMatched();
+}
+
+function onBatchIdentityChange() {
+  const allCb = document.getElementById('batch-id-all');
+  const ids = ['emp', 'ret', 'fam', 'ext'];
+  const allChecked = ids.every(k => {
+    const cb = document.getElementById(`batch-id-${k}`);
+    return cb && cb.checked;
+  });
+  if (allCb) allCb.checked = allChecked;
+  syncBatchInputsFromMatched();
+}
+
+function getBatchSelectedGenders() {
+  const allCb = document.getElementById('batch-gender-all');
+  const maleCb = document.getElementById('batch-gender-male');
+  const femaleCb = document.getElementById('batch-gender-female');
+  if (allCb?.checked) return ['male', 'female'];
+  const selected = [];
+  if (maleCb?.checked) selected.push('male');
+  if (femaleCb?.checked) selected.push('female');
+  if (selected.length === 0) return ['male', 'female'];
+  return selected;
+}
+
+function getBatchSelectedIdentities() {
+  const allCb = document.getElementById('batch-id-all');
+  const idMap = {
+    'batch-id-emp': 'employee',
+    'batch-id-ret': 'retiree',
+    'batch-id-fam': 'family',
+    'batch-id-ext': 'external'
+  };
+  if (allCb?.checked) return ['employee', 'retiree', 'family', 'external'];
+  const selected = [];
+  Object.entries(idMap).forEach(([domId, idVal]) => {
+    const cb = document.getElementById(domId);
+    if (cb?.checked) selected.push(idVal);
+  });
+  if (selected.length === 0) return ['employee', 'retiree', 'family', 'external'];
+  return selected;
+}
+
+function getBatchMatchedServices() {
+  const allServices = (appState && Array.isArray(appState.services)) ? appState.services : [];
+  const selectedGenders = getBatchSelectedGenders();
+  const selectedIdentities = getBatchSelectedIdentities();
+
+  const catServices = allServices.filter(s => s.category === currentBatchCategory);
+  const hasGenderSpecificItems = catServices.some(s => 
+    Array.isArray(s.gender) && s.gender.length === 1 && (s.gender[0] === 'male' || s.gender[0] === 'female')
+  );
+
+  const isOnlyMale = selectedGenders.length === 1 && selectedGenders[0] === 'male';
+  const isOnlyFemale = selectedGenders.length === 1 && selectedGenders[0] === 'female';
+
+  return catServices.filter(s => {
+    if (hasGenderSpecificItems) {
+      if (isOnlyMale) {
+        const isMale = Array.isArray(s.gender) ? (s.gender.includes('male') && !s.gender.includes('female')) : (s.gender === 'male');
+        if (!isMale) return false;
+      } else if (isOnlyFemale) {
+        const isFemale = Array.isArray(s.gender) ? (s.gender.includes('female') && !s.gender.includes('male')) : (s.gender === 'female');
+        if (!isFemale) return false;
+      } else {
+        const hasMatch = Array.isArray(s.gender)
+          ? s.gender.some(g => selectedGenders.includes(g))
+          : (s.gender === 'all' || !s.gender || selectedGenders.includes(s.gender));
+        if (!hasMatch) return false;
+      }
+    }
+
+    if (Array.isArray(s.identity)) {
+      const hasIdMatch = s.identity.some(id => selectedIdentities.includes(id));
+      if (!hasIdMatch) return false;
+    } else if (typeof s.identity === 'string' && s.identity !== 'all') {
+      if (!selectedIdentities.includes(s.identity)) return false;
+    }
+
+    return true;
+  });
+}
+
+function syncBatchInputsFromMatched() {
+  const matched = getBatchMatchedServices();
+  const priceInput = document.getElementById('batch-price');
+  const rateInput = document.getElementById('batch-rate');
+  const discountCb = document.getElementById('batch-allow-discount');
+  if (!priceInput || !rateInput || !discountCb) return;
+
+  if (matched.length > 0) {
+    priceInput.value = matched[0].price ?? '';
+    rateInput.value = matched[0].rate ?? '';
+    discountCb.checked = !!matched[0].allowDiscount;
+  }
+}
+
+async function saveBatchServiceSettings() {
+  if (currentUserRole !== 'admin') {
+    alert('僅管理員有此操作權限！');
+    return;
+  }
+
+  const priceVal = document.getElementById('batch-price')?.value;
+  const rateVal = document.getElementById('batch-rate')?.value;
+  const allowDiscount = !!document.getElementById('batch-allow-discount')?.checked;
+
+  if (priceVal === '' || isNaN(parseFloat(priceVal))) {
+    alert('請輸入有效的定價金額！');
+    return;
+  }
+  if (rateVal === '' || isNaN(parseFloat(rateVal))) {
+    alert('請輸入有效的抽成百分比！');
+    return;
+  }
+
+  const price = parseFloat(priceVal);
+  const rate = parseFloat(rateVal);
+
+  const matched = getBatchMatchedServices();
+  if (matched.length === 0) {
+    alert('未找到符合所選條件的服務項目！');
+    return;
+  }
+
+  matched.forEach(item => {
+    item.price = price;
+    item.rate = rate;
+    item.allowDiscount = allowDiscount;
+    if (item.category === '產品銷售') {
+      item.empPrice = allowDiscount ? Math.round(price * 0.9) : price;
+    }
+  });
+
+  await syncDataToCloud('services');
+  renderSettingsTables();
+  if (typeof renderPosWizard === 'function') renderPosWizard();
+  showToast(`已成功更新 ${matched.length} 項服務的定價與抽成！`);
 }
 

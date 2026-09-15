@@ -56,8 +56,10 @@ function ensureServicesSynced(existingServices) {
   const isDeprecatedService = s => {
     if (!s) return true;
     if (s.id === 'color-bring-next') return true;
+    if (s.id === 'shampoo-act-short' || s.id === 'shampoo-ret-short') return true;
     const n = norm(s.name);
     if (n.includes('明年啟動') || (n.includes('自帶') && n.includes('明年'))) return true;
+    if (n.includes('洗頭') && n.includes('短髮')) return true;
     return false;
   };
 
@@ -73,13 +75,17 @@ function ensureServicesSynced(existingServices) {
 
   const existingMap = new Map();
   cleanExisting.forEach(s => {
-    if (s && s.id) existingMap.set(s.id, s);
+    if (s && s.id) {
+      // 舊版 ID 映射轉移
+      if (s.id === 'shampoo-act-long') s.id = 'shampoo-emp';
+      if (s.id === 'shampoo-ret-long') s.id = 'shampoo-ext';
+      existingMap.set(s.id, s);
+    }
   });
 
   const merged = [];
   const handledIds = new Set();
   const seenNormNames = new Set();
-
 
   defaultList.forEach(def => {
     const defNormName = norm(def.name);
@@ -89,9 +95,9 @@ function ensureServicesSynced(existingServices) {
       matchedItem = existingMap.get(def.id);
       handledIds.add(def.id);
     } else {
-
       for (const [id, s] of existingMap.entries()) {
-        if (!handledIds.has(id) && norm(s.name) === defNormName) {
+        const sNorm = norm(s.name);
+        if (!handledIds.has(id) && (sNorm === defNormName || (def.id === 'shampoo-emp' && sNorm.includes('在職') && sNorm.includes('洗頭')) || (def.id === 'shampoo-ext' && (sNorm.includes('退休') || sNorm.includes('非員工')) && sNorm.includes('洗頭')))) {
           matchedItem = s;
           handledIds.add(id);
           break;
@@ -99,10 +105,8 @@ function ensureServicesSynced(existingServices) {
       }
     }
 
-
     for (const [id, s] of existingMap.entries()) {
       if (!handledIds.has(id) && norm(s.name) === defNormName) {
-
         if (matchedItem && matchedItem.price === def.price && typeof s.price === 'number' && s.price !== def.price) {
           matchedItem.price = s.price;
         }
@@ -118,17 +122,19 @@ function ensureServicesSynced(existingServices) {
         ...def,
         ...matchedItem,
         id: def.id,
-        name: (matchedItem.id === def.id) ? (matchedItem.name || def.name) : def.name,
-
+        name: (matchedItem.id === def.id && def.id !== 'prod-16') ? (matchedItem.name || def.name) : def.name,
         category: (matchedItem.category && matchedItem.category !== '技術服務') ? matchedItem.category : def.category,
         price: typeof matchedItem.price === 'number' ? matchedItem.price : def.price,
         rate: (() => {
-        let r = (typeof matchedItem.rate === 'number' && matchedItem.rate > 0) ? matchedItem.rate : (def.rate || 0);
-        if (def.category === '產品銷售' && (r === 10 || r === 0)) {
-          r = def.rate || 30;
-        }
-        return r;
-      })()
+          let r = (typeof matchedItem.rate === 'number' && matchedItem.rate > 0) ? matchedItem.rate : (def.rate || 0);
+          if (def.category === '產品銷售' && (r === 10 || r === 0)) {
+            r = def.rate || 30;
+          }
+          return r;
+        })(),
+        gender: Array.isArray(matchedItem.gender) && matchedItem.gender.length > 0 ? matchedItem.gender : (def.gender || ['male', 'female']),
+        identity: Array.isArray(matchedItem.identity) && matchedItem.identity.length > 0 ? matchedItem.identity : (def.identity || ['employee', 'retiree', 'family', 'external']),
+        allowDiscount: typeof matchedItem.allowDiscount === 'boolean' ? matchedItem.allowDiscount : (def.allowDiscount !== undefined ? def.allowDiscount : (def.category === '產品銷售'))
       };
       if (typeof matchedItem.empPrice === 'number') {
         item.empPrice = matchedItem.empPrice;
@@ -149,7 +155,6 @@ function ensureServicesSynced(existingServices) {
     }
   });
 
-
   existingMap.forEach((customItem, id) => {
     if (!handledIds.has(id)) {
       const normName = norm(customItem.name);
@@ -158,6 +163,9 @@ function ensureServicesSynced(existingServices) {
         if (typeof item.empPrice !== 'number') {
           delete item.empPrice;
         }
+        if (!Array.isArray(item.gender) || item.gender.length === 0) item.gender = ['male', 'female'];
+        if (!Array.isArray(item.identity) || item.identity.length === 0) item.identity = ['employee', 'retiree', 'family', 'external'];
+        if (typeof item.allowDiscount !== 'boolean') item.allowDiscount = item.category === '產品銷售';
         merged.push(item);
         seenNormNames.add(normName);
       }

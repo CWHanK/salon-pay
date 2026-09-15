@@ -1,6 +1,76 @@
 const CURRENT_APP_VERSION = typeof APP_VERSION !== 'undefined' ? APP_VERSION : '20260907_3';
 let isUpdatingApp = false;
 let versionCheckTimer = null;
+const UPDATE_ATTEMPT_KEY = 'SALON_UPDATE_ATTEMPT';
+
+// 版本字串數值化（支援 YYYYMMDD 或 YYYYMMDD_N 格式）
+function parseVersion(vStr) {
+  if (!vStr) return 0;
+  const match = String(vStr).match(/(\d{8})_?(\d+)?/);
+  if (match) {
+    const datePart = parseInt(match[1], 10);
+    const revPart = parseInt(match[2] || '0', 10);
+    return datePart * 10000 + revPart;
+  }
+  return 0;
+}
+
+// 嚴格判定遠端版本是否「大於」本地版本（只升不降，絕不對較舊版本重載）
+function isNewerVersion(remote, local) {
+  const r = parseVersion(remote);
+  const l = parseVersion(local);
+  if (r > 0 && l > 0) return r > l;
+  return String(remote) > String(local);
+}
+
+// 檢查是否可觸發更新（防重整死迴圈：30秒內已嘗試載入該版本則禁止再次自動重整）
+function canTriggerUpdate(newVersion) {
+  try {
+    if (typeof sessionStorage !== 'undefined') {
+      const raw = sessionStorage.getItem(UPDATE_ATTEMPT_KEY);
+      if (raw) {
+        const attempt = JSON.parse(raw);
+        const timeDiff = Date.now() - (attempt.timestamp || 0);
+        if (timeDiff < 30000 && attempt.targetVersion === newVersion) {
+          console.warn(`[VersionChecker] 30秒內已針對版本 ${newVersion} 嘗試重載，中止自動重整以避免死迴圈`);
+          return false;
+        }
+      }
+    }
+  } catch (e) {}
+  return true;
+}
+
+function recordUpdateAttempt(newVersion) {
+  try {
+    if (typeof sessionStorage !== 'undefined') {
+      sessionStorage.setItem(UPDATE_ATTEMPT_KEY, JSON.stringify({
+        targetVersion: newVersion,
+        fromVersion: CURRENT_APP_VERSION,
+        timestamp: Date.now()
+      }));
+    }
+  } catch (e) {}
+}
+
+function clearUpdateAttemptIfMatched() {
+  try {
+    if (typeof sessionStorage !== 'undefined') {
+      const raw = sessionStorage.getItem(UPDATE_ATTEMPT_KEY);
+      if (raw) {
+        const attempt = JSON.parse(raw);
+        if (attempt.targetVersion === CURRENT_APP_VERSION) {
+          sessionStorage.removeItem(UPDATE_ATTEMPT_KEY);
+        } else if (Date.now() - (attempt.timestamp || 0) < 30000) {
+          console.warn(`[VersionChecker] 上次重載目標為 ${attempt.targetVersion}，但當前載入仍為 ${CURRENT_APP_VERSION}。已啟用防迴圈保護。`);
+          if (typeof showToast === 'function') {
+            showToast(`目前版本為 v${CURRENT_APP_VERSION} (已啟用防迴圈保護)`);
+          }
+        }
+      }
+    }
+  } catch (e) {}
+}
 
 function renderVersionInfo() {
   const versionTags = [
@@ -33,11 +103,13 @@ async function checkForAppUpdates(options = {}) {
     }
 
     const data = await response.json();
-    if (data && data.version && data.version !== CURRENT_APP_VERSION) {
-      console.log(`[VersionChecker] 發現新版本：${data.version} (本地: ${CURRENT_APP_VERSION})`);
-      triggerAppUpdate(data.version);
-    } else if (manual && typeof showToast === 'function') {
-      showToast(`目前已是最新版本 (v${CURRENT_APP_VERSION})`);
+    if (data && data.version) {
+      if (isNewerVersion(data.version, CURRENT_APP_VERSION)) {
+        console.log(`[VersionChecker] 發現新版本：${data.version} (本地: ${CURRENT_APP_VERSION})`);
+        triggerAppUpdate(data.version);
+      } else if (manual && typeof showToast === 'function') {
+        showToast(`目前已是最新版本 (v${CURRENT_APP_VERSION})`);
+      }
     }
   } catch (err) {
     if (manual && typeof showToast === 'function') {
@@ -49,7 +121,20 @@ async function checkForAppUpdates(options = {}) {
 
 function triggerAppUpdate(newVersion) {
   if (isUpdatingApp) return;
+
+  // 核心守門 1：若目標版本沒有大於本地版本，絕不自動觸發更新（支援降版不被死迴圈干擾）
+  if (!isNewerVersion(newVersion, CURRENT_APP_VERSION)) {
+    console.log(`[VersionChecker] 目標版本 (${newVersion}) 未大於當前版本 (${CURRENT_APP_VERSION})，略過更新`);
+    return;
+  }
+
+  // 核心守門 2：防重整死迴圈保護（若 30 秒內已針對同一目標版本重載過，中止重複自動重整）
+  if (!canTriggerUpdate(newVersion)) {
+    return;
+  }
+
   isUpdatingApp = true;
+  recordUpdateAttempt(newVersion);
 
   if (typeof saveBillingDraftToStorage === 'function') {
     try {
@@ -107,6 +192,7 @@ function triggerAppUpdate(newVersion) {
 }
 
 function initVersionChecker() {
+  clearUpdateAttemptIfMatched();
   renderVersionInfo();
 
   setTimeout(() => {
@@ -134,4 +220,10 @@ function initVersionChecker() {
       checkForAppUpdates({ silent: true });
     });
   }
+}
+
+if (typeof window !== 'undefined') {
+  window.isNewerVersion = isNewerVersion;
+  window.parseVersion = parseVersion;
+  window.canTriggerUpdate = canTriggerUpdate;
 }

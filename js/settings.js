@@ -798,3 +798,27 @@ function updateServiceModalPreview() {
   const net = Math.max(0, price - comm);
   previewText.textContent = 'NT$ ' + comm.toLocaleString() + ' (店家淨額: NT$ ' + net.toLocaleString() + ')';
 }
+
+// 管理員手動校正並同步當前版本至雲端廣播
+async function syncAppVersionToCloud() {
+  if (currentUserRole !== 'admin') {
+    alert('僅管理員有權執行此操作！');
+    return;
+  }
+  if (!db) {
+    alert('尚未連線至 Firebase 雲端！');
+    return;
+  }
+  try {
+    const storeDocRef = db.collection('salon_stores').doc('main_store');
+    const targetVer = (typeof CURRENT_APP_VERSION !== 'undefined') ? CURRENT_APP_VERSION : APP_VERSION;
+    await storeDocRef.set({ appVersion: targetVer }, { merge: true });
+    if (typeof showToast === 'function') {
+      showToast(`已成功將雲端版本廣播校正為 v${targetVer}`);
+    }
+  } catch (e) {
+    console.error('同步雲端版本失敗:', e);
+    alert('同步失敗: ' + (e.message || e));
+  }
+}
+

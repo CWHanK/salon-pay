@@ -183,19 +183,26 @@ function subscribeToCloudData() {
       const data = sanitizeOldMockData(doc.data());
 
 
-      if (data && data.appVersion && typeof triggerAppUpdate === 'function' && typeof CURRENT_APP_VERSION !== 'undefined' && data.appVersion !== CURRENT_APP_VERSION) {
-        console.log(`[Firebase] 偵測到 Firestore 即時版本推播: ${data.appVersion}`);
-        triggerAppUpdate(data.appVersion);
-        return;
+      // 檢查雲端即時廣播版本（僅當雲端版本大於本地版本才觸發，絕不使用 return 阻斷正常資料處理）
+      if (data && data.appVersion && typeof triggerAppUpdate === 'function' && typeof CURRENT_APP_VERSION !== 'undefined') {
+        const isNewer = (typeof isNewerVersion === 'function')
+          ? isNewerVersion(data.appVersion, CURRENT_APP_VERSION)
+          : (data.appVersion > CURRENT_APP_VERSION);
+        if (isNewer) {
+          console.log(`[Firebase] 偵測到 Firestore 即時新版本推播: ${data.appVersion} (本地: ${CURRENT_APP_VERSION})`);
+          triggerAppUpdate(data.appVersion);
+        }
       }
 
       appState.services = ensureServicesSynced(data.services);
       appState.staff = data.staff || [];
       appState.orders = data.orders || [];
 
-
+      // 若目前使用者為管理員，且雲端版本與當前本機版本不一致（例如管理員降版或更新版本），自動同步管理員當前版本至雲端
       if (currentUserRole === 'admin' && currentUser && typeof APP_VERSION !== 'undefined' && data.appVersion !== APP_VERSION) {
-        storeDocRef.set({ appVersion: APP_VERSION }, { merge: true }).catch(e => console.warn('自動同步雲端版本失敗:', e));
+        storeDocRef.set({ appVersion: APP_VERSION }, { merge: true })
+          .then(() => console.log(`[Firebase] 管理員已成功將雲端廣播版本同步校正為: ${APP_VERSION}`))
+          .catch(e => console.warn('自動同步雲端版本失敗:', e));
       }
       if (currentUserRole === 'admin' && currentUser && Array.isArray(data.services) && JSON.stringify(appState.services) !== JSON.stringify(data.services)) {
         storeDocRef.set({ services: appState.services }, { merge: true }).catch(e => console.warn('自動同步清理雲端廢棄服務失敗:', e));

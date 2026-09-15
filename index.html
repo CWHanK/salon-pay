@@ -743,12 +743,18 @@
         </div>
         <div class="text-[11px] text-slate-500 leading-relaxed flex items-center gap-2">
           <span>目前版本：</span>
-          <span id="settings-current-version" class="font-mono bg-slate-100 text-slate-700 px-2 py-0.5 rounded font-bold">v20260914_3</span>
+          <span id="settings-current-version" class="font-mono bg-slate-100 text-slate-700 px-2 py-0.5 rounded font-bold">v20260916_1</span>
           <span class="text-[10px] text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200/60 font-medium">背景即時偵測中</span>
         </div>
         <p class="text-[10px] text-slate-400">
           系統支援背景自動偵測新版本。若伺服器釋出更新，系統會在保留您開單草稿的前提下自動重新載入至最新版本。
         </p>
+        <div class="pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2">
+          <p class="text-[10px] text-slate-400">若有版本不一致或需校正雲端廣播版本，管理員可強制同步：</p>
+          <button type="button" onclick="syncAppVersionToCloud()" class="px-2.5 py-1 text-[11px] font-bold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200/80 rounded-xl transition flex items-center gap-1">
+            <i data-lucide="cloud-upload" class="w-3 h-3"></i> 同步此版本至雲端廣播
+          </button>
+        </div>
       </div>
 
     </section>
@@ -968,15 +974,15 @@
     <span id="toast-message" class="font-medium">操作完成</span>
   </div>
 
-  <script src="js/constants.js?v=20260914_3"></script>
-  <script src="js/state.js?v=20260914_3"></script>
-  <script src="js/version.js?v=20260914_3"></script>
-  <script src="js/firebase.js?v=20260914_3"></script>
-  <script src="js/auth.js?v=20260914_3"></script>
-  <script src="js/billing.js?v=20260914_3"></script>
-  <script src="js/history.js?v=20260914_3"></script>
-  <script src="js/monthly.js?v=20260914_3"></script>
-  <script src="js/settings.js?v=20260914_3"></script>
-  <script src="js/main.js?v=20260914_3"></script>
+  <script src="js/constants.js?v=20260916_1"></script>
+  <script src="js/state.js?v=20260916_1"></script>
+  <script src="js/version.js?v=20260916_1"></script>
+  <script src="js/firebase.js?v=20260916_1"></script>
+  <script src="js/auth.js?v=20260916_1"></script>
+  <script src="js/billing.js?v=20260916_1"></script>
+  <script src="js/history.js?v=20260916_1"></script>
+  <script src="js/monthly.js?v=20260916_1"></script>
+  <script src="js/settings.js?v=20260916_1"></script>
+  <script src="js/main.js?v=20260916_1"></script>
 </body>
 </html>

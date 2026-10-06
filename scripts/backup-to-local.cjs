@@ -8,7 +8,7 @@
  *   node scripts/backup-to-local.cjs
  *
  * 選項：
- *   --keep 90     保留最近幾份備份（預設 90 份，更舊的自動刪除）
+ *   --keep 30     保留最近幾份每日備份（預設 30 份）；每個月的第一份備份另外永久保留
  *
  * 備份資料夾：預設為「文件\SalonFlow備份」，可用環境變數 SALONFLOW_BACKUP_DIR 指定。
  * 登入憑證（不是密碼）存在備份資料夾內的 .backup-credential.json，請勿分享此檔。
@@ -159,8 +159,11 @@ function buildBackup(storeDocs, users) {
     staff: main.staff || [],
     deletedServiceIds: main.deletedServiceIds || [],
     orders,
-    // 原始雲端文件，供完整還原
-    raw: { salon_stores: storeDocs, salon_users: users }
+    // 其餘雲端文件（客單已完整收錄於上方 orders，不重複存放以節省空間）
+    raw: {
+      main_store: Object.fromEntries(Object.entries(main).filter(([k]) => k !== 'orders')),
+      salon_users: users
+    }
   };
 }
 
@@ -169,9 +172,19 @@ function timestampForFile(d = new Date()) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}_${pad(d.getHours())}${pad(d.getMinutes())}`;
 }
 
-// 只挑出本程式產生的備份檔，保留最新 keep 份，回傳要刪除的檔名
+// 只挑出本程式產生的備份檔：保留最新 keep 份，以及每個月的第一份（長期留存），回傳要刪除的檔名
 function selectBackupsToDelete(fileNames, keep) {
-  return fileNames.filter(n => BACKUP_FILE_PATTERN.test(n)).sort().reverse().slice(keep);
+  const backups = fileNames.filter(n => BACKUP_FILE_PATTERN.test(n)).sort();
+  const firstOfMonth = new Set();
+  const seenMonths = new Set();
+  backups.forEach(n => {
+    const month = n.slice('SalonFlow_'.length, 'SalonFlow_'.length + 7);
+    if (!seenMonths.has(month)) {
+      seenMonths.add(month);
+      firstOfMonth.add(n);
+    }
+  });
+  return backups.slice().reverse().slice(keep).filter(n => !firstOfMonth.has(n));
 }
 
 function log(message) {
@@ -211,7 +224,7 @@ async function runBackup(keep) {
   const fileName = `SalonFlow_${timestampForFile()}.json`;
   const target = path.join(BACKUP_DIR, fileName);
   const tmp = `${target}.tmp`;
-  fs.writeFileSync(tmp, JSON.stringify(backup, null, 2));
+  fs.writeFileSync(tmp, JSON.stringify(backup));
   fs.renameSync(tmp, target);
 
   const toDelete = selectBackupsToDelete(fs.readdirSync(BACKUP_DIR), keep);
@@ -226,7 +239,7 @@ async function main() {
   fs.mkdirSync(BACKUP_DIR, { recursive: true });
   const args = process.argv.slice(2);
   const keepIdx = args.indexOf('--keep');
-  const keep = keepIdx >= 0 ? Math.max(1, parseInt(args[keepIdx + 1], 10) || 90) : 90;
+  const keep = keepIdx >= 0 ? Math.max(1, parseInt(args[keepIdx + 1], 10) || 30) : 30;
   try {
     if (args.includes('--setup')) {
       await setup();

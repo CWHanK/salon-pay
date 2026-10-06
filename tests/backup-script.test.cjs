@@ -21,15 +21,19 @@ test('backup file keeps the same top-level format as the in-app JSON export', ()
   assert.equal(backup.staff.length, 1);
   assert.equal(backup.orders.length, 2);
   assert.deepEqual(backup.summary, { orderCount: 2, activeOrderCount: 1, dailyDocuments: 1, staffCount: 1, serviceCount: 1 });
-  assert.ok(backup.raw.salon_stores.main_store);
+  assert.equal('orders' in backup.raw.main_store, false, 'orders are stored once, not duplicated in raw');
+  assert.equal(backup.raw.main_store.services.length, 1);
 });
 
-test('retention only deletes this script\'s own backup files beyond the newest N', () => {
+test('retention keeps the newest N plus the first backup of every month, and ignores other files', () => {
   const files = [
-    'SalonFlow_2026-10-01_1840.json', 'SalonFlow_2026-10-03_1840.json', 'SalonFlow_2026-10-02_1840.json',
+    'SalonFlow_2026-09-01_1840.json', 'SalonFlow_2026-09-02_1840.json', 'SalonFlow_2026-09-03_1840.json',
+    'SalonFlow_2026-10-01_1840.json', 'SalonFlow_2026-10-02_1840.json', 'SalonFlow_2026-10-03_1840.json',
     'backup.log', '.backup-credential.json', 'SalonFlow_Backup_2026-10-01.json', 'notes.txt'
   ];
-  assert.deepEqual(selectBackupsToDelete(files, 2), ['SalonFlow_2026-10-01_1840.json']);
+  assert.deepEqual(selectBackupsToDelete(files, 2).sort(), [
+    'SalonFlow_2026-09-02_1840.json', 'SalonFlow_2026-09-03_1840.json'
+  ]);
   assert.deepEqual(selectBackupsToDelete(files, 10), []);
 });
 

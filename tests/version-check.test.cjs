@@ -85,7 +85,7 @@ test('checkForAppUpdates detects newer version and triggers force reload', async
     },
     fetch: async () => ({
       ok: true,
-      json: async () => ({ version: '20260999_9' })
+      json: async () => ({ version: '20991231_9' })
     }),
     setTimeout: (fn, ms) => fn(),
     setInterval: () => {},
@@ -99,7 +99,7 @@ test('checkForAppUpdates detects newer version and triggers force reload', async
 
   await vm.runInContext('checkForAppUpdates()', context);
   assert.ok(replacedUrl, 'window.location.replace should have been called');
-  assert.match(replacedUrl, /v=20260999_9/);
+  assert.match(replacedUrl, /v=20991231_9/);
 });
 
 test('index.html script tags match constants.js APP_VERSION', () => {

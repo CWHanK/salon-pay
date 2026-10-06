@@ -281,6 +281,9 @@ function subscribeToCloudData() {
     if (!billingInitialized) {
       billingInitialized = true;
       initBillingForm();
+    } else if (typeof renderPosWizard === 'function') {
+      // 服務項目即時異動（如管理員新增自訂項目）時刷新開單磚塊
+      renderPosWizard();
     }
     filterHistoryOrders();
     calculateMonthlyPayroll();

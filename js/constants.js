@@ -1,4 +1,4 @@
-const APP_VERSION = '20260916_2';
+const APP_VERSION = '20261006_1';
 
 const DEFAULT_SERVICES = [
   { id: 'cut-emp-f', name: '剪髮 (員工-女)', price: 150, rate: 60, category: '剪髮', gender: ['female'], identity: ['employee', 'retiree'], allowDiscount: false },

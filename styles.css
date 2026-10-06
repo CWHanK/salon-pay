@@ -187,3 +187,10 @@ body.role-staff .admin-only-inline {
 body.role-admin .staff-only-block {
   display: none !important;
 }
+
+/* 📱 橫向捲動的分類按鈕：不可被擠壓成一行一兩個字，改為左右滑動 */
+.service-cat-tab,
+.batch-cat-btn {
+  flex-shrink: 0;
+  white-space: nowrap;
+}

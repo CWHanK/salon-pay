@@ -35,7 +35,17 @@ function fakeStore({ denyDaily = false } = {}) {
     runTransaction: async fn => fn({
       get: async ref => ({ exists: docs.has(ref.id), data: () => JSON.parse(JSON.stringify(docs.get(ref.id) || {})) }),
       update: (ref, payload) => { writes.push({ id: ref.id, op: 'tx-update', payload }); docs.set(ref.id, { ...docs.get(ref.id), ...payload }); },
-      set: (ref, payload) => { writes.push({ id: ref.id, op: 'tx-set', payload }); docs.set(ref.id, payload); }
+      set: (ref, payload) => {
+        writes.push({ id: ref.id, op: 'tx-set', payload });
+        if (denyDaily && ref.id.startsWith('orders_')) throw denied();
+        // 模擬 arrayUnion 附加
+        if (payload.orders && payload.orders.__op === 'arrayUnion') {
+          const prev = docs.get(ref.id) || {};
+          docs.set(ref.id, { ...prev, orders: [...(prev.orders || []), payload.orders.value] });
+        } else {
+          docs.set(ref.id, payload);
+        }
+      }
     })
   };
   const firebase = {
@@ -51,10 +61,11 @@ function fakeStore({ denyDaily = false } = {}) {
 }
 
 function setup(store) {
+  const storage = new Map();
   const context = vm.createContext({
     console, window: {}, DEFAULT_ADMIN_KEY_HASH: '',
     document: { getElementById: () => null },
-    localStorage: { getItem() { return null; }, setItem() {}, removeItem() {} },
+    localStorage: { getItem: k => storage.get(k) ?? null, setItem: (k, v) => storage.set(k, String(v)), removeItem: k => storage.delete(k) },
     setTimeout, clearTimeout,
     firebase: store.firebase, fakeDb: store.db
   });
@@ -147,6 +158,38 @@ test('older months are loaded on demand only when a past period is viewed', asyn
   // 已載入過的月份不再重複讀取
   assert.equal(run("ensureOrderRangeLoaded('2026-03-01', '2026-03-31')"), 'loaded');
   assert.equal(store.queries.length, 1);
+});
+
+test('online order numbers come from the latest cloud data, so another device\'s order is never reused', async () => {
+  const store = fakeStore();
+  // 另一台手機剛開了 005，本機還沒同步到
+  store.docs.set('orders_2026-10-06', { orders: [{ id: 'other', date: '2026-10-06', orderNo: 'T-20261006-005' }] });
+  const run = setup(store);
+  run("appState.orders = [{ id: 'mine', date: '2026-10-06', orderNo: 'T-20261006-003' }];");
+  run("globalThis.__a = { id: 'a', date: '2026-10-06', orderNo: 'T-20261006-004' }; globalThis.__b = { id: 'b', date: '2026-10-06', orderNo: 'T-20261006-004' };");
+  await run('appendOrderToCloud(globalThis.__a)');
+  await run('appendOrderToCloud(globalThis.__b)');
+  assert.equal(run('globalThis.__a.orderNo'), 'T-20261006-006');
+  assert.equal(run('globalThis.__b.orderNo'), 'T-20261006-007');
+  const nos = store.docs.get('orders_2026-10-06').orders.map(o => o.orderNo);
+  assert.equal(new Set(nos).size, nos.length);
+});
+
+test('offline order numbers carry this device\'s code so they cannot clash with other devices', async () => {
+  const store = fakeStore();
+  const run = setup(store);
+  run(`cloudSyncState = 'offline';
+    appState.orders = [{ id: 'x', date: '2026-10-06', orderNo: 'T-20261006-012' }];
+    globalThis.__o1 = { id: 'o1', date: '2026-10-06' }; globalThis.__o2 = { id: 'o2', date: '2026-10-06' };`);
+  assert.equal(await run('appendOrderToCloud(globalThis.__o1)'), 'queued');
+  run('appState.orders.unshift(globalThis.__o1)');
+  await run('appendOrderToCloud(globalThis.__o2)');
+  const code = run('getDeviceCode()');
+  assert.match(code, /^[A-Z2-9]{2}$/);
+  assert.equal(run('globalThis.__o1.orderNo'), `T-20261006-013-${code}`);
+  assert.equal(run('globalThis.__o2.orderNo'), `T-20261006-014-${code}`);
+  // 之後線上開的單仍會從 015 接續
+  assert.equal(run("getMaxOrderSeq(appState.orders.concat([globalThis.__o2]), '2026-10-06')"), 14);
 });
 
 test('backup reads every daily document plus the old orders', async () => {

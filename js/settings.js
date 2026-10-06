@@ -260,6 +260,8 @@ let currentServiceCategoryFilter = 'ALL';
 function setServiceCategoryFilter(category) {
   currentServiceCategoryFilter = category;
   renderSettingsTables();
+  // 手機上分類列可左右滑動，確保選中的分類保持在畫面內
+  document.getElementById(`filter-srv-${category}`)?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
 }
 
 function getCategoryBadge(cat) {
@@ -331,11 +333,9 @@ function renderSettingsTables() {
   if (srvTbody) {
     if (filteredServices.length === 0) {
       srvTbody.innerHTML = `
-        <tr>
-          <td colspan="6" class="py-8 text-center text-xs text-slate-400">
-            目前「${currentServiceCategoryFilter === 'ALL' ? '全部' : currentServiceCategoryFilter}」分類中尚無項目
-          </td>
-        </tr>
+        <div class="py-8 text-center text-xs text-slate-400">
+          目前「${currentServiceCategoryFilter === 'ALL' ? '全部' : currentServiceCategoryFilter}」分類中尚無項目
+        </div>
       `;
     } else {
       srvTbody.innerHTML = filteredServices.map(s => {
@@ -346,25 +346,27 @@ function renderSettingsTables() {
         const rNum = typeof s.rate === 'number' ? s.rate : 0;
         const commAmt = Math.round(s.price * (rNum / 100));
         const sNet = Math.max(0, s.price - commAmt);
+        // 清單式版面：名稱可完整換行，價格資訊在第二行，窄螢幕手機也不會擠成一行兩個字
         return `
-          <tr class="hover:bg-slate-50 transition">
-            <td class="px-3 py-2.5 font-medium text-slate-800">
+          <div class="py-3 flex items-start justify-between gap-3 hover:bg-slate-50/70 transition">
+            <div class="min-w-0 flex-1">
               <div class="flex items-center gap-1.5 flex-wrap">
-                <span class="font-bold text-slate-900">${s.name}</span>
+                <span class="font-bold text-slate-900 text-sm leading-snug">${escapeHtml(s.name)}</span>
                 ${getCategoryBadge(s.category)}
                 ${s.allowDiscount ? '<span class="inline-block text-[10px] font-bold px-1.5 py-0.2 rounded-md border bg-amber-50 text-amber-700 border-amber-200">可打折</span>' : ''}
               </div>
+              <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs font-numeric">
+                <span class="whitespace-nowrap text-slate-500">定價 <b class="text-slate-800">NT$ ${s.price.toLocaleString()}</b></span>
+                <span class="whitespace-nowrap text-slate-500">抽成 <b class="text-amber-700">${rNum}%</b> <span class="text-emerald-700 font-bold">NT$ ${commAmt.toLocaleString()}</span></span>
+                <span class="whitespace-nowrap text-slate-400">店家 NT$ ${sNet.toLocaleString()}</span>
+              </div>
               ${empPriceBadge}
-            </td>
-            <td class="px-3 py-2.5 text-right font-numeric font-bold text-slate-700">NT$ ${s.price.toLocaleString()}</td>
-            <td class="px-3 py-2.5 text-right font-numeric font-bold text-amber-700">${rNum}%</td>
-            <td class="px-3 py-2.5 text-right font-numeric font-bold text-emerald-700">NT$ ${commAmt.toLocaleString()}</td>
-            <td class="px-3 py-2.5 text-right font-numeric text-slate-500">NT$ ${sNet.toLocaleString()}</td>
-            <td class="px-3 py-2.5 text-center space-x-1 whitespace-nowrap">
-              <button onclick="editServiceItem('${s.id}')" class="text-xs text-amber-600 hover:text-amber-800 font-bold p-1">編輯</button>
-              <button onclick="deleteServiceItem('${s.id}')" class="text-xs text-rose-500 hover:text-rose-700 font-bold p-1">刪除</button>
-            </td>
-          </tr>
+            </div>
+            <div class="shrink-0 flex items-center gap-1">
+              <button onclick="editServiceItem('${s.id}')" class="text-xs font-bold px-2.5 py-1.5 rounded-lg bg-amber-50 text-amber-700 hover:bg-amber-100 transition">編輯</button>
+              <button onclick="deleteServiceItem('${s.id}')" class="text-xs font-bold px-2.5 py-1.5 rounded-lg text-rose-500 hover:bg-rose-50 transition">刪除</button>
+            </div>
+          </div>
         `;
       }).join('');
     }
@@ -383,7 +385,7 @@ function renderSettingsTables() {
     } else {
       staffTbody.innerHTML = appState.staff.map(st => `
         <tr class="hover:bg-slate-50 transition">
-          <td class="px-3 py-2.5 font-semibold text-slate-900">${st.name}</td>
+          <td class="px-3 py-2.5 font-semibold text-slate-900 whitespace-nowrap">${st.name}</td>
           <td class="px-3 py-2.5">
             ${st.linkedEmail ? `
               <span class="inline-flex items-center gap-1.5 ${st.linkedUid ? 'bg-emerald-50 text-emerald-800 border-emerald-200' : 'bg-amber-50 text-amber-800 border-amber-200'} border px-2.5 py-0.5 rounded-full text-[11px] font-bold">

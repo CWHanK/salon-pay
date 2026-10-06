@@ -135,37 +135,11 @@ function initBillingForm() {
   renderBillingRows();
 }
 
+// 畫面上預覽的下一個單號；正式單號於開單時由雲端交易確認，確保不撞號
 function getNextOrderNo(dateStr) {
   const d = dateStr || (typeof getLocalDateString === 'function' ? getLocalDateString() : new Date().toISOString().split('T')[0]);
-  const compactDate = d.replace(/-/g, '');
-  const prefix = `T-${compactDate}-`;
-  const dayOrders = (typeof appState !== 'undefined' && appState.orders) 
-    ? appState.orders.filter(o => o && o.date === d) 
-    : [];
-  let maxSeq = 0;
-
-  dayOrders.forEach(o => {
-    if (o.orderNo) {
-      if (o.orderNo.startsWith(prefix)) {
-        const seqPart = o.orderNo.slice(prefix.length);
-        const parsed = parseInt(seqPart, 10);
-        if (!isNaN(parsed) && parsed > maxSeq) {
-          maxSeq = parsed;
-        }
-      } else {
-        const match = o.orderNo.match(/-(\d+)$/);
-        if (match) {
-          const parsed = parseInt(match[1], 10);
-          if (!isNaN(parsed) && parsed > maxSeq) {
-            maxSeq = parsed;
-          }
-        }
-      }
-    }
-  });
-
-  const nextSeq = maxSeq + 1;
-  return `${prefix}${String(nextSeq).padStart(3, '0')}`;
+  const orders = (typeof appState !== 'undefined' && appState.orders) ? appState.orders : [];
+  return formatOrderNo(d, getMaxOrderSeq(orders, d) + 1);
 }
 
 function generateNewOrderNo() {

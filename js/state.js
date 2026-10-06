@@ -74,6 +74,52 @@ function updateLinkedStaff() {
   }
 }
 
+// ==========================================
+// 客單流水號：T-YYYYMMDD-NNN；離線開立者加上裝置代號 T-YYYYMMDD-NNN-XX，確保不與他人撞號
+// ==========================================
+function formatOrderNo(dateStr, seq, suffix = '') {
+  return `T-${String(dateStr).replace(/-/g, '')}-${String(seq).padStart(3, '0')}${suffix ? `-${suffix}` : ''}`;
+}
+
+// 取得某日已使用的最大流水號（含已作廢與離線單）
+function getMaxOrderSeq(orders, dateStr) {
+  const prefix = `T-${String(dateStr).replace(/-/g, '')}-`;
+  let maxSeq = 0;
+  (Array.isArray(orders) ? orders : []).forEach(o => {
+    if (!o || o.date !== dateStr || !o.orderNo) return;
+    let parsed = NaN;
+    if (o.orderNo.startsWith(prefix)) {
+      parsed = parseInt(o.orderNo.slice(prefix.length), 10);
+    } else {
+      const match = o.orderNo.match(/-(\d+)$/);
+      if (match) parsed = parseInt(match[1], 10);
+    }
+    if (!isNaN(parsed) && parsed > maxSeq) maxSeq = parsed;
+  });
+  return maxSeq;
+}
+
+// 本裝置代號（兩碼，存在本機），用於離線開單的單號後綴
+function getDeviceCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const make = () => chars[Math.floor(Math.random() * chars.length)] + chars[Math.floor(Math.random() * chars.length)];
+  try {
+    let code = localStorage.getItem('SALON_DEVICE_CODE');
+    if (!code || !/^[A-Z2-9]{2}$/.test(code)) {
+      code = make();
+      localStorage.setItem('SALON_DEVICE_CODE', code);
+    }
+    return code;
+  } catch (_) {
+    return make();
+  }
+}
+
+// 將文字安全放入 HTML（避免名稱含 < > & 引號時破版）
+function escapeHtml(str) {
+  return String(str ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
 // 清除先前舊範例人員 (如果有)
 function sanitizeOldMockData(data) {
   if (data && Array.isArray(data.staff)) {

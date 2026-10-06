@@ -534,7 +534,7 @@ function renderConnectionStatus() {
   };
   const s = styles[cloudSyncState] || styles.synced;
   if (pill) {
-    pill.className = `flex items-center gap-1 text-[11px] font-medium px-2.5 py-1 rounded-full border ${s.pill}`;
+    pill.className = `flex items-center gap-1 text-[11px] font-medium px-2.5 py-1 rounded-full border whitespace-nowrap min-w-0 ${s.pill}`;
     pill.title = s.title;
   }
   if (dot) dot.className = `w-2 h-2 rounded-full ${s.dot}`;
@@ -560,31 +560,79 @@ function getOrderDocRef(docId) {
   return (currentUser && db) ? db.collection('salon_stores').doc(docId) : null;
 }
 
-// 新增客單：寫入該日的每日文件，arrayUnion 由伺服器端附加，離線時亦可排隊、回線後只附加這一筆
+// 新增客單：寫入該日的每日文件（只附加這一筆，不覆蓋他人客單）
+// - 有網路：以交易讀取雲端當日最新單號後取號，多台同時開單時由雲端排隊重取，保證不撞號
+// - 離線：以本機最大號 + 1 並加上本裝置代號（如 T-20261006-012-K7），回線後只附加這一筆
+// 單號會直接更新在傳入的 order 物件上
 async function appendOrderToCloud(order) {
   localStorage.setItem('SALON_PAY_LOCAL_CACHE', JSON.stringify(appState));
   if (!getStoreDocRef()) return;
-  const key = getOrderKey(order);
-  const writeTo = async docId => {
-    localPendingOrders.set(key, { order, docId });
-    orderLocations.set(key, docId);
-    const write = getOrderDocRef(docId).set({ orders: firebase.firestore.FieldValue.arrayUnion(toFirestoreSafe(order)) }, { merge: true });
-    return waitForCloudWrite(write);
-  };
-  const dailyDocId = dailyOrderDocId(order.date);
+  if (isCloudOffline() || typeof db.runTransaction !== 'function') {
+    return appendOrderWithDeviceSuffix(order, dailyStoreWritable ? dailyOrderDocId(order.date) : LEGACY_ORDERS_DOC);
+  }
   try {
-    return await writeTo(dailyStoreWritable ? dailyDocId : LEGACY_ORDERS_DOC);
+    return await appendOrderWithUniqueNo(order, dailyStoreWritable ? dailyOrderDocId(order.date) : LEGACY_ORDERS_DOC);
   } catch (err) {
     // 資料庫規則不允許建立每日文件時，改寫入舊位置，開單不中斷
     if (dailyStoreWritable && err && err.code === 'permission-denied') {
       dailyStoreWritable = false;
-      try {
-        return await writeTo(LEGACY_ORDERS_DOC);
-      } catch (retryErr) {
-        localPendingOrders.delete(key);
-        throw retryErr;
-      }
+      return appendOrderWithUniqueNo(order, LEGACY_ORDERS_DOC);
     }
+    // 交易途中斷線（交易未成立）：改以離線方式開單
+    if (err && err.code === 'unavailable') {
+      return appendOrderWithDeviceSuffix(order, dailyStoreWritable ? dailyOrderDocId(order.date) : LEGACY_ORDERS_DOC);
+    }
+    throw err;
+  }
+}
+
+function trackPendingOrder(order, docId) {
+  const key = getOrderKey(order);
+  localPendingOrders.set(key, { order, docId });
+  orderLocations.set(key, docId);
+  return key;
+}
+
+const ORDER_TRANSACTION_TIMEOUT_MS = 30000;
+
+async function appendOrderWithUniqueNo(order, docId) {
+  const ref = getOrderDocRef(docId);
+  const key = trackPendingOrder(order, docId);
+  const localOrders = appState.orders.filter(o => o && getOrderKey(o) !== key);
+  let timer = null;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(Object.assign(
+      new Error('網路很慢，無法確認這張單是否已開立。請先到「歷史紀錄」確認，沒有的話再重新開單。'),
+      { code: 'order-timeout' }
+    )), ORDER_TRANSACTION_TIMEOUT_MS);
+  });
+  const tx = db.runTransaction(async t => {
+    const snap = await t.get(ref);
+    const docOrders = (snap.exists && Array.isArray(snap.data().orders)) ? snap.data().orders : [];
+    const seq = Math.max(getMaxOrderSeq(docOrders, order.date), getMaxOrderSeq(localOrders, order.date)) + 1;
+    order.orderNo = formatOrderNo(order.date, seq);
+    t.set(ref, { orders: firebase.firestore.FieldValue.arrayUnion(toFirestoreSafe(order)) }, { merge: true });
+  });
+  try {
+    await Promise.race([tx, timeout]);
+    return 'synced';
+  } catch (err) {
+    localPendingOrders.delete(key);
+    throw err;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function appendOrderWithDeviceSuffix(order, docId) {
+  const key = getOrderKey(order);
+  const localOrders = appState.orders.filter(o => o && getOrderKey(o) !== key);
+  order.orderNo = formatOrderNo(order.date, getMaxOrderSeq(localOrders, order.date) + 1, getDeviceCode());
+  trackPendingOrder(order, docId);
+  const write = getOrderDocRef(docId).set({ orders: firebase.firestore.FieldValue.arrayUnion(toFirestoreSafe(order)) }, { merge: true });
+  try {
+    return await waitForCloudWrite(write);
+  } catch (err) {
     localPendingOrders.delete(key);
     throw err;
   }

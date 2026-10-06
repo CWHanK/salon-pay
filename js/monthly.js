@@ -23,6 +23,12 @@ function calculateMonthlyPayroll() {
   const staff = appState.staff.find(s => s.id === staffId);
   if (!staff) return;
 
+  // 結算較早月份時，向雲端載入該月份的每日客單（載入完成後自動重新計算）
+  if (typeof ensureOrderRangeLoaded === 'function') {
+    const loadState = ensureOrderRangeLoaded(`${monthVal}-01`, `${monthVal}-31`, () => calculateMonthlyPayroll());
+    if (loadState === 'started' && typeof showToast === 'function') showToast('正在載入該月份客單…');
+  }
+
   const monthlyOrders = appState.orders.filter(order => {
     return !order.isDeleted && order.date.startsWith(monthVal) && (order.staffId === staffId || order.assistantId === staffId);
   });

@@ -207,7 +207,8 @@ function subscribeToCloudData() {
       appState.deletedServiceIds = Array.isArray(data.deletedServiceIds) ? data.deletedServiceIds : [];
       appState.services = ensureServicesSynced(data.services, appState.deletedServiceIds);
       appState.staff = data.staff || [];
-      appState.orders = sortOrdersNewestFirst(data.orders || []);
+      legacyOrders = Array.isArray(data.orders) ? data.orders : [];
+      rebuildOrdersFromSources();
 
       // 版本較舊的管理員裝置（尚未更新快取）不得回寫雲端，避免與新版裝置互相覆蓋形成循環
       const hasVersionApi = typeof APP_VERSION !== 'undefined' && typeof isNewerVersion === 'function';
@@ -231,14 +232,15 @@ function subscribeToCloudData() {
             const oldData = sanitizeOldMockData(oldDoc.data());
             if (oldData.staff && oldData.staff.length > 0) {
               appState.staff = oldData.staff;
-              if (oldData.orders && oldData.orders.length > 0 && appState.orders.length === 0) {
-                appState.orders = oldData.orders;
+              if (oldData.orders && oldData.orders.length > 0 && legacyOrders.length === 0) {
+                legacyOrders = oldData.orders;
+                rebuildOrdersFromSources();
               }
               await storeDocRef.set({
                 appVersion: typeof APP_VERSION !== 'undefined' ? APP_VERSION : undefined,
-          services: appState.services,
+                services: appState.services,
                 staff: appState.staff,
-                orders: appState.orders
+                orders: legacyOrders
               }, { merge: true });
             }
           }
@@ -268,12 +270,13 @@ function subscribeToCloudData() {
 
       appState.services = initialServices;
       appState.staff = initialStaff;
-      appState.orders = initialOrders;
+      legacyOrders = initialOrders;
+      rebuildOrdersFromSources();
 
       await storeDocRef.set({
         services: appState.services,
         staff: appState.staff,
-        orders: appState.orders
+        orders: legacyOrders
       });
     }
 
@@ -301,12 +304,194 @@ function subscribeToCloudData() {
   });
 
   subscribeToConnectionStatus(storeDocRef);
+  subscribeToDailyOrders();
 }
 
 // 客單依日期、時間、建立時間由新到舊排序（雲端以 arrayUnion 附加時新單位於陣列尾端）
 function sortOrdersNewestFirst(orders) {
   const key = o => `${o?.date || ''} ${o?.time || ''} ${o?.createdAt || ''}`;
   return (Array.isArray(orders) ? orders.slice() : []).sort((a, b) => key(b).localeCompare(key(a)));
+}
+
+// ==========================================
+// 每日客單文件：salon_stores/orders_YYYY-MM-DD，一天一份
+// 舊客單仍保留在 main_store.orders（不搬移、不刪除），讀取時與每日文件合併
+// ==========================================
+const DAILY_ORDERS_PREFIX = 'orders_';
+const LEGACY_ORDERS_DOC = 'main_store';
+let legacyOrders = [];
+const dailyOrderDocs = new Map();      // 每日文件 ID -> 該日客單陣列
+const orderLocations = new Map();      // 客單 ID -> 所在文件 ID
+const localPendingOrders = new Map();  // 剛開立、尚未出現在任何同步來源的客單
+const loadedOrderMonths = new Set();   // 已額外載入的較早月份 (YYYY-MM)
+let dailyLiveWindowStart = '';
+let dailyStoreWritable = true;
+let unsubscribeDailyOrders = null;
+
+function dailyOrderDocId(date) {
+  return DAILY_ORDERS_PREFIX + date;
+}
+
+function getOrderKey(o) {
+  return o.id || `${o.orderNo || ''}|${o.createdAt || ''}`;
+}
+
+function resetOrderSources() {
+  if (unsubscribeDailyOrders) {
+    unsubscribeDailyOrders();
+    unsubscribeDailyOrders = null;
+  }
+  legacyOrders = [];
+  dailyOrderDocs.clear();
+  orderLocations.clear();
+  localPendingOrders.clear();
+  loadedOrderMonths.clear();
+  dailyLiveWindowStart = '';
+  dailyStoreWritable = true;
+}
+
+// 合併舊客單與每日文件為 appState.orders（同一張單以每日文件版本為準）
+function rebuildOrdersFromSources() {
+  const byKey = new Map();
+  orderLocations.clear();
+  legacyOrders.forEach(o => {
+    if (!o) return;
+    byKey.set(getOrderKey(o), o);
+    orderLocations.set(getOrderKey(o), LEGACY_ORDERS_DOC);
+  });
+  dailyOrderDocs.forEach((orders, docId) => {
+    (Array.isArray(orders) ? orders : []).forEach(o => {
+      if (!o) return;
+      byKey.set(getOrderKey(o), o);
+      orderLocations.set(getOrderKey(o), docId);
+    });
+  });
+  localPendingOrders.forEach(({ order, docId }, key) => {
+    if (byKey.has(key)) {
+      localPendingOrders.delete(key);
+    } else {
+      byKey.set(key, order);
+      orderLocations.set(key, docId);
+    }
+  });
+  appState.orders = sortOrdersNewestFirst([...byKey.values()]);
+}
+
+// 即時同步範圍：上個月 1 號起（含之後所有日期）；更早的月份於查詢時再載入
+function getDailyLiveWindowStart() {
+  const d = new Date();
+  d.setDate(1);
+  d.setMonth(d.getMonth() - 1);
+  return getLocalDateString(d);
+}
+
+function canQueryDailyOrders() {
+  return !!db && typeof firebase !== 'undefined' && !!firebase.firestore && !!firebase.firestore.FieldPath &&
+    typeof db.collection('salon_stores').where === 'function';
+}
+
+function dailyOrdersQuery(startDate, endDate) {
+  const idField = firebase.firestore.FieldPath.documentId();
+  return db.collection('salon_stores')
+    .where(idField, '>=', dailyOrderDocId(startDate))
+    .where(idField, '<=', dailyOrderDocId(endDate));
+}
+
+function subscribeToDailyOrders() {
+  if (unsubscribeDailyOrders) {
+    unsubscribeDailyOrders();
+    unsubscribeDailyOrders = null;
+  }
+  if (!canQueryDailyOrders()) return;
+  dailyLiveWindowStart = getDailyLiveWindowStart();
+  unsubscribeDailyOrders = dailyOrdersQuery(dailyLiveWindowStart, '9999-12-31').onSnapshot(snap => {
+    snap.docChanges().forEach(change => {
+      if (change.type === 'removed') {
+        dailyOrderDocs.delete(change.doc.id);
+      } else {
+        dailyOrderDocs.set(change.doc.id, change.doc.data().orders || []);
+      }
+    });
+    rebuildOrdersFromSources();
+    refreshOrderViews();
+  }, err => {
+    console.error('每日客單即時同步錯誤:', err);
+  });
+  probeDailyOrderStore();
+}
+
+// 確認此帳號可建立每日客單文件；若資料庫規則不允許，改寫入舊位置，確保開單不中斷
+async function probeDailyOrderStore() {
+  if (!canQueryDailyOrders() || isCloudOffline() || typeof db.runTransaction !== 'function') return;
+  const ref = db.collection('salon_stores').doc(dailyOrderDocId(getLocalDateString()));
+  try {
+    await db.runTransaction(async t => {
+      const snap = await t.get(ref);
+      if (!snap.exists) t.set(ref, { orders: [] });
+    });
+    dailyStoreWritable = true;
+  } catch (err) {
+    if (err && err.code === 'permission-denied') {
+      dailyStoreWritable = false;
+      console.warn('[Firebase] 此帳號無法建立每日客單文件，改寫入 main_store');
+    }
+  }
+}
+
+// 查詢較早期間（如去年、半年前的月份）時才載入；回傳 'loaded' | 'loading' | 'started'
+const pendingOrderRangeLoads = new Set();
+const failedOrderRangeLoads = new Map(); // 載入失敗的範圍 -> 失敗時間，60 秒內不重試
+function ensureOrderRangeLoaded(startDate, endDate, onLoaded) {
+  if (!dailyLiveWindowStart || !canQueryDailyOrders() || startDate >= dailyLiveWindowStart) return 'loaded';
+  const lastMonth = (endDate < dailyLiveWindowStart ? endDate : dailyLiveWindowStart).slice(0, 7);
+  const months = [];
+  let [y, m] = startDate.slice(0, 7).split('-').map(Number);
+  while (true) {
+    const key = `${y}-${String(m).padStart(2, '0')}`;
+    if (key >= dailyLiveWindowStart.slice(0, 7) || key > lastMonth) break;
+    if (!loadedOrderMonths.has(key)) months.push(key);
+    m += 1;
+    if (m > 12) { m = 1; y += 1; }
+  }
+  if (months.length === 0) return 'loaded';
+  const loadKey = months.join(',');
+  if (pendingOrderRangeLoads.has(loadKey)) return 'loading';
+  if (Date.now() - (failedOrderRangeLoads.get(loadKey) || 0) < 60000) return 'loading';
+  pendingOrderRangeLoads.add(loadKey);
+  dailyOrdersQuery(`${months[0]}-01`, `${months[months.length - 1]}-31`).get()
+    .then(snap => {
+      months.forEach(k => loadedOrderMonths.add(k));
+      snap.forEach(doc => dailyOrderDocs.set(doc.id, doc.data().orders || []));
+      rebuildOrdersFromSources();
+      if (typeof onLoaded === 'function') onLoaded();
+    })
+    .catch(err => {
+      failedOrderRangeLoads.set(loadKey, Date.now());
+      console.warn('載入較早客單失敗:', err);
+    })
+    .finally(() => pendingOrderRangeLoads.delete(loadKey));
+  return 'started';
+}
+
+// 備份用：讀取全部每日文件並與舊客單合併
+async function fetchAllOrdersForBackup() {
+  if (!canQueryDailyOrders()) return appState.orders.slice();
+  const snap = await dailyOrdersQuery('0000-00-00', '9999-12-31').get();
+  snap.forEach(doc => dailyOrderDocs.set(doc.id, doc.data().orders || []));
+  rebuildOrdersFromSources();
+  return appState.orders.slice();
+}
+
+// 客單異動後刷新相關畫面
+function refreshOrderViews() {
+  try {
+    localStorage.setItem('SALON_PAY_LOCAL_CACHE', JSON.stringify(appState));
+  } catch (_) {}
+  if (typeof populateHistoryYearOptions === 'function') populateHistoryYearOptions();
+  if (typeof filterHistoryOrders === 'function') filterHistoryOrders();
+  if (typeof calculateMonthlyPayroll === 'function') calculateMonthlyPayroll();
+  if (typeof generateNewOrderNo === 'function') generateNewOrderNo();
+  if (typeof renderPosWizard === 'function') renderPosWizard();
 }
 
 // ==========================================
@@ -371,13 +556,38 @@ function toFirestoreSafe(obj) {
   return JSON.parse(JSON.stringify(obj));
 }
 
-// 新增客單：arrayUnion 由伺服器端附加，離線時亦可排隊、回線後只附加這一筆
+function getOrderDocRef(docId) {
+  return (currentUser && db) ? db.collection('salon_stores').doc(docId) : null;
+}
+
+// 新增客單：寫入該日的每日文件，arrayUnion 由伺服器端附加，離線時亦可排隊、回線後只附加這一筆
 async function appendOrderToCloud(order) {
   localStorage.setItem('SALON_PAY_LOCAL_CACHE', JSON.stringify(appState));
-  const ref = getStoreDocRef();
-  if (!ref) return;
-  const write = ref.set({ orders: firebase.firestore.FieldValue.arrayUnion(toFirestoreSafe(order)) }, { merge: true });
-  return waitForCloudWrite(write);
+  if (!getStoreDocRef()) return;
+  const key = getOrderKey(order);
+  const writeTo = async docId => {
+    localPendingOrders.set(key, { order, docId });
+    orderLocations.set(key, docId);
+    const write = getOrderDocRef(docId).set({ orders: firebase.firestore.FieldValue.arrayUnion(toFirestoreSafe(order)) }, { merge: true });
+    return waitForCloudWrite(write);
+  };
+  const dailyDocId = dailyOrderDocId(order.date);
+  try {
+    return await writeTo(dailyStoreWritable ? dailyDocId : LEGACY_ORDERS_DOC);
+  } catch (err) {
+    // 資料庫規則不允許建立每日文件時，改寫入舊位置，開單不中斷
+    if (dailyStoreWritable && err && err.code === 'permission-denied') {
+      dailyStoreWritable = false;
+      try {
+        return await writeTo(LEGACY_ORDERS_DOC);
+      } catch (retryErr) {
+        localPendingOrders.delete(key);
+        throw retryErr;
+      }
+    }
+    localPendingOrders.delete(key);
+    throw err;
+  }
 }
 
 // 等待雲端確認；離線或連線過慢時不阻塞畫面（寫入已存入本機佇列，回線後自動上傳），回傳 'queued'
@@ -396,16 +606,19 @@ async function waitForCloudWrite(write, timeoutMs = 4000) {
 // 撤回剛開立的客單（開單成功畫面的「復原」）：arrayRemove 只移除這一筆
 async function removeOrderFromCloud(order) {
   localStorage.setItem('SALON_PAY_LOCAL_CACHE', JSON.stringify(appState));
-  const ref = getStoreDocRef();
-  if (!ref) return;
+  if (!getStoreDocRef()) return;
+  const key = getOrderKey(order);
+  const docId = orderLocations.get(key) || localPendingOrders.get(key)?.docId || dailyOrderDocId(order.date);
+  localPendingOrders.delete(key);
+  const ref = getOrderDocRef(docId);
   const write = ref.update({ orders: firebase.firestore.FieldValue.arrayRemove(toFirestoreSafe(order)) });
   return waitForCloudWrite(write);
 }
 
 // 修改單筆客單（如作廢）：以交易讀取雲端最新資料後僅修改該筆，需連線
 async function updateOrderInCloud(orderId, patch) {
-  const ref = getStoreDocRef();
-  if (!ref) return;
+  if (!getStoreDocRef()) return;
+  const ref = getOrderDocRef(orderLocations.get(orderId) || LEGACY_ORDERS_DOC);
   if (isCloudOffline()) {
     throw new Error('目前離線中，請恢復網路連線後再操作');
   }

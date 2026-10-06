@@ -681,19 +681,41 @@ async function deleteStaffMember(staffId) {
   showToast('人員已刪除');
 }
 
-function backupDataToJson() {
+async function backupDataToJson() {
   if (currentUserRole !== 'admin') {
     appAlert('僅管理員有備份資料權限！');
     return;
   }
-  const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(appState, null, 2));
+  // 客單分散在每日文件中，備份前先讀取全部日期
+  let allOrders = appState.orders;
+  try {
+    if (typeof fetchAllOrdersForBackup === 'function') {
+      showToast('正在讀取全部客單…');
+      allOrders = await fetchAllOrdersForBackup();
+    }
+  } catch (err) {
+    console.error('讀取全部客單失敗:', err);
+    appAlert('讀取全部客單失敗，備份未完成：' + (err && err.message ? err.message : ''), { title: '備份未完成' });
+    return;
+  }
+  const backup = {
+    exportedAt: new Date().toISOString(),
+    appVersion: typeof APP_VERSION !== 'undefined' ? APP_VERSION : '',
+    services: appState.services,
+    staff: appState.staff,
+    deletedServiceIds: appState.deletedServiceIds || [],
+    orders: allOrders
+  };
+  const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+  const dataStr = URL.createObjectURL(blob);
   const downloadAnchor = document.createElement('a');
   downloadAnchor.setAttribute("href", dataStr);
   downloadAnchor.setAttribute("download", `SalonFlow_Backup_${new Date().toISOString().split('T')[0]}.json`);
   document.body.appendChild(downloadAnchor);
   downloadAnchor.click();
   downloadAnchor.remove();
-  showToast('已匯出系統備份檔案！');
+  setTimeout(() => URL.revokeObjectURL(dataStr), 1000);
+  showToast(`已匯出系統備份檔案（共 ${allOrders.length} 張客單）！`);
 }
 
 let pendingDeleteUser = null;

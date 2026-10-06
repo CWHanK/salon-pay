@@ -98,6 +98,11 @@
 
 ## 5. 資料結構規格 (Data Schema)
 
+### 5.0 客單儲存位置
+- 新客單：`salon_stores/orders_YYYY-MM-DD`，一天一份文件，欄位 `orders: OrderItem[]`。新增以 `arrayUnion`、撤回以 `arrayRemove`、作廢以交易只修改該筆，不會整份覆蓋。
+- 舊客單（2026-10-06 以前）：保留在 `salon_stores/main_store.orders`，不搬移、不刪除，讀取時與每日文件合併。
+- 即時同步範圍為上個月 1 號起；查詢更早期間時才向雲端載入該期間的每日文件。
+
 ```typescript
 // 人員實體 (Staff)
 interface Staff {

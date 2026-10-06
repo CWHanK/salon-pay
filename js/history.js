@@ -80,6 +80,9 @@ function populateHistoryYearOptions() {
       }
     });
   }
+  // 較早年份的客單可能尚未載入，補齊最早年份至今的每一年
+  const minYear = Math.min(...years);
+  for (let y = minYear; y <= currentYear; y++) years.add(y);
   const sortedYears = Array.from(years).sort((a, b) => b - a);
   const currentVal = yearSelect.value || String(currentYear);
   yearSelect.innerHTML = sortedYears.map(y => `<option value="${y}">${y} 年</option>`).join('');
@@ -154,6 +157,14 @@ function filterHistoryOrders() {
     const currentYM = typeof getCurrentYearMonth === 'function' ? getCurrentYearMonth() : todayStr.slice(0, 7);
     if (monthInput && !monthInput.value) monthInput.value = currentYM;
     filterVal = monthInput?.value || currentYM;
+  }
+
+  // 查詢較早期間時，向雲端載入該期間的每日客單（載入完成後自動重新顯示）
+  if (typeof ensureOrderRangeLoaded === 'function') {
+    const rangeStart = currentHistoryPeriod === 'day' ? filterVal : (currentHistoryPeriod === 'year' ? `${filterVal}-01-01` : `${filterVal}-01`);
+    const rangeEnd = currentHistoryPeriod === 'day' ? filterVal : (currentHistoryPeriod === 'year' ? `${filterVal}-12-31` : `${filterVal}-31`);
+    const loadState = ensureOrderRangeLoaded(rangeStart, rangeEnd, () => filterHistoryOrders());
+    if (loadState === 'started' && typeof showToast === 'function') showToast('正在載入較早的紀錄…');
   }
 
   const filtered = appState.orders.filter(order => {

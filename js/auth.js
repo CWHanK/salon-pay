@@ -276,6 +276,7 @@ function onUserLoggedOut() {
     unsubscribeConnectionStatus();
     unsubscribeConnectionStatus = null;
   }
+  if (typeof resetOrderSources === 'function') resetOrderSources();
   currentUser = null;
   currentUserRole = null;
   currentLinkedStaff = null;

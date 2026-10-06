@@ -315,6 +315,19 @@ function renderPosWizard() {
       badgeProd.className = 'text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-700';
     }
   }
+
+  // 有「其他」分類自訂項目時才顯示「其他」磚塊
+  const tileOther = document.getElementById('pos-tile-other');
+  if (tileOther) {
+    const hasOther = getCustomServicesByCategory('其他').length > 0;
+    tileOther.classList.toggle('hidden', !hasOther);
+    tileOther.classList.toggle('flex', hasOther);
+    const grid = document.getElementById('pos-cat-grid');
+    if (grid) {
+      grid.classList.toggle('lg:grid-cols-7', !hasOther);
+      grid.classList.toggle('lg:grid-cols-8', hasOther);
+    }
+  }
 }
 
 function openPosCategoryModal(catId) {
@@ -332,7 +345,8 @@ function openPosCategoryModal(catId) {
     treatment: { emoji: '🧖', title: '護髮' },
     color: { emoji: '🎨', title: '染髮' },
     perm: { emoji: '🦱', title: '燙髮' },
-    products: { emoji: '🧴', title: '產品' }
+    products: { emoji: '🧴', title: '產品' },
+    other: { emoji: '📋', title: '其他' }
   };
 
   const meta = catMeta[catId] || { emoji: '📋', title: '選項' };
@@ -354,10 +368,62 @@ function openPosCategoryModal(catId) {
     renderPermOptions(contentEl);
   } else if (catId === 'products') {
     renderProductsOptions(contentEl);
+  } else if (catId === 'other') {
+    contentEl.innerHTML = '';
   }
+  appendCustomServiceOptions(contentEl, catId);
 
   modal.classList.remove('hidden');
   if (window.lucide) lucide.createIcons();
+}
+
+// POS 分類代碼 → 服務項目 category 對照（產品銷售由 renderProductsOptions 動態列出，不需額外附加）
+const POS_CATEGORY_TO_SERVICE_CATEGORY = {
+  cut: '剪髮',
+  shampoo: '洗頭',
+  scalp: '去角質',
+  treatment: '護髮',
+  color: '染髮',
+  perm: '燙髮',
+  other: '其他'
+};
+
+// 管理員於「設定」新增的自訂項目（非內建 DEFAULT_SERVICES）
+function getCustomServicesByCategory(category) {
+  const defaultIds = new Set((typeof DEFAULT_SERVICES !== 'undefined' ? DEFAULT_SERVICES : []).map(s => s.id));
+  const knownCategories = Object.values(POS_CATEGORY_TO_SERVICE_CATEGORY).concat('產品銷售');
+  const services = (typeof appState !== 'undefined' && Array.isArray(appState.services)) ? appState.services : [];
+  return services.filter(s => {
+    if (!s || defaultIds.has(s.id)) return false;
+    const cat = knownCategories.includes(s.category) ? s.category : '其他';
+    return cat === category;
+  });
+}
+
+function appendCustomServiceOptions(el, catId) {
+  const category = POS_CATEGORY_TO_SERVICE_CATEGORY[catId];
+  if (!el || !category) return;
+  const customs = getCustomServicesByCategory(category);
+  const esc = str => String(str ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+  if (customs.length === 0) {
+    if (catId === 'other') {
+      el.innerHTML = '<div class="p-6 text-center text-slate-400 text-xs">尚無「其他」自訂項目，請至「設定」新增服務項目</div>';
+    }
+    return;
+  }
+
+  el.insertAdjacentHTML('beforeend', `
+    <div class="space-y-2 ${catId === 'other' ? '' : 'pt-3 mt-3 border-t border-slate-100'}">
+      ${catId === 'other' ? '' : '<div class="text-xs font-bold text-slate-500">自訂項目</div>'}
+      ${customs.map(s => `
+        <button type="button" onclick="selectPosItemWithDiscountCheck('${esc(s.id)}');" class="w-full p-3.5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
+          <div class="font-bold text-slate-900 text-sm">${esc(s.name)}</div>
+          <span class="text-sm font-black text-amber-700 font-numeric">NT$ ${(Number(s.price) || 0).toLocaleString()}</span>
+        </button>
+      `).join('')}
+    </div>
+  `);
 }
 
 function closePosPickerModal() {
@@ -389,12 +455,14 @@ function showItemDiscountPrompt(serviceId, originalPrice, name, qty, rate) {
   const discountPrice = (srv && typeof srv.empPrice === 'number' && srv.empPrice > 0 && srv.empPrice < originalPrice)
     ? srv.empPrice
     : Math.round(originalPrice * 0.9);
+  // 自訂項目名稱可能含引號，需轉義後才能安全放入 onclick 字串
+  const jsName = String(name).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 
   contentEl.innerHTML = `
     <div class="space-y-3 py-1">
       <div class="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between">
         <div>
-          <div class="font-bold text-slate-900 text-sm">${name}</div>
+          <div class="font-bold text-slate-900 text-sm">${String(name).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]))}</div>
           <div class="text-[11px] text-slate-400">請選擇計價方式</div>
         </div>
         <div class="text-right">
@@ -404,12 +472,12 @@ function showItemDiscountPrompt(serviceId, originalPrice, name, qty, rate) {
       </div>
 
       <div class="grid grid-cols-2 gap-2.5">
-        <button type="button" onclick="applyItemWithDiscount('${serviceId}', ${originalPrice}, '${name}', ${qty}, ${rate}, false); closePosPickerModal();" class="p-3.5 rounded-2xl border-2 border-slate-200 hover:border-slate-400 bg-white hover:bg-slate-50 transition text-center space-y-1 active:scale-98">
+        <button type="button" onclick="applyItemWithDiscount('${serviceId}', ${originalPrice}, '${jsName}', ${qty}, ${rate}, false); closePosPickerModal();" class="p-3.5 rounded-2xl border-2 border-slate-200 hover:border-slate-400 bg-white hover:bg-slate-50 transition text-center space-y-1 active:scale-98">
           <div class="text-xs font-bold text-slate-600">原價</div>
           <div class="text-base font-black text-slate-900 font-numeric">NT$ ${originalPrice.toLocaleString()}</div>
         </button>
 
-        <button type="button" onclick="applyItemWithDiscount('${serviceId}', ${discountPrice}, '${name}', ${qty}, ${rate}, true); closePosPickerModal();" class="p-3.5 rounded-2xl border-2 border-emerald-500 bg-emerald-50/80 hover:bg-emerald-100 transition text-center space-y-1 shadow-sm active:scale-98">
+        <button type="button" onclick="applyItemWithDiscount('${serviceId}', ${discountPrice}, '${jsName}', ${qty}, ${rate}, true); closePosPickerModal();" class="p-3.5 rounded-2xl border-2 border-emerald-500 bg-emerald-50/80 hover:bg-emerald-100 transition text-center space-y-1 shadow-sm active:scale-98">
           <div class="text-xs font-bold text-emerald-800 flex items-center justify-center gap-1">
             <i data-lucide="tag" class="w-3.5 h-3.5"></i> 打折 (9折)
           </div>
@@ -602,6 +670,7 @@ function setPermChemicalType(type) {
   const contentEl = document.getElementById('pos-picker-content');
   if (contentEl) {
     renderPermOptions(contentEl);
+    appendCustomServiceOptions(contentEl, 'perm');
   }
 }
 

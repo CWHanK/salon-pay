@@ -280,7 +280,7 @@
             <span class="text-xs sm:text-sm font-black text-slate-900">服務項目</span>
           </div>
 
-          <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5">
+          <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5" id="pos-cat-grid">
             
             <button type="button" onclick="openPosCategoryModal('cut')" class="pos-cat-tile p-3 rounded-2xl border border-slate-200 hover:border-amber-400 bg-white hover:bg-amber-50/50 transition text-left flex flex-col justify-between shadow-2xs hover:shadow-sm active:scale-98">
               <div class="flex items-center justify-between">
@@ -336,6 +336,14 @@
                 <span id="pos-badge-prod" class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-emerald-100 text-emerald-800">9折</span>
               </div>
               <div class="mt-2 font-black text-sm text-slate-900">產品</div>
+            </button>
+
+            <button type="button" id="pos-tile-other" onclick="openPosCategoryModal('other')" class="pos-cat-tile hidden p-3 rounded-2xl border border-slate-200 hover:border-amber-400 bg-white hover:bg-amber-50/50 transition text-left flex-col justify-between shadow-2xs hover:shadow-sm active:scale-98">
+              <div class="flex items-center justify-between">
+                <span class="text-xl">📋</span>
+                <span id="pos-badge-other" class="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-700">自訂</span>
+              </div>
+              <div class="mt-2 font-black text-sm text-slate-900">其他</div>
             </button>
 
           </div>
@@ -830,7 +838,7 @@
         </div>
         <div class="text-[11px] text-slate-500 leading-relaxed flex items-center gap-2">
           <span>目前版本：</span>
-          <span id="settings-current-version" class="font-mono bg-slate-100 text-slate-700 px-2 py-0.5 rounded font-bold">v20260916_2</span>
+          <span id="settings-current-version" class="font-mono bg-slate-100 text-slate-700 px-2 py-0.5 rounded font-bold">v20261006_1</span>
           <span class="text-[10px] text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200/60 font-medium">背景即時偵測中</span>
         </div>
         <div class="pt-2 border-t border-slate-100 flex flex-wrap items-center justify-end gap-2">
@@ -1061,15 +1069,15 @@
     <span id="toast-message" class="font-medium">操作完成</span>
   </div>
 
-  <script src="js/constants.js?v=20260916_2"></script>
-  <script src="js/state.js?v=20260916_2"></script>
-  <script src="js/version.js?v=20260916_2"></script>
-  <script src="js/firebase.js?v=20260916_2"></script>
-  <script src="js/auth.js?v=20260916_2"></script>
-  <script src="js/billing.js?v=20260916_2"></script>
-  <script src="js/history.js?v=20260916_2"></script>
-  <script src="js/monthly.js?v=20260916_2"></script>
-  <script src="js/settings.js?v=20260916_2"></script>
-  <script src="js/main.js?v=20260916_2"></script>
+  <script src="js/constants.js?v=20261006_1"></script>
+  <script src="js/state.js?v=20261006_1"></script>
+  <script src="js/version.js?v=20261006_1"></script>
+  <script src="js/firebase.js?v=20261006_1"></script>
+  <script src="js/auth.js?v=20261006_1"></script>
+  <script src="js/billing.js?v=20261006_1"></script>
+  <script src="js/history.js?v=20261006_1"></script>
+  <script src="js/monthly.js?v=20261006_1"></script>
+  <script src="js/settings.js?v=20261006_1"></script>
+  <script src="js/main.js?v=20261006_1"></script>
 </body>
 </html>

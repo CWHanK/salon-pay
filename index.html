@@ -163,8 +163,8 @@
         </div>
         
         <div class="flex items-center space-x-2">
-          <div class="flex items-center gap-1 text-[11px] font-medium text-emerald-600 bg-emerald-50/80 px-2.5 py-1 rounded-full border border-emerald-200/50">
-            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <div id="header-sync-pill" title="已連線，資料已同步" class="flex items-center gap-1 text-[11px] font-medium text-emerald-600 bg-emerald-50/80 px-2.5 py-1 rounded-full border border-emerald-200/50">
+            <span id="header-sync-dot" class="w-2 h-2 rounded-full bg-emerald-500"></span>
             <span id="header-user-email">雲端同步中</span>
           </div>
 
@@ -190,6 +190,13 @@
       </nav>
     </div>
   </header>
+
+  <div id="offline-banner" class="hidden bg-rose-600 text-white text-xs font-semibold no-print">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 py-2 flex items-center gap-2">
+      <i data-lucide="wifi-off" class="w-4 h-4 shrink-0"></i>
+      <span>目前離線：開單會先存在這台裝置，恢復連線後自動上傳。作廢客單需要連線。</span>
+    </div>
+  </div>
 
   <main class="flex-1 max-w-7xl w-full mx-auto px-3.5 sm:px-6 lg:px-8 py-4 sm:py-6 no-print">
 
@@ -221,6 +228,7 @@
 
         <div class="mt-2 pt-2 border-t border-white/15 flex items-center justify-between text-xs text-amber-100/90 font-medium">
           <span id="summary-card-items-count">0 項服務</span>
+          <span id="today-summary-text" class="font-numeric"></span>
         </div>
       </div>
 
@@ -368,7 +376,7 @@
         </div>
 
         <div class="space-y-2 pt-1">
-          <button type="button" onclick="saveCurrentOrder()" class="w-full bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-black py-3.5 px-4 rounded-2xl shadow-lg shadow-emerald-600/25 transition flex items-center justify-center gap-2 text-base">
+          <button type="button" onclick="reviewCurrentOrder()" class="w-full bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-black py-3.5 px-4 rounded-2xl shadow-lg shadow-emerald-600/25 transition flex items-center justify-center gap-2 text-base">
             <i data-lucide="check-circle-2" class="w-5 h-5"></i> 確認開單
           </button>
           
@@ -838,7 +846,7 @@
         </div>
         <div class="text-[11px] text-slate-500 leading-relaxed flex items-center gap-2">
           <span>目前版本：</span>
-          <span id="settings-current-version" class="font-mono bg-slate-100 text-slate-700 px-2 py-0.5 rounded font-bold">v20261006_1</span>
+          <span id="settings-current-version" class="font-mono bg-slate-100 text-slate-700 px-2 py-0.5 rounded font-bold">v20261006_2</span>
           <span class="text-[10px] text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200/60 font-medium">背景即時偵測中</span>
         </div>
         <div class="pt-2 border-t border-slate-100 flex flex-wrap items-center justify-end gap-2">
@@ -874,6 +882,72 @@
   </div> 
 
   <div id="printable-slip" class="hidden"></div>
+
+  <div id="modal-order-confirm" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-3 sm:p-4 hidden">
+    <div class="bg-white rounded-3xl max-w-md w-full p-5 shadow-2xl space-y-4 max-h-[90vh] flex flex-col">
+      <div class="flex justify-between items-center">
+        <h4 class="text-base font-black text-slate-900">確認開單內容</h4>
+        <button type="button" onclick="closeOrderConfirmModal()" class="text-slate-400 hover:text-slate-600">
+          <i data-lucide="x" class="w-5 h-5"></i>
+        </button>
+      </div>
+
+      <div class="grid grid-cols-3 gap-2 text-xs">
+        <div class="rounded-xl bg-slate-50 border border-slate-200 p-2">
+          <div class="text-slate-400 font-semibold">設計師</div>
+          <div id="order-confirm-staff" class="font-bold text-slate-900 truncate"></div>
+        </div>
+        <div class="rounded-xl bg-slate-50 border border-slate-200 p-2">
+          <div class="text-slate-400 font-semibold">日期</div>
+          <div id="order-confirm-date" class="font-bold text-slate-900 font-numeric"></div>
+        </div>
+        <div class="rounded-xl bg-amber-50 border border-amber-300 p-2">
+          <div class="text-amber-700 font-semibold">顧客身分</div>
+          <div id="order-confirm-customer" class="font-black text-amber-900"></div>
+        </div>
+      </div>
+
+      <div id="order-confirm-items" class="divide-y divide-slate-100 overflow-y-auto min-h-0"></div>
+
+      <div id="order-confirm-notes-wrap" class="hidden text-xs text-slate-600 bg-slate-50 rounded-xl px-3 py-2">
+        備註：<span id="order-confirm-notes"></span>
+      </div>
+
+      <div class="flex items-baseline justify-between border-t border-slate-200 pt-3">
+        <span class="text-sm font-bold text-slate-600">實收總額</span>
+        <span class="text-2xl font-black text-slate-900 font-numeric">NT$ <span id="order-confirm-total">0</span></span>
+      </div>
+
+      <div class="flex gap-2">
+        <button type="button" onclick="closeOrderConfirmModal()" class="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-2xl text-sm transition">返回修改</button>
+        <button type="button" id="order-confirm-submit" onclick="confirmOrderFromReview()" class="flex-[2] py-3 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-60 text-white font-black rounded-2xl text-sm transition flex items-center justify-center gap-1.5 shadow-lg shadow-emerald-600/25">
+          <i data-lucide="check-circle-2" class="w-4 h-4"></i> 確認開單
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal-order-success" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+    <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl text-center space-y-4">
+      <div class="w-14 h-14 mx-auto rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center">
+        <i data-lucide="check" class="w-8 h-8"></i>
+      </div>
+      <div>
+        <div class="text-sm font-bold text-emerald-700">開單成功</div>
+        <div id="order-success-no" class="mt-1 text-lg font-black text-slate-900 font-mono"></div>
+        <div class="mt-1 text-4xl font-black text-slate-900 font-numeric">NT$ <span id="order-success-amount">0</span></div>
+      </div>
+      <div id="order-success-offline" class="hidden text-xs font-semibold text-rose-700 bg-rose-50 border border-rose-200 rounded-xl px-3 py-2">
+        目前離線，這張單已存在本機，恢復連線後會自動上傳
+      </div>
+      <div class="flex gap-2">
+        <button type="button" id="order-success-undo-btn" onclick="undoLastOrder()" class="flex-1 py-3 bg-slate-100 hover:bg-slate-200 disabled:opacity-60 text-slate-700 font-bold rounded-2xl text-sm transition flex items-center justify-center gap-1">
+          <i data-lucide="undo-2" class="w-4 h-4"></i> 復原 (<span id="order-success-undo-count">5</span>)
+        </button>
+        <button type="button" onclick="closeOrderSuccess()" class="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-black rounded-2xl text-sm transition">完成</button>
+      </div>
+    </div>
+  </div>
 
   <div id="modal-service" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
     <div class="bg-white rounded-3xl max-w-sm sm:max-w-md w-full p-6 shadow-2xl space-y-3.5">
@@ -1069,15 +1143,16 @@
     <span id="toast-message" class="font-medium">操作完成</span>
   </div>
 
-  <script src="js/constants.js?v=20261006_1"></script>
-  <script src="js/state.js?v=20261006_1"></script>
-  <script src="js/version.js?v=20261006_1"></script>
-  <script src="js/firebase.js?v=20261006_1"></script>
-  <script src="js/auth.js?v=20261006_1"></script>
-  <script src="js/billing.js?v=20261006_1"></script>
-  <script src="js/history.js?v=20261006_1"></script>
-  <script src="js/monthly.js?v=20261006_1"></script>
-  <script src="js/settings.js?v=20261006_1"></script>
-  <script src="js/main.js?v=20261006_1"></script>
+  <script src="js/constants.js?v=20261006_2"></script>
+  <script src="js/state.js?v=20261006_2"></script>
+  <script src="js/dialog.js?v=20261006_2"></script>
+  <script src="js/version.js?v=20261006_2"></script>
+  <script src="js/firebase.js?v=20261006_2"></script>
+  <script src="js/auth.js?v=20261006_2"></script>
+  <script src="js/billing.js?v=20261006_2"></script>
+  <script src="js/history.js?v=20261006_2"></script>
+  <script src="js/monthly.js?v=20261006_2"></script>
+  <script src="js/settings.js?v=20261006_2"></script>
+  <script src="js/main.js?v=20261006_2"></script>
 </body>
 </html>

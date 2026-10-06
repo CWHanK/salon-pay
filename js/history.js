@@ -363,28 +363,49 @@ async function deleteOrder(orderId) {
   const order = appState.orders.find(o => o.id === orderId);
   if (!order) return;
   if (order.isDeleted) {
-    alert('此客單已處於作廢狀態！');
+    appAlert('此客單已處於作廢狀態！');
     return;
   }
   if (currentUserRole === 'staff') {
     if (!currentLinkedStaff || order.staffId !== currentLinkedStaff.id) {
-      alert('您僅能管理自己開立的客單！');
+      appAlert('您僅能管理自己開立的客單！');
       return;
     }
   }
-  if (!confirm('確定要作廢此筆客單嗎？（系統將保留作廢稽核紀錄並同步至雲端）')) return;
+  if (!(await appConfirm(`單號 ${order.orderNo || ''}　NT$ ${(order.totalAmount || 0).toLocaleString()}\n\n作廢後不計入營業額與抽成，系統會保留作廢紀錄。`, { title: '確定作廢此筆客單？', okText: '作廢', danger: true }))) return;
 
   // 軟刪除：保留資料並標記刪除者身分與時間
-  order.isDeleted = true;
-  order.deletedAt = new Date().toISOString();
-  order.deletedBy = currentUser ? (currentUser.uid || '') : '';
   const deleterName = currentLinkedStaff
     ? `${currentLinkedStaff.name}${currentUserRole === 'admin' ? ' (管理員)' : ''}`
     : (currentUserRole === 'admin' ? '管理員' : (currentUser?.displayName || currentUser?.email || '店內人員'));
-  order.deletedByName = deleterName;
-  order.deletedByRole = currentUserRole;
+  const patch = {
+    isDeleted: true,
+    deletedAt: new Date().toISOString(),
+    deletedBy: currentUser ? (currentUser.uid || '') : '',
+    deletedByName: deleterName,
+    deletedByRole: currentUserRole
+  };
+  const previous = {};
+  Object.keys(patch).forEach(k => { previous[k] = order[k]; });
+  Object.assign(order, patch);
 
-  await syncDataToCloud('orders');
+  try {
+    // 只修改雲端上的這一筆，不以整份客單清單覆蓋
+    if (typeof updateOrderInCloud === 'function') {
+      await updateOrderInCloud(orderId, patch);
+    } else {
+      await syncDataToCloud('orders');
+    }
+  } catch (err) {
+    Object.keys(previous).forEach(k => {
+      if (previous[k] === undefined) delete order[k];
+      else order[k] = previous[k];
+    });
+    console.error('作廢客單失敗:', err);
+    appAlert('作廢失敗：' + (err && err.message ? err.message : '無法連線至雲端'), { title: '作廢未完成' });
+    filterHistoryOrders();
+    return;
+  }
   filterHistoryOrders();
   showToast('客單已標記作廢，並記錄刪除人員與時間');
 }
@@ -412,7 +433,7 @@ function exportHistoryToExcel() {
   
   if (currentUserRole === 'staff') {
     if (!currentLinkedStaff) {
-      alert('您的帳號尚未由管理員綁定店內人員身分，目前無紀錄可匯出！');
+      appAlert('您的帳號尚未由管理員綁定店內人員身分，目前無紀錄可匯出！');
       return;
     }
     staffVal = currentLinkedStaff.id;
@@ -434,7 +455,7 @@ function exportHistoryToExcel() {
   });
 
   if (filtered.length === 0) {
-    alert('目前篩選條件下無任何紀錄可匯出！');
+    appAlert('目前篩選條件下無任何紀錄可匯出！');
     return;
   }
 

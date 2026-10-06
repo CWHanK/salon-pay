@@ -272,6 +272,10 @@ function onUserLoggedOut() {
     unsubscribeUsersList();
     unsubscribeUsersList = null;
   }
+  if (typeof unsubscribeConnectionStatus !== 'undefined' && unsubscribeConnectionStatus) {
+    unsubscribeConnectionStatus();
+    unsubscribeConnectionStatus = null;
+  }
   currentUser = null;
   currentUserRole = null;
   currentLinkedStaff = null;
@@ -280,7 +284,8 @@ function onUserLoggedOut() {
   appState = {
     services: [],
     staff: [],
-    orders: []
+    orders: [],
+    deletedServiceIds: []
   };
 
   // 2. 清除本機快取中的敏感業務資訊
@@ -311,7 +316,7 @@ function onUserLoggedOut() {
 
 // 登出按鈕
 async function handleSignOut() {
-  if (!confirm('確定要登出系統嗎？')) return;
+  if (!(await appConfirm('確定要登出系統嗎？', { title: '登出', okText: '登出' }))) return;
   if (firebase.auth) {
     await firebase.auth().signOut();
   }
@@ -380,26 +385,26 @@ function applyRolePermissions() {
 // 管理員在名冊中切換使用者權限
 async function toggleUserRole(uid, newRole) {
   if (currentUserRole !== 'admin') {
-    alert('僅管理員有調整身分權限！');
+    appAlert('僅管理員有調整身分權限！');
     return;
   }
-  if (!confirm(`確定要將該帳號身分調整為「${newRole === 'admin' ? '管理員' : '員工'}」嗎？`)) return;
+  if (!(await appConfirm(`確定要將該帳號身分調整為「${newRole === 'admin' ? '管理員' : '員工'}」嗎？`, { title: '調整身分' }))) return;
   try {
     await db.collection('salon_users').doc(uid).update({ role: newRole });
     showToast(`已成功將身分更新為 ${newRole === 'admin' ? '管理員' : '員工'}`);
   } catch(e) {
-    alert('身分更新失敗：' + e.message);
+    appAlert('身分更新失敗：' + e.message);
   }
 }
 
 // 員工憑密鑰將自身帳號升級為管理員
 async function upgradeSelfToAdmin() {
   if (currentUserRole === 'admin') {
-    alert('您目前已是管理員身分！');
+    appAlert('您目前已是管理員身分！');
     return;
   }
   if (!currentUser || !db) {
-    alert('尚未連線或未登入！');
+    appAlert('尚未連線或未登入！');
     return;
   }
 
@@ -407,7 +412,7 @@ async function upgradeSelfToAdmin() {
   const inputKey = (keyInput?.value || '').trim();
 
   if (!inputKey) {
-    alert('請輸入店家管理員授權密鑰！');
+    appAlert('請輸入店家管理員授權密鑰！');
     keyInput?.focus();
     return;
   }
@@ -437,7 +442,7 @@ async function upgradeSelfToAdmin() {
     showToast('🎉 身分已成功升級為「店家管理員」！');
   } catch (err) {
     console.error('升級失敗:', err);
-    alert('升級管理員失敗：授權密鑰不正確，請重新確認！');
+    appAlert('升級管理員失敗：授權密鑰不正確，請重新確認！');
   }
 }
 
@@ -452,7 +457,7 @@ async function demoteSelfToStaff() {
     confirmMsg += '\n\n⚠️ 提醒：店內名單中目前無其他管理員帳號，降級後若需恢復管理權限，需由其他管理員在後台指定或於資料庫調整。';
   }
 
-  if (!confirm(confirmMsg)) return;
+  if (!(await appConfirm(confirmMsg, { title: '降級為員工', okText: '確定降級', danger: true }))) return;
 
   try {
     await db.collection('salon_users').doc(currentUser.uid).set({
@@ -473,7 +478,7 @@ async function demoteSelfToStaff() {
     showToast('已成功將自身帳號降級為「員工」身分！');
   } catch (err) {
     console.error('降級失敗:', err);
-    alert('降級身分失敗：' + (err ? err.message : ''));
+    appAlert('降級身分失敗：' + (err ? err.message : ''));
   }
 }
 

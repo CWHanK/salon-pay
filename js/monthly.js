@@ -113,7 +113,7 @@ function exportMonthlyReportExcel() {
   const staffId = document.getElementById('monthly-select-staff')?.value;
   const staff = appState.staff.find(s => s.id === staffId);
   if (!staff || !monthVal) {
-    alert('請先選擇欲結算匯出之員工！');
+    appAlert('請先選擇欲結算匯出之員工！');
     return;
   }
 
@@ -168,7 +168,7 @@ function exportMonthlyReportExcel() {
 
 function printSalarySlip() {
   if (currentUserRole === 'staff') {
-    alert('員工身分無列印薪資單權限！');
+    appAlert('員工身分無列印薪資單權限！');
     return;
   }
   const monthVal = document.getElementById('monthly-select-month')?.value;

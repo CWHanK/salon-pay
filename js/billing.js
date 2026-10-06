@@ -328,6 +328,8 @@ function renderPosWizard() {
       grid.classList.toggle('lg:grid-cols-8', hasOther);
     }
   }
+
+  renderTodaySummary();
 }
 
 function openPosCategoryModal(catId) {
@@ -906,18 +908,32 @@ function removeServiceRow(rowId) {
   renderBillingRows();
 }
 
-function promptEditRowPrice(rowId) {
-  const row = currentBillingRows.find(r => r.rowId === rowId);
-  if (!row) return;
-  const currentPrice = row.price || 0;
-  const input = prompt(`請輸入「${row.name || '此項目'}」的自訂單價 (NT$)：`, currentPrice);
-  if (input !== null) {
-    const num = parseFloat(input);
-    if (!isNaN(num) && num >= 0) {
-      onRowInputChange(rowId, 'price', num);
-      renderBillingRows();
-    }
+// 列上直接修改單價（取代瀏覽器跳窗）
+let editingPriceRowId = null;
+
+function startEditRowPrice(rowId) {
+  editingPriceRowId = rowId;
+  renderBillingRows();
+  const input = document.getElementById(`${rowId}-price-input`);
+  if (input) {
+    input.focus();
+    input.select?.();
   }
+}
+
+function commitRowPriceEdit(rowId, value) {
+  if (editingPriceRowId !== rowId) return;
+  editingPriceRowId = null;
+  const num = parseFloat(value);
+  if (!isNaN(num) && num >= 0) {
+    onRowInputChange(rowId, 'price', num);
+  }
+  renderBillingRows();
+}
+
+function cancelRowPriceEdit() {
+  editingPriceRowId = null;
+  renderBillingRows();
 }
 
 function onServiceSelectChange(rowId, selectedServiceId) {
@@ -977,39 +993,45 @@ function renderBillingRows() {
     const itemName = row.name || (srv ? srv.name : '美髮服務');
     const itemTotal = (row.price || 0) * (row.qty || 1);
 
+    // 兩行版面：第一行品名與刪除，第二行單價與數量小計，窄螢幕手機也不會擠壓
     return `
-      <div id="${row.rowId}" class="service-row-item p-3.5 sm:p-4 bg-slate-50/95 hover:bg-slate-50 border border-slate-200 rounded-2xl transition space-y-2 shadow-2xs">
-        <div class="flex items-center justify-between gap-2">
-          <div class="min-w-0 flex-1">
-            <div class="flex items-center gap-2">
-              <span class="w-5 h-5 rounded-md bg-amber-100 text-amber-800 text-xs font-bold flex items-center justify-center shrink-0">
-                ${index + 1}
-              </span>
-              <span class="font-bold text-slate-900 text-sm truncate">${itemName}</span>
-            </div>
-            <div class="text-xs text-slate-500 mt-0.5 pl-7 flex items-center gap-2">
-              <span>單價 NT$ ${(row.price || 0).toLocaleString()}</span>
-              <span class="text-slate-300">|</span>
-              <button type="button" onclick="promptEditRowPrice('${row.rowId}')" class="text-amber-700 hover:text-amber-800 underline text-[11px]">
-                修改金額
+      <div id="${row.rowId}" class="service-row-item p-3.5 sm:p-4 bg-slate-50/95 hover:bg-slate-50 border border-slate-200 rounded-2xl transition space-y-2.5 shadow-2xs">
+        <div class="flex items-start justify-between gap-2">
+          <div class="flex items-start gap-2 min-w-0">
+            <span class="w-5 h-5 mt-0.5 rounded-md bg-amber-100 text-amber-800 text-xs font-bold flex items-center justify-center shrink-0">
+              ${index + 1}
+            </span>
+            <span class="font-bold text-slate-900 text-sm leading-snug break-words">${escapeBillingText(itemName)}</span>
+          </div>
+          <button type="button" onclick="removeServiceRow('${row.rowId}')" class="p-1 -mr-1 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition shrink-0" title="移除此項目">
+            <i data-lucide="trash-2" class="w-4 h-4"></i>
+          </button>
+        </div>
+
+        <div class="flex flex-wrap items-center justify-between gap-2 pl-7">
+          <div class="text-xs text-slate-500 flex items-center gap-1.5 ${editingPriceRowId === row.rowId ? 'shrink-0' : 'min-w-0'}">
+            ${editingPriceRowId === row.rowId ? `
+              <span class="shrink-0">NT$</span>
+              <input type="number" inputmode="numeric" min="0" step="1" id="${row.rowId}-price-input" value="${row.price || 0}"
+                onkeydown="if (event.key === 'Enter') { event.preventDefault(); this.blur(); } else if (event.key === 'Escape') { cancelRowPriceEdit(); }"
+                onblur="commitRowPriceEdit('${row.rowId}', this.value)"
+                class="w-20 rounded-lg border border-amber-400 bg-white px-2 py-1 text-sm font-bold text-slate-900 font-numeric focus:ring-2 focus:ring-amber-500/30 focus:outline-none">
+              <button type="button" onmousedown="event.preventDefault()" onclick="commitRowPriceEdit('${row.rowId}', document.getElementById('${row.rowId}-price-input').value)" class="shrink-0 px-2 py-1 rounded-lg bg-amber-600 text-white text-[11px] font-bold">完成</button>
+            ` : `
+              <span class="whitespace-nowrap">單價 NT$ ${(row.price || 0).toLocaleString()}</span>
+              <button type="button" onclick="startEditRowPrice('${row.rowId}')" class="whitespace-nowrap text-amber-700 hover:text-amber-800 underline text-[11px] font-semibold">
+                修改
               </button>
-            </div>
+            `}
           </div>
 
-          <div class="flex items-center gap-2.5 shrink-0">
+          <div class="flex items-center gap-2 shrink-0 ml-auto">
             <div class="flex items-center border border-slate-300 rounded-xl overflow-hidden bg-white shadow-2xs">
               <button type="button" onclick="changeCartQty('${row.rowId}', -1)" class="w-8 h-8 flex items-center justify-center text-slate-600 hover:bg-slate-100 active:bg-slate-200 transition font-bold text-base select-none">−</button>
-              <span class="w-7 text-center text-xs font-bold font-numeric text-slate-900">${row.qty || 1}</span>
+              <span class="w-6 text-center text-xs font-bold font-numeric text-slate-900">${row.qty || 1}</span>
               <button type="button" onclick="changeCartQty('${row.rowId}', 1)" class="w-8 h-8 flex items-center justify-center text-slate-600 hover:bg-slate-100 active:bg-slate-200 transition font-bold text-base select-none">＋</button>
             </div>
-
-            <div class="text-right min-w-[70px]">
-              <strong id="${row.rowId}-subtotal" class="text-slate-900 font-numeric text-sm font-extrabold block">NT$ ${itemTotal.toLocaleString()}</strong>
-            </div>
-
-            <button type="button" onclick="removeServiceRow('${row.rowId}')" class="p-1.5 text-slate-400 hover:text-rose-600 rounded-lg hover:bg-rose-50 transition shrink-0" title="移除此項目">
-              <i data-lucide="trash-2" class="w-4 h-4"></i>
-            </button>
+            <strong id="${row.rowId}-subtotal" class="text-slate-900 font-numeric text-sm font-extrabold text-right min-w-[64px]">NT$ ${itemTotal.toLocaleString()}</strong>
           </div>
         </div>
       </div>
@@ -1045,39 +1067,115 @@ function updateRowCalculations() {
   if (totEl) totEl.textContent = totalAmount.toLocaleString();
 }
 
-async function saveCurrentOrder() {
+const POS_GENDER_LABELS = { female: '女性', male: '男性' };
+const POS_IDENTITY_LABELS = { employee: '在職員工', retiree: '退休員工', family: '員工眷屬', external: '非員工' };
+
+// 開單前檢查；不通過時提示原因並回傳 false
+function validateBillingBeforeSave() {
   if (typeof appState !== 'undefined' && appState.staff && appState.staff.length === 0) {
-    alert('系統中尚無人員！請先點擊上方提示或前往「設定」新增第一位設計師！');
+    appAlert('系統中尚無人員！請先點擊上方提示或前往「設定」新增第一位設計師！');
     if (typeof currentUserRole !== 'undefined' && currentUserRole === 'admin' && typeof openStaffModal === 'function') {
       openStaffModal();
     }
-    return;
+    return false;
   }
 
   if (!currentBillingRows || currentBillingRows.length === 0) {
-    alert('請至少新增一項服務項目！');
-    return;
+    appAlert('請至少新增一項服務項目！');
+    return false;
   }
 
   const unselectedRow = currentBillingRows.find(r => !r.serviceId);
   if (unselectedRow) {
-    alert('請為所有項目選擇服務項目！');
-    return;
+    appAlert('請為所有項目選擇服務項目！');
+    return false;
   }
 
   if (typeof currentLinkedStaff === 'undefined' || !currentLinkedStaff) {
     if (typeof currentUserRole !== 'undefined' && currentUserRole === 'admin') {
-      alert('您的管理員帳號尚未綁定店內設計師身分，目前無法開單！請先至「設定」綁定或新增人員。');
+      appAlert('您的管理員帳號尚未綁定店內設計師身分，目前無法開單！請先至「設定」綁定或新增人員。');
       if (typeof openStaffModal === 'function') openStaffModal();
     } else {
-      alert('您的帳號尚未由管理員綁定店內人員身分，目前無法開單！請聯繫管理員協助綁定。');
+      appAlert('您的帳號尚未由管理員綁定店內人員身分，目前無法開單！請聯繫管理員協助綁定。');
     }
+    return false;
+  }
+  return true;
+}
+
+function escapeBillingText(str) {
+  return String(str ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+// 「確認開單」按鈕：先顯示確認卡，讓設計師與顧客核對項目、身分與總額
+function reviewCurrentOrder() {
+  if (editingPriceRowId) {
+    const input = document.getElementById(`${editingPriceRowId}-price-input`);
+    commitRowPriceEdit(editingPriceRowId, input ? input.value : '');
+  }
+  if (!validateBillingBeforeSave()) return;
+
+  const modal = document.getElementById('modal-order-confirm');
+  if (!modal) {
+    saveCurrentOrder();
     return;
   }
 
-  if (typeof confirm === 'function' && !confirm('確認開單？')) {
-    return;
+  const dateVal = document.getElementById('billing-date')?.value || getLocalDateString();
+  const notes = document.getElementById('billing-notes')?.value?.trim() || '';
+  let total = 0;
+  const itemsHtml = currentBillingRows.map(r => {
+    const qty = r.qty || 1;
+    const amount = (r.price || 0) * qty;
+    total += amount;
+    return `
+      <div class="flex items-start justify-between gap-3 py-2">
+        <div class="min-w-0">
+          <div class="text-sm font-bold text-slate-900">${escapeBillingText(r.name || getServiceItem(r.serviceId)?.name || '美髮項目')}</div>
+          <div class="text-xs text-slate-500 font-numeric">NT$ ${(r.price || 0).toLocaleString()} × ${qty}</div>
+        </div>
+        <div class="text-sm font-black text-slate-900 font-numeric shrink-0">NT$ ${amount.toLocaleString()}</div>
+      </div>
+    `;
+  }).join('');
+
+  const setText = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
+  setText('order-confirm-staff', currentLinkedStaff.name);
+  setText('order-confirm-date', dateVal);
+  setText('order-confirm-customer', `${POS_GENDER_LABELS[posGender] || ''} · ${POS_IDENTITY_LABELS[posIdentity] || ''}`);
+  setText('order-confirm-total', total.toLocaleString());
+  const itemsEl = document.getElementById('order-confirm-items');
+  if (itemsEl) itemsEl.innerHTML = itemsHtml;
+  const notesWrap = document.getElementById('order-confirm-notes-wrap');
+  if (notesWrap) notesWrap.classList.toggle('hidden', !notes);
+  setText('order-confirm-notes', notes);
+
+  const btn = document.getElementById('order-confirm-submit');
+  if (btn) btn.disabled = false;
+  modal.classList.remove('hidden');
+  if (window.lucide) lucide.createIcons();
+}
+
+function closeOrderConfirmModal() {
+  document.getElementById('modal-order-confirm')?.classList.add('hidden');
+}
+
+async function confirmOrderFromReview() {
+  const btn = document.getElementById('order-confirm-submit');
+  if (btn) {
+    if (btn.disabled) return;
+    btn.disabled = true;
   }
+  try {
+    const ok = await saveCurrentOrder();
+    if (ok) closeOrderConfirmModal();
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function saveCurrentOrder() {
+  if (!validateBillingBeforeSave()) return false;
 
   const staff = currentLinkedStaff;
   const dateVal = document.getElementById('billing-date')?.value || (typeof getLocalDateString === 'function' ? getLocalDateString() : new Date().toISOString().split('T')[0]);
@@ -1109,12 +1207,12 @@ async function saveCurrentOrder() {
   });
 
   const salonNet = Math.max(0, totalAmount - totalCommission);
-  const finalOrderNo = typeof getNextOrderNo === 'function' 
-    ? getNextOrderNo(dateVal) 
+  const finalOrderNo = typeof getNextOrderNo === 'function'
+    ? getNextOrderNo(dateVal)
     : (document.getElementById('billing-order-no')?.textContent?.replace('單號：', '')?.trim() || `T-${dateVal.replace(/-/g, '')}-001`);
 
   const newOrder = {
-    id: 'ord-' + Date.now(),
+    id: 'ord-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7),
     orderNo: finalOrderNo,
     date: dateVal,
     time: timeVal,
@@ -1131,19 +1229,147 @@ async function saveCurrentOrder() {
     createdAt: new Date().toISOString()
   };
 
+  // 保留目前購物車，供「復原」時還原
+  const undoSnapshot = {
+    order: newOrder,
+    rows: JSON.parse(JSON.stringify(currentBillingRows)),
+    notes,
+    date: dateVal,
+    posGender,
+    posIdentity,
+    posPermChemical
+  };
+
   if (typeof appState !== 'undefined' && appState.orders) {
     appState.orders.unshift(newOrder);
   }
 
-  if (typeof syncDataToCloud === 'function') {
-    await syncDataToCloud('orders');
-  }
-
-  if (typeof showToast === 'function') {
-    showToast('開單成功！');
+  let writeResult = 'synced';
+  try {
+    if (typeof appendOrderToCloud === 'function') {
+      writeResult = await appendOrderToCloud(newOrder);
+    } else if (typeof syncDataToCloud === 'function') {
+      await syncDataToCloud('orders');
+    }
+  } catch (err) {
+    // 寫入失敗：撤回本機這一筆，保留購物車讓使用者可再試一次
+    if (typeof appState !== 'undefined' && appState.orders) {
+      appState.orders = appState.orders.filter(o => o.id !== newOrder.id);
+    }
+    console.error('開單寫入失敗:', err);
+    appAlert('開單失敗，項目仍保留在畫面上，請稍後再試一次。\n\n原因：' + (err && err.message ? err.message : '無法連線至雲端'), { title: '開單未完成' });
+    return false;
   }
 
   resetBillingForm();
+  showOrderSuccess(undoSnapshot, writeResult === 'queued');
+  return true;
+}
+
+// ==========================================
+// 開單成功畫面：大字顯示單號與金額，5 秒內可復原
+// ==========================================
+const ORDER_UNDO_SECONDS = 5;
+let lastOrderUndo = null;
+let orderUndoTimer = null;
+
+function showOrderSuccess(undoSnapshot, isQueued) {
+  const modal = document.getElementById('modal-order-success');
+  if (!modal) {
+    if (typeof showToast === 'function') showToast(isQueued ? '開單成功（離線暫存，連線後自動上傳）' : '開單成功！');
+    return;
+  }
+  clearOrderUndoTimer();
+  lastOrderUndo = undoSnapshot;
+
+  const setText = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
+  setText('order-success-no', undoSnapshot.order.orderNo);
+  setText('order-success-amount', undoSnapshot.order.totalAmount.toLocaleString());
+  document.getElementById('order-success-offline')?.classList.toggle('hidden', !isQueued);
+
+  const undoBtn = document.getElementById('order-success-undo-btn');
+  if (undoBtn) undoBtn.disabled = false;
+  let remaining = ORDER_UNDO_SECONDS;
+  setText('order-success-undo-count', remaining);
+  orderUndoTimer = setInterval(() => {
+    remaining -= 1;
+    setText('order-success-undo-count', remaining);
+    if (remaining <= 0) {
+      closeOrderSuccess();
+    }
+  }, 1000);
+
+  modal.classList.remove('hidden');
+  if (window.lucide) lucide.createIcons();
+}
+
+function clearOrderUndoTimer() {
+  if (orderUndoTimer) {
+    clearInterval(orderUndoTimer);
+    orderUndoTimer = null;
+  }
+}
+
+function closeOrderSuccess() {
+  clearOrderUndoTimer();
+  lastOrderUndo = null;
+  document.getElementById('modal-order-success')?.classList.add('hidden');
+}
+
+async function undoLastOrder() {
+  const snap = lastOrderUndo;
+  if (!snap) return;
+  const undoBtn = document.getElementById('order-success-undo-btn');
+  if (undoBtn) undoBtn.disabled = true;
+  clearOrderUndoTimer();
+
+  appState.orders = appState.orders.filter(o => o.id !== snap.order.id);
+  try {
+    if (typeof removeOrderFromCloud === 'function') {
+      await removeOrderFromCloud(snap.order);
+    } else if (typeof syncDataToCloud === 'function') {
+      await syncDataToCloud('orders');
+    }
+  } catch (err) {
+    console.error('復原客單失敗:', err);
+    closeOrderSuccess();
+    appAlert(`這張單（${snap.order.orderNo}）沒能撤回，請到「歷史紀錄」將它作廢。`, { title: '復原失敗' });
+    return;
+  }
+
+  // 還原購物車，讓使用者修改後重新開單
+  currentBillingRows = snap.rows;
+  posGender = snap.posGender;
+  posIdentity = snap.posIdentity;
+  posPermChemical = snap.posPermChemical;
+  const notesEl = document.getElementById('billing-notes');
+  if (notesEl) notesEl.value = snap.notes;
+  const dateEl = document.getElementById('billing-date');
+  if (dateEl) dateEl.value = snap.date;
+
+  closeOrderSuccess();
+  generateNewOrderNo();
+  renderPosWizard();
+  renderBillingRows();
+  if (typeof showToast === 'function') showToast(`已復原，單號 ${snap.order.orderNo} 已取消，可修改後重新開單`);
+}
+
+// 開單頁「今日小計」：員工看自己的，管理員看全店
+function renderTodaySummary() {
+  const el = document.getElementById('today-summary-text');
+  if (!el) return;
+  const isAdmin = typeof currentUserRole !== 'undefined' && currentUserRole === 'admin';
+  const linked = typeof currentLinkedStaff !== 'undefined' ? currentLinkedStaff : null;
+  if (!isAdmin && !linked) {
+    el.textContent = '';
+    return;
+  }
+  const today = typeof getLocalDateString === 'function' ? getLocalDateString() : new Date().toISOString().split('T')[0];
+  const orders = (typeof appState !== 'undefined' && Array.isArray(appState.orders)) ? appState.orders : [];
+  const todayOrders = orders.filter(o => o && !o.isDeleted && o.date === today &&
+    (isAdmin || o.staffId === linked.id || o.assistantId === linked.id));
+  const sum = todayOrders.reduce((acc, o) => acc + (o.totalAmount || 0), 0);
+  el.textContent = `${isAdmin ? '全店今日' : '我今日'} ${todayOrders.length} 單 · NT$ ${sum.toLocaleString()}`;
 }
 
 function resetBillingForm() {

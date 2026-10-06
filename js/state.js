@@ -47,27 +47,29 @@ function updateLinkedStaff() {
   const email = (currentUser.email || '').toLowerCase();
   const username = formatEmailToUsername(email).toLowerCase();
 
-  currentLinkedStaff = appState.staff.find(s => {
-    const sLinkedEmail = s.linkedEmail ? formatUsernameToEmail(s.linkedEmail).toLowerCase() : '';
-    const sLinkedUsername = s.linkedEmail ? formatEmailToUsername(s.linkedEmail).toLowerCase() : '';
-    return (s.linkedUid && s.linkedUid === uid) || 
-      (sLinkedEmail && sLinkedEmail === email) ||
-      (sLinkedUsername && sLinkedUsername === username) ||
-      (s.name && username && s.name.toLowerCase() === username);
-  }) || null;
+  const staffList = Array.isArray(appState.staff) ? appState.staff : [];
+  const matchesEmail = s => {
+    if (!s.linkedEmail) return false;
+    const sLinkedEmail = formatUsernameToEmail(s.linkedEmail).toLowerCase();
+    const sLinkedUsername = formatEmailToUsername(s.linkedEmail).toLowerCase();
+    return sLinkedEmail === email || (!!username && sLinkedUsername === username);
+  };
+  // 依可靠程度依序比對：已綁定 UID → 管理員設定的綁定帳號（帳號唯一，可信）→ 尚無任何綁定的人員且姓名與帳號相同
+  // 已有綁定的人員不會被別人以姓名搶綁
+  currentLinkedStaff =
+    staffList.find(s => s.linkedUid && s.linkedUid === uid) ||
+    staffList.find(matchesEmail) ||
+    staffList.find(s => !s.linkedUid && !s.linkedEmail && s.name && username && s.name.toLowerCase() === username) ||
+    null;
 
-  // 若找到人員但缺少 linkedUid / linkedEmail，補充綁定並同步
-  if (currentLinkedStaff && (!currentLinkedStaff.linkedUid || !currentLinkedStaff.linkedEmail)) {
-    currentLinkedStaff.linkedUid = uid;
-    currentLinkedStaff.linkedEmail = email;
-    if (typeof syncDataToCloud === 'function') syncDataToCloud('staff').catch(() => {});
-  }
-
-  // 若仍未配對到且店內僅有一位未綁定人員，自動進行綁定
-  if (!currentLinkedStaff && appState.staff && appState.staff.length === 1 && !appState.staff[0].linkedUid) {
-    appState.staff[0].linkedUid = uid;
-    appState.staff[0].linkedEmail = email;
-    currentLinkedStaff = appState.staff[0];
+  // 若找到人員但 UID 未綁定（或帳號重新註冊後 UID 已變）/ 缺少綁定帳號，補上並同步
+  const exactEmailMatch = !!currentLinkedStaff?.linkedEmail &&
+    formatUsernameToEmail(currentLinkedStaff.linkedEmail).toLowerCase() === email;
+  const shouldRebindUid = currentLinkedStaff && currentLinkedStaff.linkedUid !== uid &&
+    (!currentLinkedStaff.linkedUid || exactEmailMatch);
+  if (currentLinkedStaff && (shouldRebindUid || !currentLinkedStaff.linkedEmail)) {
+    if (shouldRebindUid) currentLinkedStaff.linkedUid = uid;
+    if (!currentLinkedStaff.linkedEmail) currentLinkedStaff.linkedEmail = email;
     if (typeof syncDataToCloud === 'function') syncDataToCloud('staff').catch(() => {});
   }
 }

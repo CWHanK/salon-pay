@@ -136,7 +136,8 @@ test('cloud updates retain a billing draft and a new subscription initializes on
     ...callbacks,
     localStorage: { setItem() {} },
     initBillingForm() { initialized++; run('currentBillingRows = []'); },
-    fakeDb: { collection: () => ({ doc: () => ({ onSnapshot(fn) { snapshot = fn; return () => {}; } }) }) }
+    // 第一個參數為選項物件者是連線狀態監聽，不屬於資料同步
+    fakeDb: { collection: () => ({ doc: () => ({ onSnapshot(fn) { if (typeof fn === 'function') snapshot = fn; return () => {}; } }) }) }
   });
   run('db = fakeDb; subscribeToCloudData()');
   const doc = { exists: true, data: () => ({ staff: [], services: [], orders: [] }) };
@@ -188,7 +189,7 @@ test('soft deleting an order retains data, logs deleter name and time, and exclu
   const { elements, run } = setup(['history'], {
     syncDataToCloud: async () => { synced++; },
     showToast() {},
-    confirm: () => true
+    appConfirm: async () => true
   });
   elements.set('history-table-body', {});
   elements.set('history-cards-mobile', {});

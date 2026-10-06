@@ -46,8 +46,10 @@ function initFirebase() {
 }
 
 
-function ensureServicesSynced(existingServices) {
-  const defaultList = (typeof DEFAULT_SERVICES !== 'undefined') ? DEFAULT_SERVICES : [];
+// deletedServiceIds：管理員刪除的內建項目 ID 清單，同步時不再自動補回
+function ensureServicesSynced(existingServices, deletedServiceIds = []) {
+  const deletedSet = new Set(Array.isArray(deletedServiceIds) ? deletedServiceIds : []);
+  const defaultList = ((typeof DEFAULT_SERVICES !== 'undefined') ? DEFAULT_SERVICES : []).filter(def => !deletedSet.has(def.id));
   const norm = (typeof normalizeServiceName === 'function')
     ? normalizeServiceName
     : (name => String(name || '').replace(/[\s\(\)\-_（）]/g, '').toLowerCase());
@@ -63,7 +65,7 @@ function ensureServicesSynced(existingServices) {
     return false;
   };
 
-  const cleanExisting = (Array.isArray(existingServices) ? existingServices : []).filter(s => !isDeprecatedService(s));
+  const cleanExisting = (Array.isArray(existingServices) ? existingServices : []).filter(s => !isDeprecatedService(s) && !deletedSet.has(s.id));
 
   if (cleanExisting.length === 0) {
     return defaultList.map(s => {
@@ -202,17 +204,22 @@ function subscribeToCloudData() {
         }
       }
 
-      appState.services = ensureServicesSynced(data.services);
+      appState.deletedServiceIds = Array.isArray(data.deletedServiceIds) ? data.deletedServiceIds : [];
+      appState.services = ensureServicesSynced(data.services, appState.deletedServiceIds);
       appState.staff = data.staff || [];
-      appState.orders = data.orders || [];
+      appState.orders = sortOrdersNewestFirst(data.orders || []);
 
-      // 若目前使用者為管理員，且雲端版本與當前本機版本不一致（例如管理員降版或更新版本），自動同步管理員當前版本至雲端
-      if (currentUserRole === 'admin' && currentUser && typeof APP_VERSION !== 'undefined' && data.appVersion !== APP_VERSION) {
+      // 版本較舊的管理員裝置（尚未更新快取）不得回寫雲端，避免與新版裝置互相覆蓋形成循環
+      const hasVersionApi = typeof APP_VERSION !== 'undefined' && typeof isNewerVersion === 'function';
+      const isOutdatedClient = hasVersionApi && !!data.appVersion && isNewerVersion(data.appVersion, APP_VERSION);
+
+      // 管理員裝置版本較新時，才自動將雲端廣播版本往上校正（降版需由設定頁手動執行）
+      if (currentUserRole === 'admin' && currentUser && hasVersionApi && (!data.appVersion || isNewerVersion(APP_VERSION, data.appVersion))) {
         storeDocRef.set({ appVersion: APP_VERSION }, { merge: true })
           .then(() => console.log(`[Firebase] 管理員已成功將雲端廣播版本同步校正為: ${APP_VERSION}`))
           .catch(e => console.warn('自動同步雲端版本失敗:', e));
       }
-      if (currentUserRole === 'admin' && currentUser && Array.isArray(data.services) && JSON.stringify(appState.services) !== JSON.stringify(data.services)) {
+      if (currentUserRole === 'admin' && currentUser && !isOutdatedClient && Array.isArray(data.services) && JSON.stringify(appState.services) !== JSON.stringify(data.services)) {
         storeDocRef.set({ services: appState.services }, { merge: true }).catch(e => console.warn('自動同步清理雲端廢棄服務失敗:', e));
       }
 
@@ -292,6 +299,134 @@ function subscribeToCloudData() {
   }, err => {
     console.error('Firestore 共享沙龍即時同步錯誤:', err);
   });
+
+  subscribeToConnectionStatus(storeDocRef);
+}
+
+// 客單依日期、時間、建立時間由新到舊排序（雲端以 arrayUnion 附加時新單位於陣列尾端）
+function sortOrdersNewestFirst(orders) {
+  const key = o => `${o?.date || ''} ${o?.time || ''} ${o?.createdAt || ''}`;
+  return (Array.isArray(orders) ? orders.slice() : []).sort((a, b) => key(b).localeCompare(key(a)));
+}
+
+// ==========================================
+// 連線狀態指示：區分「已同步 / 上傳中 / 離線暫存」
+// ==========================================
+let unsubscribeConnectionStatus = null;
+let cloudSyncState = 'synced';
+
+function subscribeToConnectionStatus(storeDocRef) {
+  if (unsubscribeConnectionStatus) {
+    unsubscribeConnectionStatus();
+    unsubscribeConnectionStatus = null;
+  }
+  const update = (fromCache, hasPendingWrites) => {
+    const offline = (typeof navigator !== 'undefined' && navigator.onLine === false) || fromCache;
+    cloudSyncState = offline ? 'offline' : (hasPendingWrites ? 'pending' : 'synced');
+    renderConnectionStatus();
+  };
+  let lastMeta = { fromCache: false, hasPendingWrites: false };
+  unsubscribeConnectionStatus = storeDocRef.onSnapshot({ includeMetadataChanges: true }, doc => {
+    lastMeta = { fromCache: doc.metadata.fromCache, hasPendingWrites: doc.metadata.hasPendingWrites };
+    update(lastMeta.fromCache, lastMeta.hasPendingWrites);
+  }, () => update(true, false));
+
+  if (!subscribeToConnectionStatus.listening && typeof window !== 'undefined' && window.addEventListener) {
+    subscribeToConnectionStatus.listening = true;
+    window.addEventListener('online', () => update(lastMeta.fromCache, lastMeta.hasPendingWrites));
+    window.addEventListener('offline', () => update(true, lastMeta.hasPendingWrites));
+  }
+}
+
+function renderConnectionStatus() {
+  const pill = document.getElementById('header-sync-pill');
+  const dot = document.getElementById('header-sync-dot');
+  const banner = document.getElementById('offline-banner');
+  const styles = {
+    synced: { pill: 'text-emerald-600 bg-emerald-50/80 border-emerald-200/50', dot: 'bg-emerald-500', title: '已連線，資料已同步' },
+    pending: { pill: 'text-amber-700 bg-amber-50/80 border-amber-200/60', dot: 'bg-amber-500 animate-pulse', title: '資料上傳中…' },
+    offline: { pill: 'text-rose-700 bg-rose-50/80 border-rose-200/60', dot: 'bg-rose-500 animate-pulse', title: '目前離線：開單會先存在本機，恢復連線後自動上傳' }
+  };
+  const s = styles[cloudSyncState] || styles.synced;
+  if (pill) {
+    pill.className = `flex items-center gap-1 text-[11px] font-medium px-2.5 py-1 rounded-full border ${s.pill}`;
+    pill.title = s.title;
+  }
+  if (dot) dot.className = `w-2 h-2 rounded-full ${s.dot}`;
+  if (banner) banner.classList.toggle('hidden', cloudSyncState !== 'offline');
+}
+
+function isCloudOffline() {
+  return cloudSyncState === 'offline' || (typeof navigator !== 'undefined' && navigator.onLine === false);
+}
+
+// ==========================================
+// 客單寫入：只「附加 / 修改單筆」，絕不以整份陣列覆蓋，避免多裝置同時開單或離線裝置回線時覆蓋他人客單
+// ==========================================
+function getStoreDocRef() {
+  return (currentUser && db) ? db.collection('salon_stores').doc('main_store') : null;
+}
+
+function toFirestoreSafe(obj) {
+  return JSON.parse(JSON.stringify(obj));
+}
+
+// 新增客單：arrayUnion 由伺服器端附加，離線時亦可排隊、回線後只附加這一筆
+async function appendOrderToCloud(order) {
+  localStorage.setItem('SALON_PAY_LOCAL_CACHE', JSON.stringify(appState));
+  const ref = getStoreDocRef();
+  if (!ref) return;
+  const write = ref.set({ orders: firebase.firestore.FieldValue.arrayUnion(toFirestoreSafe(order)) }, { merge: true });
+  return waitForCloudWrite(write);
+}
+
+// 等待雲端確認；離線或連線過慢時不阻塞畫面（寫入已存入本機佇列，回線後自動上傳），回傳 'queued'
+async function waitForCloudWrite(write, timeoutMs = 4000) {
+  write.catch(err => console.error('雲端寫入失敗:', err));
+  if (isCloudOffline()) return 'queued';
+  let timer = null;
+  const timeout = new Promise(resolve => { timer = setTimeout(() => resolve('queued'), timeoutMs); });
+  try {
+    return await Promise.race([write.then(() => 'synced'), timeout]);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+// 撤回剛開立的客單（開單成功畫面的「復原」）：arrayRemove 只移除這一筆
+async function removeOrderFromCloud(order) {
+  localStorage.setItem('SALON_PAY_LOCAL_CACHE', JSON.stringify(appState));
+  const ref = getStoreDocRef();
+  if (!ref) return;
+  const write = ref.update({ orders: firebase.firestore.FieldValue.arrayRemove(toFirestoreSafe(order)) });
+  return waitForCloudWrite(write);
+}
+
+// 修改單筆客單（如作廢）：以交易讀取雲端最新資料後僅修改該筆，需連線
+async function updateOrderInCloud(orderId, patch) {
+  const ref = getStoreDocRef();
+  if (!ref) return;
+  if (isCloudOffline()) {
+    throw new Error('目前離線中，請恢復網路連線後再操作');
+  }
+  let timer = null;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error('連線逾時，請確認網路後重新整理，查看此單狀態')), 10000);
+  });
+  const tx = db.runTransaction(async t => {
+    const snap = await t.get(ref);
+    const orders = (snap.exists && Array.isArray(snap.data().orders)) ? snap.data().orders : [];
+    const idx = orders.findIndex(o => o && o.id === orderId);
+    if (idx === -1) throw new Error('雲端找不到此客單，請重新整理後再試');
+    orders[idx] = { ...orders[idx], ...toFirestoreSafe(patch) };
+    t.update(ref, { orders });
+  });
+  try {
+    await Promise.race([tx, timeout]);
+  } finally {
+    clearTimeout(timer);
+  }
+  localStorage.setItem('SALON_PAY_LOCAL_CACHE', JSON.stringify(appState));
 }
 
 
@@ -323,6 +458,9 @@ async function syncDataToCloud(targetField = null) {
       let payload = {};
       if (targetField === 'services') {
         payload = { services: appState.services };
+        if (Array.isArray(appState.deletedServiceIds)) {
+          payload.deletedServiceIds = appState.deletedServiceIds;
+        }
       } else if (targetField === 'staff') {
         payload = { staff: appState.staff };
       } else if (targetField === 'orders') {
@@ -373,7 +511,7 @@ function closeCloudConfigModal() {
 function saveCloudConfig() {
   const raw = document.getElementById('modal-config-input').value.trim();
   if (!raw) {
-    alert('請輸入或貼上 Firebase Config 代碼！');
+    appAlert('請輸入或貼上 Firebase Config 代碼！');
     return;
   }
 
@@ -404,6 +542,6 @@ function saveCloudConfig() {
     }, 800);
 
   } catch (err) {
-    alert('金鑰格式解析錯誤，請確認貼上的內容包含正確的 apiKey 與 projectId！\n\n錯誤訊息：' + err.message);
+    appAlert('金鑰格式解析錯誤，請確認貼上的內容包含正確的 apiKey 與 projectId！\n\n錯誤訊息：' + err.message);
   }
 }

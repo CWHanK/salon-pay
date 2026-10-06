@@ -148,14 +148,14 @@ function renderUsersTable() {
 
 async function changeAdminSecretKey() {
   if (currentUserRole !== 'admin') {
-    alert('僅管理員有此操作權限！');
+    appAlert('僅管理員有此操作權限！');
     return;
   }
-  const newKey = prompt('請輸入新的沙龍管理員授權密鑰（建議 6 碼以上）：');
+  const newKey = await appPrompt('請輸入新的沙龍管理員授權密鑰（建議 6 碼以上）：', '', { title: '修改管理員授權密鑰', inputType: 'text' });
   if (!newKey || !newKey.trim()) return;
 
   if (newKey.trim().length < 4) {
-    alert('密鑰長度建議至少 4 碼以上！');
+    appAlert('密鑰長度建議至少 4 碼以上！');
     return;
   }
 
@@ -171,20 +171,20 @@ async function changeAdminSecretKey() {
     showToast('管理員授權密鑰已成功更新並加密儲存！');
   } catch (err) {
     console.error('更新密鑰失敗:', err);
-    alert('更新密鑰失敗：' + err.message);
+    appAlert('更新密鑰失敗：' + err.message);
   }
 }
 
 async function changeRegistrationSecretKey() {
   if (currentUserRole !== 'admin') {
-    alert('僅管理員有此操作權限！');
+    appAlert('僅管理員有此操作權限！');
     return;
   }
-  const newKey = prompt('請輸入新的店家註冊密鑰（全店員工與管理員註冊帳號時皆需輸入）：');
+  const newKey = await appPrompt('請輸入新的店家註冊密鑰（全店員工與管理員註冊帳號時皆需輸入）：', '', { title: '修改店家註冊密鑰', inputType: 'text' });
   if (!newKey || !newKey.trim()) return;
 
   if (newKey.trim().length < 4) {
-    alert('密鑰長度建議至少 4 碼以上！');
+    appAlert('密鑰長度建議至少 4 碼以上！');
     return;
   }
 
@@ -201,7 +201,7 @@ async function changeRegistrationSecretKey() {
     showToast('店家註冊密鑰已成功更新並加密儲存！');
   } catch (err) {
     console.error('更新店家註冊密鑰失敗:', err);
-    alert('更新店家註冊密鑰失敗：' + err.message);
+    appAlert('更新店家註冊密鑰失敗：' + err.message);
   }
 }
 
@@ -278,14 +278,16 @@ function getCategoryBadge(cat) {
 
 async function restoreDefaultServices() {
   if (currentUserRole !== 'admin') {
-    alert('僅管理員有此操作權限！');
+    appAlert('僅管理員有此操作權限！');
     return;
   }
-  if (!confirm('是否要補齊店內所有標準 POS 服務與產品項目？（現有已修改的價格、抽成與自訂項目皆會完整保留）')) {
+  if (!(await appConfirm('會補齊店內所有標準服務與產品項目，先前刪除的內建項目也會一併恢復。\n\n現有已修改的價格、抽成與自訂項目皆會完整保留。', { title: '補齊標準項目', okText: '補齊' }))) {
     return;
   }
+  // 補齊時一併恢復先前刪除的內建項目
+  appState.deletedServiceIds = [];
   if (typeof ensureServicesSynced === 'function') {
-    appState.services = ensureServicesSynced(appState.services);
+    appState.services = ensureServicesSynced(appState.services, []);
   }
   await syncDataToCloud('services');
   renderSettingsTables();
@@ -418,7 +420,7 @@ function onServiceModalCategoryChange(category) {
 
 function openServiceModal() {
   if (currentUserRole !== 'admin') {
-    alert('僅管理員有此操作權限！');
+    appAlert('僅管理員有此操作權限！');
     return;
   }
   document.getElementById('modal-service-id').value = '';
@@ -441,7 +443,7 @@ function openServiceModal() {
 
 function editServiceItem(serviceId) {
   if (currentUserRole !== 'admin') {
-    alert('僅管理員有此操作權限！');
+    appAlert('僅管理員有此操作權限！');
     return;
   }
   const srv = appState.services.find(s => s.id === serviceId);
@@ -472,7 +474,7 @@ function closeServiceModal() {
 
 async function saveServiceItem() {
   if (currentUserRole !== 'admin') {
-    alert('僅管理員有此操作權限！');
+    appAlert('僅管理員有此操作權限！');
     return;
   }
   const id = document.getElementById('modal-service-id').value;
@@ -485,7 +487,7 @@ async function saveServiceItem() {
   const allowDiscount = !!document.getElementById('modal-service-allow-discount')?.checked;
 
   if (!name) {
-    alert('請輸入服務項目名稱！');
+    appAlert('請輸入服務項目名稱！');
     return;
   }
 
@@ -527,15 +529,22 @@ async function saveServiceItem() {
 
 async function deleteServiceItem(serviceId) {
   if (currentUserRole !== 'admin') {
-    alert('僅管理員有此操作權限！');
+    appAlert('僅管理員有此操作權限！');
     return;
   }
   if (appState.services.length <= 1) {
-    alert('至少需保留一項服務項目！');
+    appAlert('至少需保留一項服務項目！');
     return;
   }
-  if (!confirm('確定要刪除此服務項目嗎？')) return;
+  const targetService = appState.services.find(s => s.id === serviceId);
+  if (!(await appConfirm(`「${targetService?.name || '此項目'}」刪除後不會再出現在開單畫面（已開立的客單不受影響）。\n\n內建項目日後可用「補齊標準項目」恢復。`, { title: '確定刪除此服務項目？', okText: '刪除', danger: true }))) return;
   appState.services = appState.services.filter(s => s.id !== serviceId);
+  // 刪除內建項目時記錄下來，避免同步時被自動補回（可由「補齊標準項目」恢復）
+  const isDefaultService = typeof DEFAULT_SERVICES !== 'undefined' && DEFAULT_SERVICES.some(d => d.id === serviceId);
+  if (isDefaultService) {
+    const deletedIds = Array.isArray(appState.deletedServiceIds) ? appState.deletedServiceIds : [];
+    if (!deletedIds.includes(serviceId)) appState.deletedServiceIds = [...deletedIds, serviceId];
+  }
   await syncDataToCloud('services');
   renderSettingsTables();
   if (typeof renderPosWizard === 'function') renderPosWizard();
@@ -544,7 +553,7 @@ async function deleteServiceItem(serviceId) {
 
 function openStaffModal() {
   if (currentUserRole !== 'admin') {
-    alert('僅管理員有此操作權限！');
+    appAlert('僅管理員有此操作權限！');
     return;
   }
   document.getElementById('modal-staff-id').value = '';
@@ -561,7 +570,7 @@ function openStaffModal() {
 
 function editStaffMember(staffId) {
   if (currentUserRole !== 'admin') {
-    alert('僅管理員有此操作權限！');
+    appAlert('僅管理員有此操作權限！');
     return;
   }
   const staff = appState.staff.find(s => s.id === staffId);
@@ -585,7 +594,7 @@ function closeStaffModal() {
 
 async function saveStaffMember() {
   if (currentUserRole !== 'admin') {
-    alert('僅管理員有此操作權限！');
+    appAlert('僅管理員有此操作權限！');
     return;
   }
   const id = document.getElementById('modal-staff-id').value;
@@ -598,7 +607,7 @@ async function saveStaffMember() {
     const selectEl = document.getElementById('modal-staff-user-select');
     const selectVal = selectEl ? selectEl.value : '';
     if (!selectVal || selectVal === '__MANUAL__') {
-      alert('請從選單中挑選要綁定的帳號，或點右上角切換至「手動輸入」！');
+      appAlert('請從選單中挑選要綁定的帳號，或點右上角切換至「手動輸入」！');
       selectEl?.focus();
       return;
     }
@@ -607,7 +616,7 @@ async function saveStaffMember() {
     const emailInput = document.getElementById('modal-staff-email');
     rawInput = (emailInput ? emailInput.value : '').trim();
     if (!rawInput) {
-      alert('請輸入人員綁定的自訂帳號（即使該人員「尚未註冊」亦可輸入，等日後註冊時系統會自動對應綁定）！');
+      appAlert('請輸入人員綁定的自訂帳號（即使該人員「尚未註冊」亦可輸入，等日後註冊時系統會自動對應綁定）！');
       emailInput?.focus();
       return;
     }
@@ -616,7 +625,7 @@ async function saveStaffMember() {
   const linkedEmail = formatUsernameToEmail(rawInput);
 
   if (!name) {
-    alert('請輸入人員姓名！');
+    appAlert('請輸入人員姓名！');
     document.getElementById('modal-staff-name')?.focus();
     return;
   }
@@ -660,10 +669,11 @@ async function saveStaffMember() {
 
 async function deleteStaffMember(staffId) {
   if (currentUserRole !== 'admin') {
-    alert('僅管理員有此操作權限！');
+    appAlert('僅管理員有此操作權限！');
     return;
   }
-  if (!confirm('確定要刪除這位工作人員嗎？')) return;
+  const targetStaff = appState.staff.find(s => s.id === staffId);
+  if (!(await appConfirm(`確定要刪除「${targetStaff?.name || '這位工作人員'}」嗎？（已開立的客單不受影響）`, { title: '刪除工作人員', okText: '刪除', danger: true }))) return;
   appState.staff = appState.staff.filter(s => s.id !== staffId);
   await syncDataToCloud('staff');
   populateStaffDropdowns();
@@ -673,7 +683,7 @@ async function deleteStaffMember(staffId) {
 
 function backupDataToJson() {
   if (currentUserRole !== 'admin') {
-    alert('僅管理員有備份資料權限！');
+    appAlert('僅管理員有備份資料權限！');
     return;
   }
   const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(appState, null, 2));
@@ -692,11 +702,11 @@ let deleteUserCountdownSeconds = 5;
 
 function startDeleteUserFlow(uid, email) {
   if (currentUserRole !== 'admin') {
-    alert('僅管理員有刪除帳號權限！');
+    appAlert('僅管理員有刪除帳號權限！');
     return;
   }
   if (currentUser && currentUser.uid === uid) {
-    alert('不可刪除您目前正在登入使用的管理員帳號！');
+    appAlert('不可刪除您目前正在登入使用的管理員帳號！');
     return;
   }
 
@@ -764,7 +774,7 @@ function closeDeleteUserModal() {
 async function executeDeleteUser() {
   if (!pendingDeleteUser) return;
   if (currentUserRole !== 'admin') {
-    alert('僅管理員有刪除帳號權限！');
+    appAlert('僅管理員有刪除帳號權限！');
     closeDeleteUserModal();
     return;
   }
@@ -788,7 +798,7 @@ async function executeDeleteUser() {
     });
 
     if (hasUpdatedStaff) {
-      await syncDataToCloud();
+      await syncDataToCloud('staff');
     }
 
     closeDeleteUserModal();
@@ -797,7 +807,7 @@ async function executeDeleteUser() {
     showToast(`已成功徹底刪除帳號：${formatEmailToUsername(email)}`);
   } catch (err) {
     console.error('刪除帳號失敗:', err);
-    alert('刪除帳號失敗：' + err.message);
+    appAlert('刪除帳號失敗：' + err.message);
     closeDeleteUserModal();
   }
 }
@@ -817,11 +827,11 @@ function updateServiceModalPreview() {
 // 管理員手動校正並同步當前版本至雲端廣播
 async function syncAppVersionToCloud() {
   if (currentUserRole !== 'admin') {
-    alert('僅管理員有權執行此操作！');
+    appAlert('僅管理員有權執行此操作！');
     return;
   }
   if (!db) {
-    alert('尚未連線至 Firebase 雲端！');
+    appAlert('尚未連線至 Firebase 雲端！');
     return;
   }
   try {
@@ -833,7 +843,7 @@ async function syncAppVersionToCloud() {
     }
   } catch (e) {
     console.error('同步雲端版本失敗:', e);
-    alert('同步失敗: ' + (e.message || e));
+    appAlert('同步失敗: ' + (e.message || e));
   }
 }
 
@@ -1002,7 +1012,7 @@ function syncBatchInputsFromMatched() {
 
 async function saveBatchServiceSettings() {
   if (currentUserRole !== 'admin') {
-    alert('僅管理員有此操作權限！');
+    appAlert('僅管理員有此操作權限！');
     return;
   }
 
@@ -1011,11 +1021,11 @@ async function saveBatchServiceSettings() {
   const allowDiscount = !!document.getElementById('batch-allow-discount')?.checked;
 
   if (priceVal === '' || isNaN(parseFloat(priceVal))) {
-    alert('請輸入有效的定價金額！');
+    appAlert('請輸入有效的定價金額！');
     return;
   }
   if (rateVal === '' || isNaN(parseFloat(rateVal))) {
-    alert('請輸入有效的抽成百分比！');
+    appAlert('請輸入有效的抽成百分比！');
     return;
   }
 
@@ -1024,7 +1034,7 @@ async function saveBatchServiceSettings() {
 
   const matched = getBatchMatchedServices();
   if (matched.length === 0) {
-    alert('未找到符合所選條件的服務項目！');
+    appAlert('未找到符合所選條件的服務項目！');
     return;
   }
 

@@ -178,6 +178,19 @@ function ensureServicesSynced(existingServices, deletedServiceIds = []) {
 }
 
 
+// 最近一次收到的店家資料是否為雲端最新版（非本機快取、非本機尚未上傳的資料）
+let storeSnapshotIsFresh = false;
+
+// 與欄位順序無關的比較用字串（雲端回傳的欄位順序與本機不同，不可直接用 JSON.stringify 比較）
+function stableStringify(value) {
+  if (Array.isArray(value)) return '[' + value.map(stableStringify).join(',') + ']';
+  if (value && typeof value === 'object') {
+    return '{' + Object.keys(value).sort().filter(k => value[k] !== undefined)
+      .map(k => JSON.stringify(k) + ':' + stableStringify(value[k])).join(',') + '}';
+  }
+  return JSON.stringify(value);
+}
+
 function subscribeToCloudData() {
   if (unsubscribeFirestore) {
     unsubscribeFirestore();
@@ -189,6 +202,9 @@ function subscribeToCloudData() {
   let billingInitialized = false;
 
   unsubscribeFirestore = storeDocRef.onSnapshot(async doc => {
+    // 開啟 App 時第一份資料常來自手機本機快取（可能是好幾天前的舊資料），舊資料只能拿來顯示，絕不可回寫雲端
+    const meta = doc.metadata || {};
+    storeSnapshotIsFresh = !meta.fromCache && !meta.hasPendingWrites;
     if (doc.exists) {
       const data = sanitizeOldMockData(doc.data());
 
@@ -220,7 +236,7 @@ function subscribeToCloudData() {
           .then(() => console.log(`[Firebase] 管理員已成功將雲端廣播版本同步校正為: ${APP_VERSION}`))
           .catch(e => console.warn('自動同步雲端版本失敗:', e));
       }
-      if (currentUserRole === 'admin' && currentUser && !isOutdatedClient && Array.isArray(data.services) && JSON.stringify(appState.services) !== JSON.stringify(data.services)) {
+      if (currentUserRole === 'admin' && currentUser && !isOutdatedClient && storeSnapshotIsFresh && Array.isArray(data.services) && stableStringify(appState.services) !== stableStringify(data.services)) {
         storeDocRef.set({ services: appState.services }, { merge: true }).catch(e => console.warn('自動同步清理雲端廢棄服務失敗:', e));
       }
 
@@ -690,6 +706,50 @@ async function updateOrderInCloud(orderId, patch) {
   localStorage.setItem('SALON_PAY_LOCAL_CACHE', JSON.stringify(appState));
 }
 
+// 服務項目 / 人員清單的單筆異動（新增、修改、刪除）：
+// 以交易讀取雲端「最新」清單，只改動這幾筆後寫回，不會用本機舊清單整包覆蓋其他管理員剛新增的內容
+// change: { upserts: [項目...], removeIds: [ID...], addDeletedServiceIds: [ID...] }
+async function applyListChangeInCloud(field, change = {}) {
+  localStorage.setItem('SALON_PAY_LOCAL_CACHE', JSON.stringify(appState));
+  const ref = getStoreDocRef();
+  if (!ref) return;
+  if (typeof db.runTransaction !== 'function') return syncDataToCloud(field);
+  const upserts = (change.upserts || []).filter(Boolean).map(toFirestoreSafe);
+  const removeIds = new Set(change.removeIds || []);
+  const addDeleted = (change.addDeletedServiceIds || []).filter(Boolean);
+  try {
+    if (isCloudOffline()) throw new Error('目前離線中，請恢復網路連線後再修改設定');
+    let timer = null;
+    const timeout = new Promise((_, reject) => {
+      timer = setTimeout(() => reject(new Error('連線逾時，請確認網路後重新整理再試一次')), 10000);
+    });
+    const tx = db.runTransaction(async t => {
+      const snap = await t.get(ref);
+      const data = snap.exists ? (snap.data() || {}) : {};
+      let list = Array.isArray(data[field]) ? data[field].slice() : [];
+      list = list.filter(item => !(item && removeIds.has(item.id)));
+      upserts.forEach(item => {
+        const idx = list.findIndex(x => x && x.id === item.id);
+        if (idx === -1) list.push(item); else list[idx] = item;
+      });
+      const payload = { [field]: list };
+      if (addDeleted.length > 0) {
+        const prev = Array.isArray(data.deletedServiceIds) ? data.deletedServiceIds : [];
+        payload.deletedServiceIds = [...new Set([...prev, ...addDeleted])];
+      }
+      t.set(ref, payload, { merge: true });
+    });
+    try {
+      await Promise.race([tx, timeout]);
+    } finally {
+      clearTimeout(timer);
+    }
+  } catch (err) {
+    console.error('上傳雲端失敗:', err);
+    if (typeof showToast === 'function') showToast('⚠️ 雲端同步失敗: ' + (err.message || '請檢查網路連線'));
+    throw err;
+  }
+}
 
 function subscribeToUsersList() {
   if (unsubscribeUsersList) {

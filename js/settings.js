@@ -278,6 +278,13 @@ function getCategoryBadge(cat) {
   return `<span class="inline-block text-[10px] font-bold px-1.5 py-0.2 rounded-md border ${cls}">${cat || '其他'}</span>`;
 }
 
+// 服務項目 / 人員的單筆異動上傳（只改動這幾筆，不整份覆蓋雲端清單）
+function saveListChange(field, change) {
+  return (typeof applyListChangeInCloud === 'function')
+    ? applyListChangeInCloud(field, change)
+    : syncDataToCloud(field);
+}
+
 async function restoreDefaultServices() {
   if (currentUserRole !== 'admin') {
     appAlert('僅管理員有此操作權限！');
@@ -493,8 +500,10 @@ async function saveServiceItem() {
     return;
   }
 
+  let changedItem = null;
   if (id) {
     const item = appState.services.find(s => s.id === id);
+    changedItem = item;
     if (item) {
       item.name = name;
       item.price = price;
@@ -520,9 +529,10 @@ async function saveServiceItem() {
       newItem.empPrice = empPrice;
     }
     appState.services.push(newItem);
+    changedItem = newItem;
   }
 
-  await syncDataToCloud('services');
+  await saveListChange('services', { upserts: [changedItem] });
   closeServiceModal();
   renderSettingsTables();
   if (typeof renderPosWizard === 'function') renderPosWizard();
@@ -547,7 +557,7 @@ async function deleteServiceItem(serviceId) {
     const deletedIds = Array.isArray(appState.deletedServiceIds) ? appState.deletedServiceIds : [];
     if (!deletedIds.includes(serviceId)) appState.deletedServiceIds = [...deletedIds, serviceId];
   }
-  await syncDataToCloud('services');
+  await saveListChange('services', { removeIds: [serviceId], addDeletedServiceIds: isDefaultService ? [serviceId] : [] });
   renderSettingsTables();
   if (typeof renderPosWizard === 'function') renderPosWizard();
   showToast('項目已刪除');
@@ -640,8 +650,10 @@ async function saveStaffMember() {
   );
   const linkedUid = registeredUser ? registeredUser.uid : '';
 
+  let changedStaff = null;
   if (id) {
     const s = appState.staff.find(item => item.id === id);
+    changedStaff = s;
     if (s) {
       s.name = name;
       s.role = role;
@@ -649,16 +661,17 @@ async function saveStaffMember() {
       s.linkedEmail = linkedEmail;
     }
   } else {
-    appState.staff.push({
+    changedStaff = {
       id: 'staff-' + Date.now(),
       name: name,
       role: role,
       linkedUid: linkedUid,
       linkedEmail: linkedEmail
-    });
+    };
+    appState.staff.push(changedStaff);
   }
 
-  await syncDataToCloud('staff');
+  await saveListChange('staff', { upserts: [changedStaff] });
   closeStaffModal();
   updateLinkedStaff();
   applyRolePermissions();
@@ -677,7 +690,7 @@ async function deleteStaffMember(staffId) {
   const targetStaff = appState.staff.find(s => s.id === staffId);
   if (!(await appConfirm(`確定要刪除「${targetStaff?.name || '這位工作人員'}」嗎？（已開立的客單不受影響）`, { title: '刪除工作人員', okText: '刪除', danger: true }))) return;
   appState.staff = appState.staff.filter(s => s.id !== staffId);
-  await syncDataToCloud('staff');
+  await saveListChange('staff', { removeIds: [staffId] });
   populateStaffDropdowns();
   renderSettingsTables();
   showToast('人員已刪除');
@@ -813,16 +826,16 @@ async function executeDeleteUser() {
   try {
     await db.collection('salon_users').doc(uid).delete();
 
-    let hasUpdatedStaff = false;
+    const unlinkedStaff = [];
     appState.staff.forEach(s => {
       if (s.linkedUid === uid) {
         s.linkedUid = '';
-        hasUpdatedStaff = true;
+        unlinkedStaff.push(s);
       }
     });
 
-    if (hasUpdatedStaff) {
-      await syncDataToCloud('staff');
+    if (unlinkedStaff.length > 0) {
+      await saveListChange('staff', { upserts: unlinkedStaff });
     }
 
     closeDeleteUserModal();
@@ -1071,7 +1084,7 @@ async function saveBatchServiceSettings() {
     }
   });
 
-  await syncDataToCloud('services');
+  await saveListChange('services', { upserts: matched });
   renderSettingsTables();
   if (typeof renderPosWizard === 'function') renderPosWizard();
   showToast(`已成功更新 ${matched.length} 項服務的定價與抽成！`);

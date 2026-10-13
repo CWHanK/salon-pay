@@ -201,3 +201,31 @@ test('backup reads every daily document plus the old orders', async () => {
   const all = await run('fetchAllOrdersForBackup()');
   assert.deepEqual(Array.from(all, o => o.id).sort(), ['legacy', 'march', 'today']);
 });
+
+test('an admin holding an old list never wipes out items another admin just added', async () => {
+  const store = fakeStore();
+  // 雲端：管理員 A 剛新增了「頭皮護理」
+  store.docs.set('main_store', { services: [{ id: 'a1', name: '剪髮' }, { id: 'srv-A', name: '頭皮護理' }] });
+  const run = setup(store);
+  // 管理員 B 的手機還是舊清單（沒有 A 的新項目）
+  run("appState.services = [{ id: 'a1', name: '剪髮' }];");
+  await run("applyListChangeInCloud('services', { upserts: [{ id: 'srv-B', name: '燙髮加長' }] })");
+  assert.deepEqual(store.docs.get('main_store').services.map(s => s.id), ['a1', 'srv-A', 'srv-B']);
+
+  await run("applyListChangeInCloud('services', { upserts: [{ id: 'a1', name: '剪髮', price: 300 }], removeIds: ['srv-B'], addDeletedServiceIds: ['x'] })");
+  const doc = store.docs.get('main_store');
+  assert.deepEqual(doc.services.map(s => s.id), ['a1', 'srv-A']);
+  assert.equal(doc.services[0].price, 300);
+  assert.deepEqual(Array.from(doc.deletedServiceIds), ['x']);
+});
+
+test('stale data from the phone cache is never written back to the cloud', () => {
+  const store = fakeStore();
+  const run = setup(store);
+  run(`appState.staff = [{ id: 's1', name: 'amy', linkedEmail: '' }];
+    currentUser = { uid: 'u9', email: 'amy@salon.local' };
+    storeSnapshotIsFresh = false;
+    updateLinkedStaff();`);
+  assert.equal(store.writes.length, 0);
+  assert.equal(run('stableStringify({ b: 1, a: [ { y: 2, x: 1 } ] })'), run('stableStringify({ a: [ { x: 1, y: 2 } ], b: 1 })'));
+});

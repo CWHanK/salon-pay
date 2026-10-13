@@ -70,7 +70,13 @@ function updateLinkedStaff() {
   if (currentLinkedStaff && (shouldRebindUid || !currentLinkedStaff.linkedEmail)) {
     if (shouldRebindUid) currentLinkedStaff.linkedUid = uid;
     if (!currentLinkedStaff.linkedEmail) currentLinkedStaff.linkedEmail = email;
-    if (typeof syncDataToCloud === 'function') syncDataToCloud('staff').catch(() => {});
+    // 只在拿到雲端最新資料時才回寫，且只更新這一位人員，避免以手機快取的舊名單覆蓋管理員剛新增的人員
+    const isFresh = typeof storeSnapshotIsFresh === 'undefined' || storeSnapshotIsFresh;
+    if (isFresh && typeof applyListChangeInCloud === 'function') {
+      applyListChangeInCloud('staff', { upserts: [currentLinkedStaff] }).catch(() => {});
+    } else if (isFresh && typeof syncDataToCloud === 'function') {
+      syncDataToCloud('staff').catch(() => {});
+    }
   }
 }
 

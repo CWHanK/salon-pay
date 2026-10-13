@@ -194,3 +194,10 @@ body.role-admin .staff-only-block {
   flex-shrink: 0;
   white-space: nowrap;
 }
+
+/* 剛新增 / 修改的服務項目：短暫亮起，方便在清單中找到 */
+.service-row-new {
+  background-color: #fef3c7;
+  box-shadow: inset 3px 0 0 #d97706;
+  transition: background-color 1s ease;
+}

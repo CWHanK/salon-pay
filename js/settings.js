@@ -256,6 +256,19 @@ function toggleServicesExpand() {
 }
 
 let currentServiceCategoryFilter = 'ALL';
+let currentServiceSearch = '';
+const SERVICE_FILTER_KNOWN_CATEGORIES = ['剪髮', '洗頭', '去角質', '護髮', '染髮', '燙髮', '產品銷售'];
+
+function onServiceSearchInput(value) {
+  currentServiceSearch = String(value || '');
+  renderSettingsTables();
+}
+
+function clearServiceSearch() {
+  const input = document.getElementById('settings-services-search');
+  if (input) input.value = '';
+  onServiceSearchInput('');
+}
 
 function setServiceCategoryFilter(category) {
   currentServiceCategoryFilter = category;
@@ -304,7 +317,7 @@ async function restoreDefaultServices() {
   showToast('已成功補齊標準服務項目');
 }
 
-function renderSettingsTables() {
+function renderSettingsTables(scrollToSaved = false) {
   if (currentUserRole !== 'admin') {
     const srvTbody = document.getElementById('settings-services-tbody');
     if (srvTbody) srvTbody.innerHTML = '';
@@ -320,7 +333,7 @@ function renderSettingsTables() {
   }
   applyServicesExpandUI();
 
-  const filterTabs = ['ALL', '剪髮', '洗頭', '去角質', '護髮', '染髮', '燙髮', '產品銷售'];
+  const filterTabs = ['ALL', '剪髮', '洗頭', '去角質', '護髮', '染髮', '燙髮', '產品銷售', '其他'];
   filterTabs.forEach(cat => {
     const tabEl = document.getElementById(`filter-srv-${cat}`);
     if (tabEl) {
@@ -332,16 +345,26 @@ function renderSettingsTables() {
     }
   });
 
-  const filteredServices = currentServiceCategoryFilter === 'ALL'
-    ? allServices
-    : allServices.filter(s => s.category === currentServiceCategoryFilter);
+  const searchKey = normServiceNameForCompare(currentServiceSearch);
+  const filteredServices = allServices.filter(s => {
+    if (!s) return false;
+    if (currentServiceCategoryFilter === '其他') {
+      if (SERVICE_FILTER_KNOWN_CATEGORIES.includes(s.category)) return false;
+    } else if (currentServiceCategoryFilter !== 'ALL' && s.category !== currentServiceCategoryFilter) {
+      return false;
+    }
+    return !searchKey || normServiceNameForCompare(s.name).includes(searchKey);
+  });
 
   const srvTbody = document.getElementById('settings-services-tbody');
   if (srvTbody) {
     if (filteredServices.length === 0) {
       srvTbody.innerHTML = `
-        <div class="py-8 text-center text-xs text-slate-400">
-          目前「${currentServiceCategoryFilter === 'ALL' ? '全部' : currentServiceCategoryFilter}」分類中尚無項目
+        <div class="py-8 text-center text-xs text-slate-400 space-y-2">
+          <div>${currentServiceSearch.trim()
+            ? `找不到名稱含「${escapeHtml(currentServiceSearch.trim())}」的項目`
+            : `目前「${currentServiceCategoryFilter === 'ALL' ? '全部' : currentServiceCategoryFilter}」分類中尚無項目`}</div>
+          <button type="button" onclick="openServiceModalFromSearch()" class="text-xs font-bold px-3 py-1.5 rounded-xl bg-amber-600 text-white">＋ 新增${currentServiceSearch.trim() ? `「${escapeHtml(currentServiceSearch.trim())}」` : '項目'}</button>
         </div>
       `;
     } else {
@@ -355,12 +378,13 @@ function renderSettingsTables() {
         const sNet = Math.max(0, s.price - commAmt);
         // 清單式版面：名稱可完整換行，價格資訊在第二行，窄螢幕手機也不會擠成一行兩個字
         return `
-          <div class="py-3 flex items-start justify-between gap-3 hover:bg-slate-50/70 transition">
+          <div data-service-row="${escapeHtml(s.id)}" class="py-3 flex items-start justify-between gap-3 hover:bg-slate-50/70 transition ${s.id === lastSavedServiceId ? 'service-row-new' : ''}">
             <div class="min-w-0 flex-1">
               <div class="flex items-center gap-1.5 flex-wrap">
                 <span class="font-bold text-slate-900 text-sm leading-snug">${escapeHtml(s.name)}</span>
                 ${getCategoryBadge(s.category)}
                 ${s.allowDiscount ? '<span class="inline-block text-[10px] font-bold px-1.5 py-0.2 rounded-md border bg-amber-50 text-amber-700 border-amber-200">可打折</span>' : ''}
+                ${getServiceAudienceBadge(s)}
               </div>
               <div class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs font-numeric">
                 <span class="whitespace-nowrap text-slate-500">定價 <b class="text-slate-800">NT$ ${s.price.toLocaleString()}</b></span>
@@ -371,6 +395,7 @@ function renderSettingsTables() {
             </div>
             <div class="shrink-0 flex items-center gap-1">
               <button onclick="editServiceItem('${s.id}')" class="text-xs font-bold px-2.5 py-1.5 rounded-lg bg-amber-50 text-amber-700 hover:bg-amber-100 transition">編輯</button>
+              <button onclick="duplicateServiceItem('${s.id}')" class="text-xs font-bold px-2 py-1.5 rounded-lg text-slate-500 hover:bg-slate-100 transition" title="以此項目為範本新增">複製</button>
               <button onclick="deleteServiceItem('${s.id}')" class="text-xs font-bold px-2.5 py-1.5 rounded-lg text-rose-500 hover:bg-rose-50 transition">刪除</button>
             </div>
           </div>
@@ -413,41 +438,207 @@ function renderSettingsTables() {
 
   renderUsersTable();
   if (typeof initBatchSettingsUI === 'function') initBatchSettingsUI();
-}
-
-function onServiceModalCategoryChange(category) {
-  updateServiceModalPreview();
-  const wrapper = document.getElementById('modal-service-empprice-wrapper');
-  if (wrapper) {
-    if (category === '產品銷售') {
-      wrapper.classList.remove('hidden');
-    } else {
-      wrapper.classList.add('hidden');
-    }
+  if (scrollToSaved && lastSavedServiceId) {
+    const row = document.querySelector(`[data-service-row="${lastSavedServiceId}"]`);
+    if (row && row.offsetParent !== null) row.scrollIntoView?.({ block: 'center', behavior: 'smooth' });
   }
 }
 
-function openServiceModal() {
+// 只限部分對象時才顯示標籤（例如「限女性」「限在職/眷屬」）
+function getServiceAudienceBadge(s) {
+  const parts = [];
+  if (Array.isArray(s.gender) && s.gender.length === 1) parts.push(s.gender[0] === 'female' ? '限女性' : '限男性');
+  if (Array.isArray(s.identity) && s.identity.length > 0 && s.identity.length < 4) {
+    const labels = { employee: '在職', retiree: '退休', family: '眷屬', external: '非員工' };
+    parts.push('限' + s.identity.map(i => labels[i] || i).join('/'));
+  }
+  return parts.length
+    ? `<span class="inline-block text-[10px] font-bold px-1.5 py-0.2 rounded-md border bg-sky-50 text-sky-700 border-sky-200">${parts.join('・')}</span>`
+    : '';
+}
+
+// 搜尋找不到時，直接以搜尋文字當名稱新增
+function openServiceModalFromSearch() {
+  const keyword = currentServiceSearch.trim();
+  openServiceModal();
+  if (keyword) {
+    document.getElementById('modal-service-name').value = keyword;
+    checkServiceNameDuplicate();
+  }
+}
+
+// 「服務定價與抽成批次調整」區塊預設收合
+function toggleBatchBox(forceOpen) {
+  const body = document.getElementById('settings-batch-body');
+  const icon = document.getElementById('settings-batch-toggle-icon');
+  if (!body) return;
+  const open = typeof forceOpen === 'boolean' ? forceOpen : body.classList.contains('hidden');
+  body.classList.toggle('hidden', !open);
+  if (icon) icon.style.transform = open ? 'rotate(180deg)' : '';
+}
+
+// ==========================================
+// 新增 / 編輯服務項目視窗
+// ==========================================
+const SERVICE_MODAL_CATEGORIES = [
+  { value: '剪髮', label: '✂️ 剪髮' },
+  { value: '洗頭', label: '💆 洗頭' },
+  { value: '去角質', label: '🌿 去角質' },
+  { value: '護髮', label: '🧖 護髮' },
+  { value: '染髮', label: '🎨 染髮' },
+  { value: '燙髮', label: '🦱 燙髮' },
+  { value: '產品銷售', label: '🧴 產品' },
+  { value: '其他', label: '📋 其他' }
+];
+const SERVICE_GENDER_VALUES = ['female', 'male'];
+const SERVICE_IDENTITY_VALUES = ['employee', 'retiree', 'family', 'external'];
+
+let serviceModalRateTouched = false;   // 管理員手動改過抽成後，切換分類不再自動帶入
+let serviceModalFromPosCat = '';       // 從開單畫面開啟時記住分類，存好後回到該分類選單
+let lastSavedServiceId = '';           // 剛儲存的項目，在清單中標示並捲動到畫面上
+let lastSavedServiceTimer = null;
+
+function normServiceNameForCompare(name) {
+  return (typeof normalizeServiceName === 'function')
+    ? normalizeServiceName(name)
+    : String(name || '').replace(/[\s\(\)\-_（）]/g, '').toLowerCase();
+}
+
+// 名稱與現有項目相同（忽略空白、括號、大小寫）時回傳該項目；同名項目會被系統合併，必須擋下
+function findDuplicateServiceByName(name, excludeId = '') {
+  const target = normServiceNameForCompare(name);
+  if (!target) return null;
+  return (appState.services || []).find(s => s && s.id !== excludeId && normServiceNameForCompare(s.name) === target) || null;
+}
+
+// 該分類最常用的抽成 %（新增時自動帶入）
+function getCommonRateForCategory(category) {
+  const counts = new Map();
+  (appState.services || []).forEach(s => {
+    if (!s || s.category !== category || typeof s.rate !== 'number') return;
+    counts.set(s.rate, (counts.get(s.rate) || 0) + 1);
+  });
+  let best = null;
+  counts.forEach((n, rate) => {
+    if (best === null || n > counts.get(best) || (n === counts.get(best) && rate > best)) best = rate;
+  });
+  if (best !== null) return best;
+  return category === '產品銷售' ? 30 : 50;
+}
+
+function renderServiceModalCategoryButtons() {
+  const wrap = document.getElementById('modal-service-cat-buttons');
+  if (!wrap) return;
+  const current = document.getElementById('modal-service-category')?.value || '剪髮';
+  wrap.innerHTML = SERVICE_MODAL_CATEGORIES.map(c => `
+    <button type="button" onclick="setServiceModalCategory('${c.value}')"
+      class="px-2 py-2 rounded-xl text-xs font-bold border transition whitespace-nowrap ${c.value === current
+        ? 'bg-amber-600 text-white border-amber-600 shadow-sm'
+        : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}">${c.label}</button>
+  `).join('');
+}
+
+function setServiceModalCategory(category) {
+  const catInput = document.getElementById('modal-service-category');
+  if (catInput) catInput.value = category;
+  const isNew = !document.getElementById('modal-service-id')?.value;
+  if (isNew && !serviceModalRateTouched) {
+    const rateInput = document.getElementById('modal-service-rate');
+    if (rateInput) rateInput.value = getCommonRateForCategory(category);
+    const discount = document.getElementById('modal-service-allow-discount');
+    if (discount) discount.checked = (category === '產品銷售');
+  }
+  onServiceModalCategoryChange(category);
+}
+
+function onServiceModalCategoryChange(category) {
+  renderServiceModalCategoryButtons();
+  updateServiceModalPreview();
+  const wrapper = document.getElementById('modal-service-empprice-wrapper');
+  if (wrapper) wrapper.classList.toggle('hidden', category !== '產品銷售');
+}
+
+function onServiceModalRateInput() {
+  serviceModalRateTouched = true;
+  updateServiceModalPreview();
+}
+
+function checkServiceNameDuplicate() {
+  const warn = document.getElementById('modal-service-name-warning');
+  if (!warn) return null;
+  const name = document.getElementById('modal-service-name')?.value || '';
+  const id = document.getElementById('modal-service-id')?.value || '';
+  const dup = findDuplicateServiceByName(name, id);
+  if (dup) {
+    warn.innerHTML = `已有相同名稱的項目「${escapeHtml(dup.name)}」（NT$ ${(Number(dup.price) || 0).toLocaleString()}），請換個名稱，或
+      <button type="button" onclick="editServiceItem('${escapeHtml(dup.id)}')" class="underline font-bold">改為編輯該項目</button>`;
+    warn.classList.remove('hidden');
+  } else {
+    warn.innerHTML = '';
+    warn.classList.add('hidden');
+  }
+  return dup;
+}
+
+function setServiceModalAudience(gender, identity) {
+  const genders = Array.isArray(gender) && gender.length ? gender : SERVICE_GENDER_VALUES;
+  const identities = Array.isArray(identity) && identity.length ? identity : SERVICE_IDENTITY_VALUES;
+  document.querySelectorAll('.modal-service-gender-cb').forEach(cb => { cb.checked = genders.includes(cb.value); });
+  document.querySelectorAll('.modal-service-identity-cb').forEach(cb => { cb.checked = identities.includes(cb.value); });
+  updateServiceAudienceSummary();
+}
+
+function getCheckedValues(selector) {
+  return Array.from(document.querySelectorAll(selector)).filter(cb => cb.checked).map(cb => cb.value);
+}
+
+// 進階設定收合時，摘要顯示目前的適用對象，避免設定被藏起來沒注意到
+function updateServiceAudienceSummary() {
+  const el = document.getElementById('modal-service-advanced-summary');
+  if (!el) return;
+  const genders = getCheckedValues('.modal-service-gender-cb');
+  const identities = getCheckedValues('.modal-service-identity-cb');
+  const parts = [];
+  if (genders.length === 1) parts.push(genders[0] === 'female' ? '限女性' : '限男性');
+  if (identities.length > 0 && identities.length < SERVICE_IDENTITY_VALUES.length) {
+    const labels = { employee: '在職', retiree: '退休', family: '眷屬', external: '非員工' };
+    parts.push('限' + identities.map(i => labels[i]).join('/'));
+  }
+  if (document.getElementById('modal-service-allow-discount')?.checked) parts.push('可打折');
+  el.textContent = parts.length ? parts.join('・') : '全部對象適用';
+}
+
+function fillServiceModal({ id = '', name = '', price = '', rate = null, category = '剪髮', empPrice = '', allowDiscount = null, gender = null, identity = null, title = '新增服務項目' } = {}) {
+  document.getElementById('modal-service-id').value = id;
+  document.getElementById('modal-service-name').value = name;
+  document.getElementById('modal-service-price').value = price;
+  document.getElementById('modal-service-rate').value = rate !== null ? rate : getCommonRateForCategory(category);
+  document.getElementById('modal-service-category').value = category;
+  const empPriceInput = document.getElementById('modal-service-empprice');
+  if (empPriceInput) empPriceInput.value = empPrice;
+  const allowDiscountCheckbox = document.getElementById('modal-service-allow-discount');
+  if (allowDiscountCheckbox) allowDiscountCheckbox.checked = allowDiscount !== null ? !!allowDiscount : (category === '產品銷售');
+  setServiceModalAudience(gender, identity);
+  document.getElementById('modal-service-title').textContent = title;
+  document.getElementById('modal-service-save-next')?.classList.toggle('hidden', !!id);
+  const advanced = document.getElementById('modal-service-advanced');
+  if (advanced) advanced.open = false;
+  serviceModalRateTouched = false;
+  onServiceModalCategoryChange(category);
+  checkServiceNameDuplicate();
+  document.getElementById('modal-service').classList.remove('hidden');
+  setTimeout(() => document.getElementById('modal-service-name')?.focus(), 50);
+}
+
+// options.category：預設分類；options.fromPosCat：從開單畫面開啟時的分類代碼
+function openServiceModal(options = {}) {
   if (currentUserRole !== 'admin') {
     appAlert('僅管理員有此操作權限！');
     return;
   }
-  document.getElementById('modal-service-id').value = '';
-  document.getElementById('modal-service-name').value = '';
-  document.getElementById('modal-service-price').value = '';
-  document.getElementById('modal-service-rate').value = '50';
-  const defaultCat = currentServiceCategoryFilter !== 'ALL' ? currentServiceCategoryFilter : '剪髮';
-  document.getElementById('modal-service-category').value = defaultCat;
-  const empPriceInput = document.getElementById('modal-service-empprice');
-  if (empPriceInput) empPriceInput.value = '';
-  const allowDiscountCheckbox = document.getElementById('modal-service-allow-discount');
-  if (allowDiscountCheckbox) {
-    allowDiscountCheckbox.checked = (defaultCat === '產品銷售');
-  }
-  onServiceModalCategoryChange(defaultCat);
-  document.getElementById('modal-service-title').textContent = '新增美髮服務項目';
-  updateServiceModalPreview();
-  document.getElementById('modal-service').classList.remove('hidden');
+  serviceModalFromPosCat = options.fromPosCat || '';
+  const category = options.category || (currentServiceCategoryFilter !== 'ALL' ? currentServiceCategoryFilter : '剪髮');
+  fillServiceModal({ category, title: serviceModalFromPosCat ? `新增項目到「${category === '產品銷售' ? '產品' : category}」` : '新增服務項目' });
 }
 
 function editServiceItem(serviceId) {
@@ -457,46 +648,100 @@ function editServiceItem(serviceId) {
   }
   const srv = appState.services.find(s => s.id === serviceId);
   if (!srv) return;
+  fillServiceModal({
+    id: srv.id,
+    name: srv.name,
+    price: srv.price,
+    rate: typeof srv.rate === 'number' ? srv.rate : 0,
+    category: srv.category || '剪髮',
+    empPrice: typeof srv.empPrice === 'number' ? srv.empPrice : '',
+    allowDiscount: !!srv.allowDiscount,
+    gender: srv.gender,
+    identity: srv.identity,
+    title: '編輯服務項目'
+  });
+}
 
-  document.getElementById('modal-service-id').value = srv.id;
-  document.getElementById('modal-service-name').value = srv.name;
-  document.getElementById('modal-service-price').value = srv.price;
-  document.getElementById('modal-service-rate').value = typeof srv.rate === 'number' ? srv.rate : 0;
-  document.getElementById('modal-service-category').value = srv.category || '剪髮';
-  const empPriceInput = document.getElementById('modal-service-empprice');
-  if (empPriceInput) {
-    empPriceInput.value = (typeof srv.empPrice === 'number') ? srv.empPrice : '';
+// 以現有項目為範本新增（例如「長髮護髮」→「超長髮護髮」）
+function duplicateServiceItem(serviceId) {
+  if (currentUserRole !== 'admin') {
+    appAlert('僅管理員有此操作權限！');
+    return;
   }
-  const allowDiscountCheckbox = document.getElementById('modal-service-allow-discount');
-  if (allowDiscountCheckbox) {
-    allowDiscountCheckbox.checked = !!srv.allowDiscount;
-  }
-  onServiceModalCategoryChange(srv.category || '剪髮');
-  document.getElementById('modal-service-title').textContent = '編輯服務項目';
-  updateServiceModalPreview();
-  document.getElementById('modal-service').classList.remove('hidden');
+  const srv = appState.services.find(s => s.id === serviceId);
+  if (!srv) return;
+  serviceModalFromPosCat = '';
+  fillServiceModal({
+    name: srv.name,
+    price: srv.price,
+    rate: typeof srv.rate === 'number' ? srv.rate : 0,
+    category: srv.category || '其他',
+    empPrice: typeof srv.empPrice === 'number' ? srv.empPrice : '',
+    allowDiscount: !!srv.allowDiscount,
+    gender: srv.gender,
+    identity: srv.identity,
+    title: `複製「${srv.name}」`
+  });
+  serviceModalRateTouched = true;
+  setTimeout(() => document.getElementById('modal-service-name')?.select(), 60);
 }
 
 function closeServiceModal() {
   document.getElementById('modal-service').classList.add('hidden');
+  const posCat = serviceModalFromPosCat;
+  serviceModalFromPosCat = '';
+  // 從開單畫面來的：回到原本的分類選單，剛新增的項目可直接點選
+  if (posCat && typeof openPosCategoryModal === 'function') openPosCategoryModal(posCat);
 }
 
-async function saveServiceItem() {
+function markServiceAsJustSaved(serviceId) {
+  lastSavedServiceId = serviceId;
+  clearTimeout(lastSavedServiceTimer);
+  lastSavedServiceTimer = setTimeout(() => {
+    lastSavedServiceId = '';
+    document.querySelectorAll('[data-service-row].service-row-new').forEach(el => el.classList.remove('service-row-new'));
+  }, 4000);
+}
+
+async function saveServiceItem(keepOpen = false) {
   if (currentUserRole !== 'admin') {
     appAlert('僅管理員有此操作權限！');
     return;
   }
   const id = document.getElementById('modal-service-id').value;
   const name = document.getElementById('modal-service-name').value.trim();
-  const price = parseFloat(document.getElementById('modal-service-price').value) || 0;
+  const priceRaw = document.getElementById('modal-service-price').value.trim();
+  const price = parseFloat(priceRaw) || 0;
   const rate = parseFloat(document.getElementById('modal-service-rate').value) || 0;
-  const category = document.getElementById('modal-service-category').value;
+  const category = document.getElementById('modal-service-category').value || '其他';
   const empPriceRaw = document.getElementById('modal-service-empprice')?.value?.trim();
   const empPrice = empPriceRaw ? parseFloat(empPriceRaw) : (category === '產品銷售' ? Math.round(price * 0.9) : null);
   const allowDiscount = !!document.getElementById('modal-service-allow-discount')?.checked;
+  const gender = getCheckedValues('.modal-service-gender-cb');
+  const identity = getCheckedValues('.modal-service-identity-cb');
 
   if (!name) {
-    appAlert('請輸入服務項目名稱！');
+    appAlert('請輸入項目名稱！');
+    return;
+  }
+  if (priceRaw === '' || price < 0) {
+    appAlert('請輸入定價！');
+    return;
+  }
+  if (rate < 0 || rate > 100) {
+    appAlert('抽成需介於 0～100%！');
+    return;
+  }
+  if (gender.length === 0 || identity.length === 0) {
+    const advanced = document.getElementById('modal-service-advanced');
+    if (advanced) advanced.open = true;
+    appAlert('「適用對象」的性別與身分至少各勾選一項！');
+    return;
+  }
+  const dup = findDuplicateServiceByName(name, id);
+  if (dup) {
+    checkServiceNameDuplicate();
+    appAlert(`已有相同名稱的項目「${dup.name}」。\n\n名稱相同會被系統視為同一個項目，請換個名稱（例如加上長度或品牌），或改為編輯原本的項目。`, { title: '名稱重複' });
     return;
   }
 
@@ -510,6 +755,8 @@ async function saveServiceItem() {
       item.rate = rate;
       item.category = category;
       item.allowDiscount = allowDiscount;
+      item.gender = gender;
+      item.identity = identity;
       if (category === '產品銷售') {
         item.empPrice = empPrice !== null ? empPrice : Math.round(price * 0.9);
       } else {
@@ -518,12 +765,14 @@ async function saveServiceItem() {
     }
   } else {
     const newItem = {
-      id: 'srv-' + Date.now(),
+      id: 'srv-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6),
       name: name,
       price: price,
       rate: rate,
       category: category,
-      allowDiscount: allowDiscount
+      allowDiscount: allowDiscount,
+      gender: gender,
+      identity: identity
     };
     if (category === '產品銷售' && empPrice !== null) {
       newItem.empPrice = empPrice;
@@ -531,12 +780,42 @@ async function saveServiceItem() {
     appState.services.push(newItem);
     changedItem = newItem;
   }
+  if (!changedItem) return;
 
   await saveListChange('services', { upserts: [changedItem] });
+  markServiceAsJustSaved(changedItem.id);
+
+  if (keepOpen && !id) {
+    // 連續新增：保留分類、抽成、適用對象，只清空名稱與價格
+    document.getElementById('modal-service-name').value = '';
+    document.getElementById('modal-service-price').value = '';
+    const empPriceInput = document.getElementById('modal-service-empprice');
+    if (empPriceInput) empPriceInput.value = '';
+    checkServiceNameDuplicate();
+    updateServiceModalPreview();
+    document.getElementById('modal-service-name')?.focus();
+    renderSettingsTables(false);
+    if (typeof renderPosWizard === 'function') renderPosWizard();
+    showToast(`已新增「${name}」，可繼續輸入下一筆`);
+    return;
+  }
+
   closeServiceModal();
-  renderSettingsTables();
+  renderSettingsTables(true);
   if (typeof renderPosWizard === 'function') renderPosWizard();
-  showToast('服務項目已同步更新');
+  showToast(id ? `已更新「${name}」` : `已新增「${name}」`);
+}
+
+function updateServiceModalPreview() {
+  const previewText = document.getElementById('modal-service-preview-text');
+  if (!previewText) return;
+  const price = parseFloat(document.getElementById('modal-service-price')?.value) || 0;
+  const rate = parseFloat(document.getElementById('modal-service-rate')?.value) || 0;
+  const comm = Math.round(price * (rate / 100));
+  const net = Math.max(0, price - comm);
+  previewText.innerHTML = price > 0
+    ? `設計師抽成 <b class="text-emerald-700">NT$ ${comm.toLocaleString()}</b>・店家留 <b class="text-slate-800">NT$ ${net.toLocaleString()}</b>`
+    : '輸入定價後，這裡會顯示設計師抽成與店家淨額';
 }
 
 async function deleteServiceItem(serviceId) {
@@ -847,18 +1126,6 @@ async function executeDeleteUser() {
     appAlert('刪除帳號失敗：' + err.message);
     closeDeleteUserModal();
   }
-}
-
-function updateServiceModalPreview() {
-  const priceInput = document.getElementById('modal-service-price');
-  const rateInput = document.getElementById('modal-service-rate');
-  const previewText = document.getElementById('modal-service-preview-text');
-  if (!previewText) return;
-  const price = parseFloat(priceInput?.value) || 0;
-  const rate = parseFloat(rateInput?.value) || 0;
-  const comm = Math.round(price * (rate / 100));
-  const net = Math.max(0, price - comm);
-  previewText.textContent = 'NT$ ' + comm.toLocaleString() + ' (店家淨額: NT$ ' + net.toLocaleString() + ')';
 }
 
 // 管理員手動校正並同步當前版本至雲端廣播

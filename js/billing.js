@@ -376,16 +376,45 @@ function getCustomServicesByCategory(category) {
   });
 }
 
+// 自訂項目若設定了適用對象（性別 / 身分），只在符合目前客人條件時顯示
+function isServiceForCurrentCustomer(s) {
+  if (Array.isArray(s.gender) && s.gender.length > 0 && !s.gender.includes(posGender)) return false;
+  if (Array.isArray(s.identity) && s.identity.length > 0 && !s.identity.includes(posIdentity)) return false;
+  return true;
+}
+
+// 管理員在開單選單底部可直接新增項目到該分類，存好後回到此選單
+function openServiceModalFromPos(catId) {
+  const category = catId === 'products' ? '產品銷售' : (POS_CATEGORY_TO_SERVICE_CATEGORY[catId] || '其他');
+  closePosPickerModal();
+  if (typeof openServiceModal === 'function') openServiceModal({ category, fromPosCat: catId });
+}
+
+function appendAdminAddServiceButton(el, catId) {
+  if (!el || typeof currentUserRole === 'undefined' || currentUserRole !== 'admin') return;
+  const catLabel = catId === 'products' ? '產品' : (POS_CATEGORY_TO_SERVICE_CATEGORY[catId] || '其他');
+  el.insertAdjacentHTML('beforeend', `
+    <button type="button" onclick="openServiceModalFromPos('${catId}')" class="w-full mt-3 p-3 rounded-2xl border-2 border-dashed border-amber-300 text-amber-700 bg-amber-50/50 hover:bg-amber-50 transition text-sm font-bold flex items-center justify-center gap-1.5">
+      ＋ 新增項目到「${catLabel}」
+    </button>
+  `);
+}
+
 function appendCustomServiceOptions(el, catId) {
+  if (!el) return;
   const category = POS_CATEGORY_TO_SERVICE_CATEGORY[catId];
-  if (!el || !category) return;
-  const customs = getCustomServicesByCategory(category);
+  if (!category) {
+    appendAdminAddServiceButton(el, catId);
+    return;
+  }
+  const customs = getCustomServicesByCategory(category).filter(isServiceForCurrentCustomer);
   const esc = str => String(str ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
   if (customs.length === 0) {
     if (catId === 'other') {
-      el.innerHTML = '<div class="p-6 text-center text-slate-400 text-xs">尚無「其他」自訂項目，請至「設定」新增服務項目</div>';
+      el.innerHTML = '<div class="p-6 text-center text-slate-400 text-xs">尚無「其他」自訂項目</div>';
     }
+    appendAdminAddServiceButton(el, catId);
     return;
   }
 
@@ -400,6 +429,7 @@ function appendCustomServiceOptions(el, catId) {
       `).join('')}
     </div>
   `);
+  appendAdminAddServiceButton(el, catId);
 }
 
 function closePosPickerModal() {

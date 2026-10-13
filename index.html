@@ -48,7 +48,7 @@
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
   <script src="firebase-config.js"></script>
 
-  <link rel="stylesheet" href="styles.css?v=20261013_1">
+  <link rel="stylesheet" href="styles.css?v=20261013_2">
 </head>
 <body class="min-vh-100 flex flex-col bg-slate-50 text-slate-800 antialiased pb-20 md:pb-6 not-logged-in">
 
@@ -636,14 +636,62 @@
         </div>
       </div>
 
-      <div id="settings-batch-box" class="admin-only-block bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm p-4 sm:p-6 space-y-4">
-        <div class="flex items-center justify-between pb-2 border-b border-slate-100">
-          <h3 class="text-sm font-bold text-slate-900 flex items-center gap-1.5">
-            <i data-lucide="sliders" class="w-4 h-4 text-amber-600"></i> 服務定價與抽成調整
-          </h3>
+      <div id="settings-services-box" class="admin-only-block bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm p-4 sm:p-6 space-y-3">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-2 border-b border-slate-100 gap-2">
+          <div>
+            <h3 class="text-sm font-bold text-slate-900 flex items-center gap-1.5">
+              <i data-lucide="scissors" class="w-4 h-4 text-amber-600"></i> 服務項目清單
+            </h3>
+          </div>
+          <div class="flex items-center flex-wrap gap-2">
+            <span id="settings-services-count-badge" class="text-xs bg-amber-100 text-amber-800 font-bold px-2.5 py-1 rounded-xl">共 0 項服務</span>
+            <button type="button" id="btn-toggle-services-expand" onclick="toggleServicesExpand()" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-2.5 py-1.5 rounded-xl transition flex items-center gap-1" title="切換展開 / 收合視圖">
+              <i data-lucide="chevrons-down-up" class="w-3.5 h-3.5"></i>
+              <span id="text-toggle-services-expand">收合為捲動</span>
+            </button>
+            <button type="button" onclick="restoreDefaultServices()" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-2.5 py-1.5 rounded-xl transition flex items-center gap-1" title="補齊店內標準 7 大類與產品項目">
+              <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> 補齊標準項目
+            </button>
+          </div>
         </div>
 
-        <div class="space-y-3">
+        <div class="flex items-center gap-2">
+          <div class="relative flex-1">
+            <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"></i>
+            <input type="search" id="settings-services-search" oninput="onServiceSearchInput(this.value)" autocomplete="off" placeholder="搜尋項目名稱" class="w-full rounded-xl border border-slate-300 pl-9 pr-3 py-2 text-sm bg-white">
+          </div>
+          <button onclick="openServiceModal()" class="shrink-0 text-sm bg-amber-600 hover:bg-amber-700 text-white font-bold px-4 py-2 rounded-xl transition flex items-center gap-1 shadow-sm shadow-amber-600/20">
+            <i data-lucide="plus" class="w-4 h-4"></i> 新增項目
+          </button>
+        </div>
+
+        <div class="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none text-xs">
+          <button type="button" onclick="setServiceCategoryFilter('ALL')" id="filter-srv-ALL" class="service-cat-tab px-3 py-1.5 rounded-xl font-bold transition bg-amber-600 text-white shadow-xs">全部</button>
+          <button type="button" onclick="setServiceCategoryFilter('剪髮')" id="filter-srv-剪髮" class="service-cat-tab px-3 py-1.5 rounded-xl font-bold transition bg-slate-100 text-slate-600 hover:bg-slate-200">✂️ 剪髮</button>
+          <button type="button" onclick="setServiceCategoryFilter('洗頭')" id="filter-srv-洗頭" class="service-cat-tab px-3 py-1.5 rounded-xl font-bold transition bg-slate-100 text-slate-600 hover:bg-slate-200">💆 洗頭</button>
+          <button type="button" onclick="setServiceCategoryFilter('去角質')" id="filter-srv-去角質" class="service-cat-tab px-3 py-1.5 rounded-xl font-bold transition bg-slate-100 text-slate-600 hover:bg-slate-200">🌿 去角質</button>
+          <button type="button" onclick="setServiceCategoryFilter('護髮')" id="filter-srv-護髮" class="service-cat-tab px-3 py-1.5 rounded-xl font-bold transition bg-slate-100 text-slate-600 hover:bg-slate-200">🧖 護髮</button>
+          <button type="button" onclick="setServiceCategoryFilter('染髮')" id="filter-srv-染髮" class="service-cat-tab px-3 py-1.5 rounded-xl font-bold transition bg-slate-100 text-slate-600 hover:bg-slate-200">🎨 染髮</button>
+          <button type="button" onclick="setServiceCategoryFilter('燙髮')" id="filter-srv-燙髮" class="service-cat-tab px-3 py-1.5 rounded-xl font-bold transition bg-slate-100 text-slate-600 hover:bg-slate-200">🦱 燙髮</button>
+          <button type="button" onclick="setServiceCategoryFilter('產品銷售')" id="filter-srv-產品銷售" class="service-cat-tab px-3 py-1.5 rounded-xl font-bold transition bg-slate-100 text-slate-600 hover:bg-slate-200">🧴 產品銷售</button>
+          <button type="button" onclick="setServiceCategoryFilter('其他')" id="filter-srv-其他" class="service-cat-tab px-3 py-1.5 rounded-xl font-bold transition bg-slate-100 text-slate-600 hover:bg-slate-200">📋 其他</button>
+        </div>
+
+        <div id="settings-services-scroll-container" class="overflow-x-auto transition-all duration-200">
+          <div id="settings-services-tbody" class="divide-y divide-slate-100"></div>
+        </div>
+      </div>
+
+      <div id="settings-batch-box" class="admin-only-block bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm p-4 sm:p-6 space-y-4">
+        <button type="button" onclick="toggleBatchBox()" class="w-full flex items-center justify-between text-left">
+          <h3 class="text-sm font-bold text-slate-900 flex items-center gap-1.5">
+            <i data-lucide="sliders" class="w-4 h-4 text-amber-600"></i> 批次調整定價與抽成
+            <span class="text-[11px] font-normal text-slate-400">一次修改整個分類</span>
+          </h3>
+          <i id="settings-batch-toggle-icon" data-lucide="chevron-down" class="w-4 h-4 text-slate-400 transition-transform"></i>
+        </button>
+
+        <div id="settings-batch-body" class="space-y-3 hidden pt-2 border-t border-slate-100">
           <div>
             <label class="block text-xs font-bold text-slate-700 mb-1.5">項目</label>
             <div class="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none text-xs">
@@ -726,44 +774,6 @@
         </div>
       </div>
 
-      <div id="settings-services-box" class="admin-only-block bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm p-4 sm:p-6 space-y-3">
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-2 border-b border-slate-100 gap-2">
-          <div>
-            <h3 class="text-sm font-bold text-slate-900 flex items-center gap-1.5">
-              <i data-lucide="scissors" class="w-4 h-4 text-amber-600"></i> 服務項目清單
-            </h3>
-          </div>
-          <div class="flex items-center flex-wrap gap-2">
-            <span id="settings-services-count-badge" class="text-xs bg-amber-100 text-amber-800 font-bold px-2.5 py-1 rounded-xl">共 0 項服務</span>
-            <button type="button" id="btn-toggle-services-expand" onclick="toggleServicesExpand()" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-2.5 py-1.5 rounded-xl transition flex items-center gap-1" title="切換展開 / 收合視圖">
-              <i data-lucide="chevrons-down-up" class="w-3.5 h-3.5"></i>
-              <span id="text-toggle-services-expand">收合為捲動</span>
-            </button>
-            <button type="button" onclick="restoreDefaultServices()" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold px-2.5 py-1.5 rounded-xl transition flex items-center gap-1" title="補齊店內標準 7 大類與產品項目">
-              <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> 補齊標準項目
-            </button>
-            <button onclick="openServiceModal()" class="text-xs bg-amber-600 hover:bg-amber-700 text-white font-bold px-3 py-1.5 rounded-xl transition flex items-center gap-1">
-              <i data-lucide="plus" class="w-3.5 h-3.5"></i> 新增項目
-            </button>
-          </div>
-        </div>
-
-        <div class="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none text-xs">
-          <button type="button" onclick="setServiceCategoryFilter('ALL')" id="filter-srv-ALL" class="service-cat-tab px-3 py-1.5 rounded-xl font-bold transition bg-amber-600 text-white shadow-xs">全部</button>
-          <button type="button" onclick="setServiceCategoryFilter('剪髮')" id="filter-srv-剪髮" class="service-cat-tab px-3 py-1.5 rounded-xl font-bold transition bg-slate-100 text-slate-600 hover:bg-slate-200">✂️ 剪髮</button>
-          <button type="button" onclick="setServiceCategoryFilter('洗頭')" id="filter-srv-洗頭" class="service-cat-tab px-3 py-1.5 rounded-xl font-bold transition bg-slate-100 text-slate-600 hover:bg-slate-200">💆 洗頭</button>
-          <button type="button" onclick="setServiceCategoryFilter('去角質')" id="filter-srv-去角質" class="service-cat-tab px-3 py-1.5 rounded-xl font-bold transition bg-slate-100 text-slate-600 hover:bg-slate-200">🌿 去角質</button>
-          <button type="button" onclick="setServiceCategoryFilter('護髮')" id="filter-srv-護髮" class="service-cat-tab px-3 py-1.5 rounded-xl font-bold transition bg-slate-100 text-slate-600 hover:bg-slate-200">🧖 護髮</button>
-          <button type="button" onclick="setServiceCategoryFilter('染髮')" id="filter-srv-染髮" class="service-cat-tab px-3 py-1.5 rounded-xl font-bold transition bg-slate-100 text-slate-600 hover:bg-slate-200">🎨 染髮</button>
-          <button type="button" onclick="setServiceCategoryFilter('燙髮')" id="filter-srv-燙髮" class="service-cat-tab px-3 py-1.5 rounded-xl font-bold transition bg-slate-100 text-slate-600 hover:bg-slate-200">🦱 燙髮</button>
-          <button type="button" onclick="setServiceCategoryFilter('產品銷售')" id="filter-srv-產品銷售" class="service-cat-tab px-3 py-1.5 rounded-xl font-bold transition bg-slate-100 text-slate-600 hover:bg-slate-200">🧴 產品銷售</button>
-        </div>
-
-        <div id="settings-services-scroll-container" class="overflow-x-auto transition-all duration-200">
-          <div id="settings-services-tbody" class="divide-y divide-slate-100"></div>
-        </div>
-      </div>
-
       <div id="settings-users-box" class="admin-only-block bg-white rounded-2xl sm:rounded-3xl border border-slate-200/80 shadow-sm p-4 sm:p-6 space-y-3">
         <div class="flex items-center justify-between pb-2 border-b border-slate-100">
           <div>
@@ -834,7 +844,7 @@
         </div>
         <div class="text-[11px] text-slate-500 leading-relaxed flex items-center gap-2">
           <span>目前版本：</span>
-          <span id="settings-current-version" class="font-mono bg-slate-100 text-slate-700 px-2 py-0.5 rounded font-bold">v20261013_1</span>
+          <span id="settings-current-version" class="font-mono bg-slate-100 text-slate-700 px-2 py-0.5 rounded font-bold">v20261013_2</span>
           <span class="text-[10px] text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200/60 font-medium">背景即時偵測中</span>
         </div>
         <div class="pt-2 border-t border-slate-100 flex flex-wrap items-center justify-end gap-2">
@@ -937,55 +947,74 @@
     </div>
   </div>
 
-  <div id="modal-service" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
-    <div class="bg-white rounded-3xl max-w-sm sm:max-w-md w-full p-6 shadow-2xl space-y-3.5">
-      <div class="flex justify-between items-center pb-2 border-b border-slate-100">
+  <div id="modal-service" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center sm:p-4 hidden">
+    <div class="bg-white rounded-t-3xl sm:rounded-3xl max-w-md w-full shadow-2xl flex flex-col max-h-[92vh]">
+      <div class="flex justify-between items-center px-5 pt-5 pb-3 border-b border-slate-100 shrink-0">
         <h4 id="modal-service-title" class="text-base font-bold text-slate-900">新增服務項目</h4>
-        <button onclick="closeServiceModal()" class="text-slate-400 hover:text-slate-600">
+        <button onclick="closeServiceModal()" class="p-1 text-slate-400 hover:text-slate-600">
           <i data-lucide="x" class="w-5 h-5"></i>
         </button>
       </div>
-      <input type="hidden" id="modal-service-id">
-      <div>
-        <label class="block text-xs font-semibold text-slate-600 mb-1">服務名稱</label>
-        <input type="text" id="modal-service-name" autocomplete="off" placeholder="例如：造型剪髮、溫塑燙" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm">
-      </div>
-      <div class="grid grid-cols-2 gap-2.5">
+      <div class="px-5 py-4 space-y-4 overflow-y-auto">
+        <input type="hidden" id="modal-service-id">
+        <input type="hidden" id="modal-service-category" value="剪髮">
         <div>
-          <label class="block text-xs font-semibold text-slate-600 mb-1">定價 ($)</label>
-          <input type="number" id="modal-service-price" autocomplete="off" placeholder="800" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm font-numeric">
+          <label class="block text-xs font-semibold text-slate-600 mb-1">項目名稱</label>
+          <input type="text" id="modal-service-name" oninput="checkServiceNameDuplicate()" autocomplete="off" placeholder="例如：造型剪髮、溫塑燙" class="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm">
+          <div id="modal-service-name-warning" class="hidden mt-1.5 text-[11px] leading-relaxed text-rose-700 bg-rose-50 border border-rose-200 rounded-lg px-2.5 py-1.5"></div>
         </div>
+        <div class="grid grid-cols-2 gap-2.5">
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">定價 (NT$)</label>
+            <input type="number" inputmode="numeric" id="modal-service-price" oninput="updateServiceModalPreview()" autocomplete="off" placeholder="800" class="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm font-numeric">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-600 mb-1">抽成 (%)</label>
+            <input type="number" inputmode="numeric" id="modal-service-rate" oninput="onServiceModalRateInput()" autocomplete="off" placeholder="50" class="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm font-numeric">
+          </div>
+        </div>
+        <div id="modal-service-preview-text" class="text-xs text-slate-500 bg-slate-50 rounded-xl px-3 py-2"></div>
         <div>
-          <label class="block text-xs font-semibold text-slate-600 mb-1">抽成 (%)</label>
-          <input type="number" id="modal-service-rate" autocomplete="off" placeholder="50" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm font-numeric">
+          <label class="block text-xs font-semibold text-slate-600 mb-1.5">分類</label>
+          <div id="modal-service-cat-buttons" class="grid grid-cols-4 gap-1.5"></div>
         </div>
+        <div id="modal-service-empprice-wrapper" class="hidden">
+          <label class="block text-xs font-semibold text-slate-600 mb-1">員工特惠價 (NT$)</label>
+          <input type="number" inputmode="numeric" id="modal-service-empprice" autocomplete="off" placeholder="未填自動為定價之 9 折" class="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm font-numeric">
+        </div>
+        <details id="modal-service-advanced" class="rounded-xl border border-slate-200 group">
+          <summary class="cursor-pointer select-none px-3 py-2.5 text-xs font-bold text-slate-700 flex items-center justify-between">
+            <span>進階設定：適用對象・打折</span>
+            <span id="modal-service-advanced-summary" class="font-normal text-slate-400">全部對象適用</span>
+          </summary>
+          <div class="px-3 pb-3 space-y-3 border-t border-slate-100 pt-3">
+            <div>
+              <div class="text-[11px] font-semibold text-slate-500 mb-1">適用性別</div>
+              <div class="flex flex-wrap gap-x-4 gap-y-1.5 text-xs font-semibold text-slate-700">
+                <label class="flex items-center gap-1.5"><input type="checkbox" value="female" onchange="updateServiceAudienceSummary()" class="modal-service-gender-cb accent-amber-600 w-4 h-4">女性</label>
+                <label class="flex items-center gap-1.5"><input type="checkbox" value="male" onchange="updateServiceAudienceSummary()" class="modal-service-gender-cb accent-amber-600 w-4 h-4">男性</label>
+              </div>
+            </div>
+            <div>
+              <div class="text-[11px] font-semibold text-slate-500 mb-1">適用身分</div>
+              <div class="flex flex-wrap gap-x-4 gap-y-1.5 text-xs font-semibold text-slate-700">
+                <label class="flex items-center gap-1.5"><input type="checkbox" value="employee" onchange="updateServiceAudienceSummary()" class="modal-service-identity-cb accent-amber-600 w-4 h-4">在職員工</label>
+                <label class="flex items-center gap-1.5"><input type="checkbox" value="retiree" onchange="updateServiceAudienceSummary()" class="modal-service-identity-cb accent-amber-600 w-4 h-4">退休員工</label>
+                <label class="flex items-center gap-1.5"><input type="checkbox" value="family" onchange="updateServiceAudienceSummary()" class="modal-service-identity-cb accent-amber-600 w-4 h-4">員工眷屬</label>
+                <label class="flex items-center gap-1.5"><input type="checkbox" value="external" onchange="updateServiceAudienceSummary()" class="modal-service-identity-cb accent-amber-600 w-4 h-4">非員工</label>
+              </div>
+            </div>
+            <label class="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-800">
+              <input type="checkbox" id="modal-service-allow-discount" onchange="updateServiceAudienceSummary()" class="accent-amber-600 rounded w-4 h-4">
+              <span>允許開單時打折</span>
+            </label>
+          </div>
+        </details>
       </div>
-      <div>
-        <label class="block text-xs font-semibold text-slate-600 mb-1">分類</label>
-        <select id="modal-service-category" onchange="onServiceModalCategoryChange(this.value)" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm bg-white font-semibold">
-          <option value="剪髮">✂️ 剪髮</option>
-          <option value="洗頭">💆 洗頭</option>
-          <option value="去角質">🌿 去角質</option>
-          <option value="護髮">🧖 護髮</option>
-          <option value="染髮">🎨 染髮</option>
-          <option value="燙髮">🦱 燙髮</option>
-          <option value="產品銷售">🧴 產品銷售</option>
-          <option value="其他">📋 其他自訂服務</option>
-        </select>
-      </div>
-      <div id="modal-service-empprice-wrapper" class="hidden">
-        <label class="block text-xs font-semibold text-slate-600 mb-1">員工特惠價 ($)</label>
-        <input type="number" id="modal-service-empprice" autocomplete="off" placeholder="未填自動為定價之 9 折" class="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm font-numeric">
-      </div>
-      <div class="flex items-center pt-1">
-        <label class="flex items-center gap-2 cursor-pointer text-xs font-bold text-slate-800">
-          <input type="checkbox" id="modal-service-allow-discount" class="accent-amber-600 rounded w-4 h-4">
-          <span>允許打折</span>
-        </label>
-      </div>
-      <div class="flex gap-2 pt-2">
-        <button onclick="closeServiceModal()" class="flex-1 py-2.5 bg-slate-100 text-slate-700 font-semibold rounded-xl text-xs">取消</button>
-        <button onclick="saveServiceItem()" class="flex-1 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-semibold rounded-xl text-xs">儲存</button>
+      <div class="flex gap-2 px-5 pt-3 pb-5 border-t border-slate-100 shrink-0">
+        <button onclick="closeServiceModal()" class="px-4 py-2.5 bg-slate-100 text-slate-700 font-semibold rounded-xl text-sm">取消</button>
+        <button id="modal-service-save-next" onclick="saveServiceItem(true)" class="flex-1 py-2.5 bg-amber-50 text-amber-800 border border-amber-200 font-bold rounded-xl text-sm whitespace-nowrap">儲存並新增下一筆</button>
+        <button onclick="saveServiceItem()" class="flex-1 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-bold rounded-xl text-sm">儲存</button>
       </div>
     </div>
   </div>
@@ -1131,16 +1160,16 @@
     <span id="toast-message" class="font-medium">操作完成</span>
   </div>
 
-  <script src="js/constants.js?v=20261013_1"></script>
-  <script src="js/state.js?v=20261013_1"></script>
-  <script src="js/dialog.js?v=20261013_1"></script>
-  <script src="js/version.js?v=20261013_1"></script>
-  <script src="js/firebase.js?v=20261013_1"></script>
-  <script src="js/auth.js?v=20261013_1"></script>
-  <script src="js/billing.js?v=20261013_1"></script>
-  <script src="js/history.js?v=20261013_1"></script>
-  <script src="js/monthly.js?v=20261013_1"></script>
-  <script src="js/settings.js?v=20261013_1"></script>
-  <script src="js/main.js?v=20261013_1"></script>
+  <script src="js/constants.js?v=20261013_2"></script>
+  <script src="js/state.js?v=20261013_2"></script>
+  <script src="js/dialog.js?v=20261013_2"></script>
+  <script src="js/version.js?v=20261013_2"></script>
+  <script src="js/firebase.js?v=20261013_2"></script>
+  <script src="js/auth.js?v=20261013_2"></script>
+  <script src="js/billing.js?v=20261013_2"></script>
+  <script src="js/history.js?v=20261013_2"></script>
+  <script src="js/monthly.js?v=20261013_2"></script>
+  <script src="js/settings.js?v=20261013_2"></script>
+  <script src="js/main.js?v=20261013_2"></script>
 </body>
 </html>

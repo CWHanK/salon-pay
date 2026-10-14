@@ -284,7 +284,7 @@ test('POS wizard correctly switches gender, identity, and updates condition badg
   assert.equal(badge.textContent, '女性 · 在職員工');
   assert.equal(note.textContent, '');
   assert.equal(badgeCut.textContent, '$150');
-  assert.equal(badgeShampoo.textContent, '$110');
+  assert.equal(badgeShampoo.textContent, '$80~$110');
   assert.equal(badgeProd.textContent, '9折');
 
   // 2. 切換男性 + 在職員工
@@ -296,7 +296,7 @@ test('POS wizard correctly switches gender, identity, and updates condition badg
   run("setPosIdentity('external');");
   assert.equal(badge.textContent, '男性 · 非員工');
   assert.equal(badgeCut.textContent, '$250~$300');
-  assert.equal(badgeShampoo.textContent, '$140');
+  assert.equal(badgeShampoo.textContent, '$110~$140');
   assert.equal(badgeProd.textContent, '門市定價');
 });
 
@@ -384,7 +384,7 @@ test('ensureServicesSynced preserves admin-customized price and commission while
   ];
 
   const result = run(`ensureServicesSynced(${JSON.stringify(customList)})`);
-  assert.equal(result.length, 45); // 44 default POS items + 1 custom item
+  assert.equal(result.length, 47); // 46 default POS items + 1 custom item
   const cutItem = result.find(s => s.id === 'cut-emp-f');
   assert.equal(cutItem.price, 180);
   assert.equal(cutItem.rate, 60);
@@ -777,3 +777,22 @@ test('billing discount prompt appears only for allowDiscount items and is comple
   assert.match(pickerContent.innerHTML, /NT\$ 135/);
 });
 
+
+test('short-hair shampoo items come back and old shampoo data maps to the right long/short item', () => {
+  const ctx = { console };
+  vm.createContext(ctx);
+  for (const file of ['constants', 'state', 'firebase']) {
+    vm.runInContext(readFileSync(join(__dirname, '../js', `${file}.js`), 'utf8'), ctx);
+  }
+  const merged = vm.runInContext(`ensureServicesSynced([
+    { id: 'shampoo-emp', name: '在職員工洗頭', price: 120, rate: 60, category: '洗頭' },
+    { id: 'shampoo-act-short', name: '在職員工洗頭 (短髮)', price: 85, rate: 60, category: '洗頭' },
+    { id: 'my-1', name: '短髮洗頭加按摩', price: 200, rate: 60, category: '洗頭' }
+  ])`, ctx);
+  const byId = id => merged.find(s => s.id === id);
+  assert.equal(byId('shampoo-emp').name, '在職員工洗頭 (長髮)');
+  assert.equal(byId('shampoo-emp').price, 120);
+  assert.equal(byId('shampoo-emp-short').price, 85);
+  assert.equal(byId('shampoo-ext-short').price, 110);
+  assert.ok(byId('my-1'), 'custom items mentioning 短髮 are no longer silently deleted');
+});

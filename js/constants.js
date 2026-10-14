@@ -1,12 +1,14 @@
-const APP_VERSION = '20261013_2';
+const APP_VERSION = '20261014_1';
 
 const DEFAULT_SERVICES = [
   { id: 'cut-emp-f', name: '剪髮 (員工-女)', price: 150, rate: 60, category: '剪髮', gender: ['female'], identity: ['employee', 'retiree'], allowDiscount: false },
   { id: 'cut-emp-m', name: '剪髮 (員工-男)', price: 200, rate: 60, category: '剪髮', gender: ['male'], identity: ['employee', 'retiree'], allowDiscount: false },
   { id: 'cut-ext-pure', name: '純剪 (非員工)', price: 250, rate: 60, category: '剪髮', gender: ['male', 'female'], identity: ['family', 'external'], allowDiscount: false },
   { id: 'cut-ext-blow', name: '剪吹 (非員工)', price: 300, rate: 60, category: '剪髮', gender: ['male', 'female'], identity: ['family', 'external'], allowDiscount: false },
-  { id: 'shampoo-emp', name: '在職員工洗頭', price: 110, rate: 60, category: '洗頭', gender: ['male', 'female'], identity: ['employee'], allowDiscount: false },
-  { id: 'shampoo-ext', name: '退休/非員工洗頭', price: 140, rate: 60, category: '洗頭', gender: ['male', 'female'], identity: ['retiree', 'family', 'external'], allowDiscount: false },
+  { id: 'shampoo-emp', name: '在職員工洗頭 (長髮)', price: 110, rate: 60, category: '洗頭', gender: ['male', 'female'], identity: ['employee'], allowDiscount: false },
+  { id: 'shampoo-emp-short', name: '在職員工洗頭 (短髮)', price: 80, rate: 60, category: '洗頭', gender: ['male', 'female'], identity: ['employee'], allowDiscount: false },
+  { id: 'shampoo-ext', name: '退休/非員工洗頭 (長髮)', price: 140, rate: 60, category: '洗頭', gender: ['male', 'female'], identity: ['retiree', 'family', 'external'], allowDiscount: false },
+  { id: 'shampoo-ext-short', name: '退休/非員工洗頭 (短髮)', price: 110, rate: 60, category: '洗頭', gender: ['male', 'female'], identity: ['retiree', 'family', 'external'], allowDiscount: false },
   { id: 'scalp-standard', name: '頭皮深層去角質', price: 350, rate: 54, category: '去角質', gender: ['male', 'female'], identity: ['employee', 'retiree', 'family', 'external'], allowDiscount: false },
   { id: 'treat-steamer', name: '護髮 (蒸器)', price: 120, rate: 60, category: '護髮', gender: ['male', 'female'], identity: ['employee', 'retiree', 'family', 'external'], allowDiscount: false },
   { id: 'treat-sonic', name: '護髮 (超音波)', price: 250, rate: 60, category: '護髮', gender: ['male', 'female'], identity: ['employee', 'retiree', 'family', 'external'], allowDiscount: false },

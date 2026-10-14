@@ -6,13 +6,28 @@ let posPermChemical = 'company';
 function getServiceItem(serviceId) {
   const aliasMap = {
     'shampoo-act-long': 'shampoo-emp',
-    'shampoo-act-short': 'shampoo-emp',
+    'shampoo-act-short': 'shampoo-emp-short',
     'shampoo-ret-long': 'shampoo-ext',
-    'shampoo-ret-short': 'shampoo-ext'
+    'shampoo-ret-short': 'shampoo-ext-short'
   };
   const targetId = aliasMap[serviceId] || serviceId;
   return (typeof appState !== 'undefined' && appState.services && (appState.services.find(s => s.id === targetId) || appState.services.find(s => s.id === serviceId))) ||
          (typeof DEFAULT_SERVICES !== 'undefined' && (DEFAULT_SERVICES.find(s => s.id === targetId) || DEFAULT_SERVICES.find(s => s.id === serviceId))) || null;
+}
+
+// 內建項目若已在「設定」中刪除，開單畫面不再提供
+function isPosServiceAvailable(serviceId) {
+  const services = (typeof appState !== 'undefined' && Array.isArray(appState.services)) ? appState.services : [];
+  if (services.length === 0) return true;
+  return services.some(s => s && s.id === serviceId);
+}
+
+function hideUnavailablePosButtons(el) {
+  if (!el || typeof el.querySelectorAll !== 'function') return;
+  el.querySelectorAll('button[onclick^="selectPosItemWithDiscountCheck(\'"]').forEach(btn => {
+    const match = (btn.getAttribute('onclick') || '').match(/^selectPosItemWithDiscountCheck\('([^']+)'/);
+    if (match && !isPosServiceAvailable(match[1])) btn.remove();
+  });
 }
 
 function getServicePrice(serviceId, fallback = 0) {
@@ -213,8 +228,9 @@ function renderPosWizard() {
   const pCutPure = getServicePrice('cut-ext-pure', 250);
   const pCutBlow = getServicePrice('cut-ext-blow', 300);
 
-  const pShampEmp = getServicePrice('shampoo-emp', 110);
-  const pShampExt = getServicePrice('shampoo-ext', 140);
+  const isEmpShampoo = posIdentity === 'employee';
+  const pShampLong = getServicePrice(isEmpShampoo ? 'shampoo-emp' : 'shampoo-ext', 0);
+  const pShampShort = getServicePrice(isEmpShampoo ? 'shampoo-emp-short' : 'shampoo-ext-short', 0);
 
   const pScalp = getServicePrice('scalp-standard', 350);
 
@@ -242,10 +258,11 @@ function renderPosWizard() {
   const badgeShampoo = document.getElementById('pos-badge-shampoo');
   const descShampoo = document.getElementById('pos-desc-shampoo');
   if (badgeShampoo) {
-    badgeShampoo.textContent = (posIdentity === 'employee') ? `$${pShampEmp}` : `$${pShampExt}`;
+    const lo = Math.min(pShampLong, pShampShort), hi = Math.max(pShampLong, pShampShort);
+    badgeShampoo.textContent = lo === hi ? `$${hi}` : `$${lo}~$${hi}`;
   }
   if (descShampoo) {
-    descShampoo.textContent = (posIdentity === 'employee') ? `員工洗頭 $${pShampEmp}` : `洗頭 $${pShampExt}`;
+    descShampoo.textContent = `長髮 $${pShampLong} / 短髮 $${pShampShort}`;
   }
 
   const badgeScalp = document.getElementById('pos-badge-scalp');
@@ -347,6 +364,7 @@ function openPosCategoryModal(catId) {
   } else if (catId === 'other') {
     contentEl.innerHTML = '';
   }
+  hideUnavailablePosButtons(contentEl);
   appendCustomServiceOptions(contentEl, catId);
 
   modal.classList.remove('hidden');
@@ -441,7 +459,7 @@ function selectPosItemWithDiscountCheck(serviceId, overridePrice = null, customN
   const srv = getServiceItem(serviceId);
   const price = overridePrice !== null ? overridePrice : (srv ? srv.price : 0);
   const name = customName || (srv ? srv.name : '美髮項目');
-  const rate = customRate !== null ? customRate : (srv ? (srv.rate || 0) : 0);
+  const rate = (srv && typeof srv.rate === 'number') ? srv.rate : (customRate !== null ? customRate : 0);
   const allowDiscount = srv ? (srv.allowDiscount === true) : false;
 
   if (!allowDiscount) {
@@ -496,7 +514,8 @@ function showItemDiscountPrompt(serviceId, originalPrice, name, qty, rate) {
 }
 
 function applyItemWithDiscount(serviceId, finalPrice, name, qty, rate, isDiscounted) {
-  const displayName = isDiscounted ? `${name} (打折)` : name;
+  const baseName = name || getServiceItem(serviceId)?.name || '美髮項目';
+  const displayName = isDiscounted ? `${baseName} (打折)` : baseName;
   addPosItem(serviceId, finalPrice, displayName, qty, rate);
 }
 
@@ -510,14 +529,14 @@ function renderCutOptions(el) {
   if (isEmployee) {
     el.innerHTML = `
       <div class="space-y-2">
-        <button type="button" onclick="selectPosItemWithDiscountCheck('cut-emp-f', ${fPrice}, '剪髮 (員工-女)');" class="w-full p-4 rounded-2xl border ${posGender === 'female' ? 'border-amber-500 bg-amber-50/70 ring-2 ring-amber-400' : 'border-slate-200 bg-white hover:bg-slate-50'} transition flex items-center justify-between text-left">
+        <button type="button" onclick="selectPosItemWithDiscountCheck('cut-emp-f', ${fPrice});" class="w-full p-4 rounded-2xl border ${posGender === 'female' ? 'border-amber-500 bg-amber-50/70 ring-2 ring-amber-400' : 'border-slate-200 bg-white hover:bg-slate-50'} transition flex items-center justify-between text-left">
           <div class="flex items-center gap-3">
             <span class="text-2xl">👩</span>
             <div class="font-bold text-slate-900 text-sm">女剪髮</div>
           </div>
           <span class="text-base font-black text-amber-700 font-numeric">NT$ ${fPrice.toLocaleString()}</span>
         </button>
-        <button type="button" onclick="selectPosItemWithDiscountCheck('cut-emp-m', ${mPrice}, '剪髮 (員工-男)');" class="w-full p-4 rounded-2xl border ${posGender === 'male' ? 'border-amber-500 bg-amber-50/70 ring-2 ring-amber-400' : 'border-slate-200 bg-white hover:bg-slate-50'} transition flex items-center justify-between text-left">
+        <button type="button" onclick="selectPosItemWithDiscountCheck('cut-emp-m', ${mPrice});" class="w-full p-4 rounded-2xl border ${posGender === 'male' ? 'border-amber-500 bg-amber-50/70 ring-2 ring-amber-400' : 'border-slate-200 bg-white hover:bg-slate-50'} transition flex items-center justify-between text-left">
           <div class="flex items-center gap-3">
             <span class="text-2xl">👨</span>
             <div class="font-bold text-slate-900 text-sm">男剪髮</div>
@@ -529,14 +548,14 @@ function renderCutOptions(el) {
   } else {
     el.innerHTML = `
       <div class="space-y-2">
-        <button type="button" onclick="selectPosItemWithDiscountCheck('cut-ext-pure', ${purePrice}, '純剪 (非員工)');" class="w-full p-4 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
+        <button type="button" onclick="selectPosItemWithDiscountCheck('cut-ext-pure', ${purePrice});" class="w-full p-4 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
           <div class="flex items-center gap-3">
             <span class="text-2xl">✂️</span>
             <div class="font-bold text-slate-900 text-sm">純剪</div>
           </div>
           <span class="text-base font-black text-amber-700 font-numeric">NT$ ${purePrice.toLocaleString()}</span>
         </button>
-        <button type="button" onclick="selectPosItemWithDiscountCheck('cut-ext-blow', ${blowPrice}, '剪吹 (非員工)');" class="w-full p-4 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
+        <button type="button" onclick="selectPosItemWithDiscountCheck('cut-ext-blow', ${blowPrice});" class="w-full p-4 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
           <div class="flex items-center gap-3">
             <span class="text-2xl">💨</span>
             <div class="font-bold text-slate-900 text-sm">剪吹</div>
@@ -550,41 +569,34 @@ function renderCutOptions(el) {
 
 function renderShampooOptions(el) {
   const isEmployee = posIdentity === 'employee';
-  const empPrice = getServicePrice('shampoo-emp', 110);
-  const extPrice = getServicePrice('shampoo-ext', 140);
-  const defaultItemId = isEmployee ? 'shampoo-emp' : 'shampoo-ext';
-  const defaultPrice = isEmployee ? empPrice : extPrice;
-  const defaultTitle = isEmployee ? '在職員工洗頭' : '退休/非員工洗頭';
+  const groups = [
+    { title: '在職員工', longId: 'shampoo-emp', shortId: 'shampoo-emp-short', current: isEmployee },
+    { title: '退休 / 眷屬 / 非員工', longId: 'shampoo-ext', shortId: 'shampoo-ext-short', current: !isEmployee }
+  ].sort((a, b) => Number(b.current) - Number(a.current));
+
+  const lengthButton = (id, label, highlight) => {
+    if (!isPosServiceAvailable(id)) return '';
+    const price = getServicePrice(id, 0);
+    return `
+      <button type="button" onclick="selectPosItemWithDiscountCheck('${id}', ${price});" class="p-3.5 rounded-2xl border transition text-center space-y-0.5 ${highlight
+        ? 'border-amber-500 bg-amber-50/70 hover:bg-amber-50'
+        : 'border-slate-200 bg-white hover:bg-slate-50'}">
+        <div class="font-bold text-slate-900 text-sm">${label}</div>
+        <div class="${highlight ? 'text-base font-black text-amber-700' : 'text-sm font-bold text-slate-500'} font-numeric">NT$ ${price.toLocaleString()}</div>
+      </button>`;
+  };
 
   el.innerHTML = `
-    <div class="space-y-2.5">
-      <button type="button" onclick="selectPosItemWithDiscountCheck('${defaultItemId}', ${defaultPrice}, '${defaultTitle}');" class="w-full p-4 rounded-2xl border border-amber-500 bg-amber-50/70 hover:bg-amber-50 ring-2 ring-amber-400 transition flex items-center justify-between text-left">
-        <div class="flex items-center gap-3">
-          <span class="text-2xl">💆</span>
-          <div>
-            <div class="font-bold text-slate-900 text-sm">${defaultTitle}</div>
+    <div class="space-y-3">
+      ${groups.map(g => `
+        <div class="space-y-1.5">
+          <div class="text-xs font-bold ${g.current ? 'text-amber-700' : 'text-slate-400'}">💆 ${g.title}${g.current ? '（目前客人）' : ''}</div>
+          <div class="grid grid-cols-2 gap-2">
+            ${lengthButton(g.longId, '長髮', g.current)}
+            ${lengthButton(g.shortId, '短髮', g.current)}
           </div>
         </div>
-        <span class="text-base font-black text-amber-700 font-numeric">NT$ ${defaultPrice.toLocaleString()}</span>
-      </button>
-
-      ${!isEmployee ? `
-        <button type="button" onclick="selectPosItemWithDiscountCheck('shampoo-emp', ${empPrice}, '在職員工洗頭');" class="w-full p-3.5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
-          <div class="flex items-center gap-3">
-            <span class="text-xl">💆</span>
-            <div class="font-semibold text-slate-700 text-xs">在職員工洗頭</div>
-          </div>
-          <span class="text-xs font-bold text-slate-500 font-numeric">NT$ ${empPrice.toLocaleString()}</span>
-        </button>
-      ` : `
-        <button type="button" onclick="selectPosItemWithDiscountCheck('shampoo-ext', ${extPrice}, '退休/非員工洗頭');" class="w-full p-3.5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
-          <div class="flex items-center gap-3">
-            <span class="text-xl">💆</span>
-            <div class="font-semibold text-slate-700 text-xs">退休/非員工洗頭</div>
-          </div>
-          <span class="text-xs font-bold text-slate-500 font-numeric">NT$ ${extPrice.toLocaleString()}</span>
-        </button>
-      `}
+      `).join('')}
     </div>
   `;
 }
@@ -593,7 +605,7 @@ function renderScalpOptions(el) {
   const scalpPrice = getServicePrice('scalp-standard', 350);
   el.innerHTML = `
     <div class="space-y-2">
-      <button type="button" onclick="selectPosItemWithDiscountCheck('scalp-standard', ${scalpPrice}, '頭皮深層去角質', 1, 54);" class="w-full p-4 rounded-2xl border border-emerald-300 bg-emerald-50/50 hover:bg-emerald-50 transition flex items-center justify-between text-left">
+      <button type="button" onclick="selectPosItemWithDiscountCheck('scalp-standard', ${scalpPrice});" class="w-full p-4 rounded-2xl border border-emerald-300 bg-emerald-50/50 hover:bg-emerald-50 transition flex items-center justify-between text-left">
         <div class="flex items-center gap-3">
           <span class="text-2xl">🌿</span>
           <div class="font-bold text-slate-900 text-sm">頭皮深層去角質</div>
@@ -606,20 +618,20 @@ function renderScalpOptions(el) {
 
 function renderTreatmentOptions(el) {
   const items = [
-    { id: 'treat-steamer', name: getServiceItem('treat-steamer')?.name || '護髮 (蒸器)', price: getServicePrice('treat-steamer', 120), icon: '💨', rate: 60 },
-    { id: 'treat-sonic', name: getServiceItem('treat-sonic')?.name || '護髮 (超音波)', price: getServicePrice('treat-sonic', 250), icon: '🔊', rate: 60 },
-    { id: 'treat-ext-comp', name: getServiceItem('treat-ext-comp')?.name || '護髮 (非員工/用公司)', price: getServicePrice('treat-ext-comp', 450), icon: '🏢', rate: 54 },
-    { id: 'treat-emp-steamer', name: getServiceItem('treat-emp-steamer')?.name || '護髮 (員工產品蒸器)', price: getServicePrice('treat-emp-steamer', 450), icon: '🧴', rate: 54 },
-    { id: 'treat-emp-sonic', name: getServiceItem('treat-emp-sonic')?.name || '護髮 (員工產品超音波)', price: getServicePrice('treat-emp-sonic', 600), icon: '✨', rate: 54 }
+    { id: 'treat-steamer', name: getServiceItem('treat-steamer')?.name || '護髮 (蒸器)', price: getServicePrice('treat-steamer', 120), icon: '💨' },
+    { id: 'treat-sonic', name: getServiceItem('treat-sonic')?.name || '護髮 (超音波)', price: getServicePrice('treat-sonic', 250), icon: '🔊' },
+    { id: 'treat-ext-comp', name: getServiceItem('treat-ext-comp')?.name || '護髮 (非員工/用公司)', price: getServicePrice('treat-ext-comp', 450), icon: '🏢' },
+    { id: 'treat-emp-steamer', name: getServiceItem('treat-emp-steamer')?.name || '護髮 (員工產品蒸器)', price: getServicePrice('treat-emp-steamer', 450), icon: '🧴' },
+    { id: 'treat-emp-sonic', name: getServiceItem('treat-emp-sonic')?.name || '護髮 (員工產品超音波)', price: getServicePrice('treat-emp-sonic', 600), icon: '✨' }
   ];
 
   el.innerHTML = `
     <div class="space-y-2">
       ${items.map(it => `
-        <button type="button" onclick="selectPosItemWithDiscountCheck('${it.id}', ${it.price}, '${it.name}', 1, ${it.rate});" class="w-full p-3.5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
+        <button type="button" onclick="selectPosItemWithDiscountCheck('${it.id}', ${it.price});" class="w-full p-3.5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
           <div class="flex items-center gap-3">
             <span class="text-2xl">${it.icon}</span>
-            <div class="font-bold text-slate-900 text-sm">${it.name}</div>
+            <div class="font-bold text-slate-900 text-sm">${escapeBillingText(it.name)}</div>
           </div>
           <span class="text-sm font-black text-amber-700 font-numeric">NT$ ${it.price.toLocaleString()}</span>
         </button>
@@ -636,7 +648,7 @@ function renderColorOptions(el) {
 
   el.innerHTML = `
     <div class="space-y-2">
-      <button type="button" onclick="selectPosItemWithDiscountCheck('color-company', ${pCompany}, '染髮 (用公司染劑)', 1, 54);" class="w-full p-3.5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
+      <button type="button" onclick="selectPosItemWithDiscountCheck('color-company', ${pCompany});" class="w-full p-3.5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
         <div class="flex items-center gap-3">
           <span class="text-2xl">🏢</span>
           <div class="font-bold text-slate-900 text-sm">用公司染劑</div>
@@ -644,7 +656,7 @@ function renderColorOptions(el) {
         <span class="text-sm font-black text-amber-700 font-numeric">NT$ ${pCompany.toLocaleString()}</span>
       </button>
 
-      <button type="button" onclick="selectPosItemWithDiscountCheck('color-bring', ${pBring}, '染髮 (顧客自備染膏)', 1, 60);" class="w-full p-3.5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
+      <button type="button" onclick="selectPosItemWithDiscountCheck('color-bring', ${pBring});" class="w-full p-3.5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
         <div class="flex items-center gap-3">
           <span class="text-2xl">🧴</span>
           <div class="font-bold text-slate-900 text-sm">顧客自備染膏</div>
@@ -652,7 +664,7 @@ function renderColorOptions(el) {
         <span class="text-sm font-black text-amber-700 font-numeric">NT$ ${pBring.toLocaleString()}</span>
       </button>
 
-      <button type="button" onclick="selectPosItemWithDiscountCheck('color-designer', ${pDesigner}, '染髮 (設計師自備染膏)', 1, 60);" class="w-full p-3.5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
+      <button type="button" onclick="selectPosItemWithDiscountCheck('color-designer', ${pDesigner});" class="w-full p-3.5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
         <div class="flex items-center gap-3">
           <span class="text-2xl">🎨</span>
           <div class="font-bold text-slate-900 text-sm">設計師自備染膏</div>
@@ -660,7 +672,7 @@ function renderColorOptions(el) {
         <span class="text-sm font-black text-amber-700 font-numeric">NT$ ${pDesigner.toLocaleString()}</span>
       </button>
 
-      <button type="button" onclick="selectPosItemWithDiscountCheck('color-barrier', ${pBarrier}, '染髮 (頭皮隔離霜)', 1, 54);" class="w-full p-3.5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
+      <button type="button" onclick="selectPosItemWithDiscountCheck('color-barrier', ${pBarrier});" class="w-full p-3.5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
         <div class="flex items-center gap-3">
           <span class="text-2xl">🛡️</span>
           <div class="font-bold text-slate-900 text-sm">頭皮隔離霜</div>
@@ -676,6 +688,7 @@ function setPermChemicalType(type) {
   const contentEl = document.getElementById('pos-picker-content');
   if (contentEl) {
     renderPermOptions(contentEl);
+    hideUnavailablePosButtons(contentEl);
     appendCustomServiceOptions(contentEl, 'perm');
   }
 }
@@ -717,7 +730,7 @@ function renderPermOptions(el) {
         </div>
 
         ${isEmployee ? `
-          <button type="button" onclick="selectPosItemWithDiscountCheck('${coldEmpId}', ${coldEmp}, '冷燙整頭-員工 ${chemLabel}', 1, ${chemRate});" class="w-full p-3.5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
+          <button type="button" onclick="selectPosItemWithDiscountCheck('${coldEmpId}', ${coldEmp});" class="w-full p-3.5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
             <div class="flex items-center gap-3">
               <span class="text-2xl">❄️</span>
               <div class="font-bold text-slate-900 text-sm">冷燙整頭 (員工)</div>
@@ -725,7 +738,7 @@ function renderPermOptions(el) {
             <span class="text-sm font-black text-amber-700 font-numeric">NT$ ${coldEmp.toLocaleString()}</span>
           </button>
         ` : `
-          <button type="button" onclick="selectPosItemWithDiscountCheck('${coldFamId}', ${coldFam}, '冷燙整頭-非員工 ${chemLabel}', 1, ${chemRate});" class="w-full p-3.5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
+          <button type="button" onclick="selectPosItemWithDiscountCheck('${coldFamId}', ${coldFam});" class="w-full p-3.5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
             <div class="flex items-center gap-3">
               <span class="text-2xl">❄️</span>
               <div class="font-bold text-slate-900 text-sm">冷燙整頭</div>
@@ -755,15 +768,15 @@ function renderPermOptions(el) {
         <div class="text-xs font-bold text-slate-500">
           溫朔燙 ${chemLabel}
         </div>
-        <button type="button" onclick="selectPosItemWithDiscountCheck('${digShortId}', ${digShort}, '溫朔燙 (短髮) ${chemLabel}', 1, ${chemRate});" class="w-full p-3.5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
+        <button type="button" onclick="selectPosItemWithDiscountCheck('${digShortId}', ${digShort});" class="w-full p-3.5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
           <div class="font-bold text-slate-900 text-sm">短髮</div>
           <span class="text-sm font-black text-amber-700 font-numeric">NT$ ${digShort.toLocaleString()}</span>
         </button>
-        <button type="button" onclick="selectPosItemWithDiscountCheck('${digLongId}', ${digLong}, '溫朔燙 (長髮) ${chemLabel}', 1, ${chemRate});" class="w-full p-3.5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
+        <button type="button" onclick="selectPosItemWithDiscountCheck('${digLongId}', ${digLong});" class="w-full p-3.5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
           <div class="font-bold text-slate-900 text-sm">長髮</div>
           <span class="text-sm font-black text-amber-700 font-numeric">NT$ ${digLong.toLocaleString()}</span>
         </button>
-        <button type="button" onclick="selectPosItemWithDiscountCheck('${digXlongId}', ${digXlong}, '溫朔燙 (過長) ${chemLabel}', 1, ${chemRate});" class="w-full p-3.5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
+        <button type="button" onclick="selectPosItemWithDiscountCheck('${digXlongId}', ${digXlong});" class="w-full p-3.5 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50 transition flex items-center justify-between text-left">
           <div class="font-bold text-slate-900 text-sm">過長</div>
           <span class="text-sm font-black text-amber-700 font-numeric">NT$ ${digXlong.toLocaleString()}</span>
         </button>
@@ -787,9 +800,8 @@ function addPermRollsItem() {
   const unitPrice = isDesignerChem ? getServicePrice('perm-cold-part-self', 50) : getServicePrice('perm-cold-part', 50);
   const partId = isDesignerChem ? 'perm-cold-part-self' : 'perm-cold-part';
   const total = posPermRolls * unitPrice;
-  const chemRate = isDesignerChem ? 60 : 54;
-  const chemLabel = isDesignerChem ? '(自備藥水)' : '(公司藥水)';
-  selectPosItemWithDiscountCheck(partId, total, `冷燙髮 (局部補燙 ${posPermRolls}卷) ${chemLabel}`, 1, chemRate);
+  const baseName = getServiceItem(partId)?.name || '冷燙髮 (局部補燙)';
+  selectPosItemWithDiscountCheck(partId, total, `${baseName} ×${posPermRolls}卷`);
 }
 
 function renderProductsOptions(el, query = '') {
@@ -807,7 +819,7 @@ function renderProductsOptions(el, query = '') {
         <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-slate-400">
           <i data-lucide="search" class="w-4 h-4"></i>
         </span>
-        <input type="text" id="pos-product-search" value="${query}" oninput="renderProductsOptions(document.getElementById('pos-picker-content'), this.value)" placeholder="搜尋產品名稱..." class="w-full pl-9 pr-3 py-2 text-xs font-semibold rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500">
+        <input type="text" id="pos-product-search" value="${escapeBillingText(query)}" oninput="renderProductsOptions(document.getElementById('pos-picker-content'), this.value)" placeholder="搜尋產品名稱..." class="w-full pl-9 pr-3 py-2 text-xs font-semibold rounded-xl border border-slate-300 bg-white focus:ring-2 focus:ring-amber-500/20 focus:border-amber-500">
       </div>
 
       <div class="space-y-2 max-h-[55vh] overflow-y-auto pr-1">
@@ -817,13 +829,13 @@ function renderProductsOptions(el, query = '') {
           const empP = (typeof p.empPrice === 'number' && p.empPrice > 0 && p.empPrice < p.price)
             ? p.empPrice
             : Math.round(p.price * 0.9);
-          const commRate = typeof p.rate === 'number' && p.rate > 0 ? p.rate : 30;
+          const commRate = typeof p.rate === 'number' ? p.rate : 30;
           const allowsDiscount = p.allowDiscount !== false;
 
           return `
             <div class="p-3 rounded-2xl border border-slate-200 bg-white hover:bg-slate-50/80 transition flex items-center justify-between gap-2 shadow-2xs">
               <div class="min-w-0 flex-1">
-                <div class="font-bold text-slate-900 text-xs sm:text-sm truncate">${p.name}</div>
+                <div class="font-bold text-slate-900 text-xs sm:text-sm truncate">${escapeBillingText(p.name)}</div>
                 <div class="flex items-center gap-2 mt-0.5 flex-wrap">
                   <span class="text-xs font-black text-slate-800 font-numeric">NT$ ${p.price.toLocaleString()}</span>
                   ${allowsDiscount ? `
@@ -834,14 +846,14 @@ function renderProductsOptions(el, query = '') {
 
               <div class="flex items-center gap-1.5 shrink-0">
                 ${allowsDiscount ? `
-                  <button type="button" onclick="applyItemWithDiscount('${p.id}', ${p.price}, '${p.name}', 1, ${commRate}, false); closePosPickerModal();" class="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition">
+                  <button type="button" onclick="applyItemWithDiscount('${p.id}', ${p.price}, '', 1, ${commRate}, false); closePosPickerModal();" class="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition">
                     原價
                   </button>
-                  <button type="button" onclick="applyItemWithDiscount('${p.id}', ${empP}, '${p.name}', 1, ${commRate}, true); closePosPickerModal();" class="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition flex items-center gap-0.5 shadow-2xs">
+                  <button type="button" onclick="applyItemWithDiscount('${p.id}', ${empP}, '', 1, ${commRate}, true); closePosPickerModal();" class="px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl transition flex items-center gap-0.5 shadow-2xs">
                     9折
                   </button>
                 ` : `
-                  <button type="button" onclick="addPosItem('${p.id}', ${p.price}, '${p.name}', 1, ${commRate}); closePosPickerModal();" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl transition flex items-center gap-1 shadow-2xs">
+                  <button type="button" onclick="addPosItem('${p.id}', ${p.price}, '', 1, ${commRate}); closePosPickerModal();" class="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold rounded-xl transition flex items-center gap-1 shadow-2xs">
                     <i data-lucide="plus" class="w-3.5 h-3.5"></i> 加入
                   </button>
                 `}

@@ -46,6 +46,25 @@ function initFirebase() {
 }
 
 
+// 舊版洗頭項目（未分長短髮、或舊 ID）對應到目前的長髮 / 短髮項目
+function isLegacyShampooMatch(defId, sNorm) {
+  if (!sNorm.includes('洗頭')) return false;
+  const isShort = sNorm.includes('短髮');
+  const isEmp = sNorm.includes('在職');
+  const isExt = sNorm.includes('退休') || sNorm.includes('非員工');
+  if (defId === 'shampoo-emp') return isEmp && !isShort;
+  if (defId === 'shampoo-emp-short') return isEmp && isShort;
+  if (defId === 'shampoo-ext') return isExt && !isShort;
+  if (defId === 'shampoo-ext-short') return isExt && isShort;
+  return false;
+}
+
+function isLegacyShampooName(defId, name) {
+  if (defId !== 'shampoo-emp' && defId !== 'shampoo-ext') return false;
+  const n = String(name || '').replace(/[\s\(\)\-_（）]/g, '');
+  return n === '在職員工洗頭' || n === '退休/非員工洗頭';
+}
+
 // deletedServiceIds：管理員刪除的內建項目 ID 清單，同步時不再自動補回
 function ensureServicesSynced(existingServices, deletedServiceIds = []) {
   const deletedSet = new Set(Array.isArray(deletedServiceIds) ? deletedServiceIds : []);
@@ -58,10 +77,8 @@ function ensureServicesSynced(existingServices, deletedServiceIds = []) {
   const isDeprecatedService = s => {
     if (!s) return true;
     if (s.id === 'color-bring-next') return true;
-    if (s.id === 'shampoo-act-short' || s.id === 'shampoo-ret-short') return true;
     const n = norm(s.name);
     if (n.includes('明年啟動') || (n.includes('自帶') && n.includes('明年'))) return true;
-    if (n.includes('洗頭') && n.includes('短髮')) return true;
     return false;
   };
 
@@ -81,6 +98,8 @@ function ensureServicesSynced(existingServices, deletedServiceIds = []) {
       // 舊版 ID 映射轉移
       if (s.id === 'shampoo-act-long') s.id = 'shampoo-emp';
       if (s.id === 'shampoo-ret-long') s.id = 'shampoo-ext';
+      if (s.id === 'shampoo-act-short') s.id = 'shampoo-emp-short';
+      if (s.id === 'shampoo-ret-short') s.id = 'shampoo-ext-short';
       existingMap.set(s.id, s);
     }
   });
@@ -99,7 +118,7 @@ function ensureServicesSynced(existingServices, deletedServiceIds = []) {
     } else {
       for (const [id, s] of existingMap.entries()) {
         const sNorm = norm(s.name);
-        if (!handledIds.has(id) && (sNorm === defNormName || (def.id === 'shampoo-emp' && sNorm.includes('在職') && sNorm.includes('洗頭')) || (def.id === 'shampoo-ext' && (sNorm.includes('退休') || sNorm.includes('非員工')) && sNorm.includes('洗頭')))) {
+        if (!handledIds.has(id) && (sNorm === defNormName || isLegacyShampooMatch(def.id, sNorm))) {
           matchedItem = s;
           handledIds.add(id);
           break;
@@ -124,7 +143,7 @@ function ensureServicesSynced(existingServices, deletedServiceIds = []) {
         ...def,
         ...matchedItem,
         id: def.id,
-        name: (matchedItem.id === def.id && def.id !== 'prod-16') ? (matchedItem.name || def.name) : def.name,
+        name: (matchedItem.id === def.id && def.id !== 'prod-16' && !isLegacyShampooName(def.id, matchedItem.name)) ? (matchedItem.name || def.name) : def.name,
         category: (matchedItem.category && matchedItem.category !== '技術服務') ? matchedItem.category : def.category,
         price: typeof matchedItem.price === 'number' ? matchedItem.price : def.price,
         rate: (() => {
